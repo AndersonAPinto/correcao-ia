@@ -233,7 +233,7 @@ export default function App() {
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-950">
       <Sidebar 
         activeView={activeView} 
         setActiveView={setActiveView} 
@@ -241,20 +241,20 @@ export default function App() {
       />
 
       <div className="flex-1 flex flex-col">
-        <header className="bg-white border-b sticky top-0 z-10">
+        <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 sticky top-0 z-10">
           <div className="px-6 py-4 flex items-center justify-between">
             <div>
-              <h1 className="text-xl font-semibold text-gray-900">
+              <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
                 Olá, {user?.name}
               </h1>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
                 {user?.isAdmin === 1 ? 'Administrador' : 'Bem-vindo à plataforma'}
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-lg">
-                <Coins className="h-5 w-5 text-blue-600" />
-                <span className="font-semibold text-blue-900">{credits} créditos</span>
+              <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <Coins className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                <span className="font-semibold text-blue-900 dark:text-blue-300">{credits} créditos</span>
               </div>
               <NotificationBell />
               <Button variant="outline" size="sm" onClick={handleLogout}>
@@ -265,7 +265,7 @@ export default function App() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-6 bg-gray-50 dark:bg-gray-950">
           <div className="max-w-7xl mx-auto">
             {activeView === 'painel' && (
               <PainelSection onUploadSuccess={handleUploadSuccess} />
