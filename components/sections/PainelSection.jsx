@@ -318,7 +318,7 @@ export default function PainelSection({ onUploadSuccess }) {
             {/* Período */}
             <div className="space-y-2">
               <Label>Período Avaliativo</Label>
-              <Select value={selectedPeriodo} onValueChange={setSelectedPeriodo}>
+              <Select value={selectedPeriodo || undefined} onValueChange={setSelectedPeriodo}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o período" />
                 </SelectTrigger>
