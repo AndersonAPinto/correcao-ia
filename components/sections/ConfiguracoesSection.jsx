@@ -89,6 +89,39 @@ export default function ConfiguracoesSection({ user, credits }) {
         <p className="text-gray-600">Gerencie seu perfil e preferências</p>
       </div>
 
+      {/* Theme Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Palette className="h-5 w-5" />
+            Aparência
+          </CardTitle>
+          <CardDescription>
+            Personalize o tema da plataforma
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            <Label>Tema</Label>
+            {mounted && (
+              <Select value={theme} onValueChange={setTheme}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o tema" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="light">Claro</SelectItem>
+                  <SelectItem value="dark">Escuro</SelectItem>
+                  <SelectItem value="system">Sistema</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Escolha entre tema claro, escuro ou automático (segue o sistema)
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Profile Card */}
       <Card>
         <CardHeader>
