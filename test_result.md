@@ -101,3 +101,165 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: "Test the Corretor 80/20 API backend endpoints - AI-powered grading assistant with auth, credits, settings, gabaritos, and upload functionality"
+
+backend:
+  - task: "Auth Registration Endpoint"
+    implemented: true
+    working: "NA"
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+        - agent: "testing"
+        - comment: "POST /api/auth/register - needs testing for user creation and initial 10 credits"
+
+  - task: "Auth Login Endpoint"
+    implemented: true
+    working: "NA"
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+        - agent: "testing"
+        - comment: "POST /api/auth/login - needs testing for user authentication"
+
+  - task: "Auth Me Endpoint"
+    implemented: true
+    working: "NA"
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+        - agent: "testing"
+        - comment: "GET /api/auth/me - needs testing for authenticated user info retrieval"
+
+  - task: "Credits Balance Endpoint"
+    implemented: true
+    working: "NA"
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+        - agent: "testing"
+        - comment: "GET /api/credits - needs testing for user credits balance retrieval"
+
+  - task: "Settings Get Endpoint"
+    implemented: true
+    working: "NA"
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+        - agent: "testing"
+        - comment: "GET /api/settings - needs testing for user settings retrieval"
+
+  - task: "Settings Update Endpoint"
+    implemented: true
+    working: "NA"
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+        - agent: "testing"
+        - comment: "PUT /api/settings - needs testing for geminiApiKey and n8nWebhookUrl updates"
+
+  - task: "Gabaritos Create Endpoint"
+    implemented: true
+    working: "NA"
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+        - agent: "testing"
+        - comment: "POST /api/gabaritos - needs testing for answer key creation"
+
+  - task: "Gabaritos List Endpoint"
+    implemented: true
+    working: "NA"
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+        - agent: "testing"
+        - comment: "GET /api/gabaritos - needs testing for user's answer keys listing"
+
+  - task: "Upload Endpoint"
+    implemented: true
+    working: "NA"
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+        - agent: "testing"
+        - comment: "POST /api/upload - needs testing for error cases (no settings, insufficient credits, missing files)"
+
+  - task: "Avaliacoes List Endpoint"
+    implemented: true
+    working: "NA"
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+        - agent: "testing"
+        - comment: "GET /api/avaliacoes - needs testing for grading results retrieval"
+
+frontend:
+  - task: "Frontend UI"
+    implemented: true
+    working: "NA"
+    file: "app/page.js"
+    stuck_count: 0
+    priority: "low"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+        - agent: "testing"
+        - comment: "Frontend testing not required per testing agent instructions"
+
+metadata:
+  created_by: "testing_agent"
+  version: "1.0"
+  test_sequence: 1
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Auth Registration Endpoint"
+    - "Auth Login Endpoint"
+    - "Auth Me Endpoint"
+    - "Credits Balance Endpoint"
+    - "Settings Get Endpoint"
+    - "Settings Update Endpoint"
+    - "Gabaritos Create Endpoint"
+    - "Gabaritos List Endpoint"
+    - "Upload Endpoint"
+    - "Avaliacoes List Endpoint"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    - agent: "testing"
+    - message: "Starting comprehensive backend API testing for Corretor 80/20. Will test all endpoints in priority order: auth flow, credits, settings, gabaritos, upload validation, and avaliacoes."
