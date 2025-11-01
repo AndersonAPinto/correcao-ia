@@ -107,123 +107,153 @@ user_problem_statement: "Test the Corretor 80/20 API backend endpoints - AI-powe
 backend:
   - task: "Auth Registration Endpoint"
     implemented: true
-    working: "NA"
+    working: true
     file: "app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         - working: "NA"
         - agent: "testing"
         - comment: "POST /api/auth/register - needs testing for user creation and initial 10 credits"
+        - working: true
+        - agent: "testing"
+        - comment: "✅ TESTED: User registration working correctly. Creates user with UUID, hashes password, initializes 10 credits, logs transaction, returns JWT token. Error handling works for duplicate emails and missing fields."
 
   - task: "Auth Login Endpoint"
     implemented: true
-    working: "NA"
+    working: true
     file: "app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         - working: "NA"
         - agent: "testing"
         - comment: "POST /api/auth/login - needs testing for user authentication"
+        - working: true
+        - agent: "testing"
+        - comment: "✅ TESTED: Login working correctly. Validates email/password, verifies bcrypt hash, returns JWT token with user info. Properly rejects invalid credentials with 401 status."
 
   - task: "Auth Me Endpoint"
     implemented: true
-    working: "NA"
+    working: true
     file: "app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         - working: "NA"
         - agent: "testing"
         - comment: "GET /api/auth/me - needs testing for authenticated user info retrieval"
+        - working: true
+        - agent: "testing"
+        - comment: "✅ TESTED: Auth/me working correctly. Validates JWT token, retrieves user from database, returns user info (id, email, name). Properly rejects unauthorized requests with 401 status."
 
   - task: "Credits Balance Endpoint"
     implemented: true
-    working: "NA"
+    working: true
     file: "app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         - working: "NA"
         - agent: "testing"
         - comment: "GET /api/credits - needs testing for user credits balance retrieval"
+        - working: true
+        - agent: "testing"
+        - comment: "✅ TESTED: Credits endpoint working correctly. Returns current balance (saldoAtual). New users correctly get 10 initial credits. Requires authentication."
 
   - task: "Settings Get Endpoint"
     implemented: true
-    working: "NA"
+    working: true
     file: "app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         - working: "NA"
         - agent: "testing"
         - comment: "GET /api/settings - needs testing for user settings retrieval"
+        - working: true
+        - agent: "testing"
+        - comment: "✅ TESTED: Settings get working correctly. Creates default empty settings if none exist. Returns geminiApiKey and n8nWebhookUrl fields. Requires authentication."
 
   - task: "Settings Update Endpoint"
     implemented: true
-    working: "NA"
+    working: true
     file: "app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         - working: "NA"
         - agent: "testing"
         - comment: "PUT /api/settings - needs testing for geminiApiKey and n8nWebhookUrl updates"
+        - working: true
+        - agent: "testing"
+        - comment: "✅ TESTED: Settings update working correctly. Uses upsert to create/update settings. Handles geminiApiKey and n8nWebhookUrl fields. Returns success confirmation. Requires authentication."
 
   - task: "Gabaritos Create Endpoint"
     implemented: true
-    working: "NA"
+    working: true
     file: "app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         - working: "NA"
         - agent: "testing"
         - comment: "POST /api/gabaritos - needs testing for answer key creation"
+        - working: true
+        - agent: "testing"
+        - comment: "✅ TESTED: Gabarito creation working correctly. Validates required fields (titulo, conteudo), creates with UUID, stores with userId and timestamp. Returns created gabarito. Requires authentication."
 
   - task: "Gabaritos List Endpoint"
     implemented: true
-    working: "NA"
+    working: true
     file: "app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         - working: "NA"
         - agent: "testing"
         - comment: "GET /api/gabaritos - needs testing for user's answer keys listing"
+        - working: true
+        - agent: "testing"
+        - comment: "✅ TESTED: Gabaritos list working correctly. Returns user's gabaritos sorted by creation date (newest first). Properly filters by userId. Requires authentication."
 
   - task: "Upload Endpoint"
     implemented: true
-    working: "NA"
+    working: true
     file: "app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         - working: "NA"
         - agent: "testing"
         - comment: "POST /api/upload - needs testing for error cases (no settings, insufficient credits, missing files)"
+        - working: true
+        - agent: "testing"
+        - comment: "✅ TESTED: Upload endpoint validation working correctly. Properly checks: credits >= 3, n8nWebhookUrl configured, file uploaded, gabaritoId provided. Error handling works for all validation cases. Full upload flow not tested due to N8N dependency."
 
   - task: "Avaliacoes List Endpoint"
     implemented: true
-    working: "NA"
+    working: true
     file: "app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         - working: "NA"
         - agent: "testing"
         - comment: "GET /api/avaliacoes - needs testing for grading results retrieval"
+        - working: true
+        - agent: "testing"
+        - comment: "✅ TESTED: Avaliacoes list working correctly. Returns user's grading results with gabarito titles populated. Sorts by creation date, limits to 50 results. Requires authentication."
 
 frontend:
   - task: "Frontend UI"
