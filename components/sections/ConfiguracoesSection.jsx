@@ -12,12 +12,18 @@ import { toast } from 'sonner';
 import { Settings, User, CreditCard, Key, Webhook, Palette } from 'lucide-react';
 
 export default function ConfiguracoesSection({ user, credits }) {
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     geminiApiKey: '',
     n8nWebhookUrl: ''
   });
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (user) {
