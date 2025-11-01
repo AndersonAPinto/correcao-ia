@@ -129,14 +129,13 @@ export default function GabaritosSection() {
             <div className="space-y-2">
               <Label htmlFor="perfil">Perfil de Avaliação</Label>
               <Select 
-                value={formData.perfilAvaliacaoId} 
+                value={formData.perfilAvaliacaoId || undefined} 
                 onValueChange={(value) => setFormData({ ...formData, perfilAvaliacaoId: value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione um perfil (opcional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nenhum</SelectItem>
                   {perfis.map((perfil) => (
                     <SelectItem key={perfil.id} value={perfil.id}>
                       {perfil.nome}
@@ -145,7 +144,7 @@ export default function GabaritosSection() {
                 </SelectContent>
               </Select>
               <p className="text-xs text-gray-500">
-                O perfil de avaliação define critérios específicos para correção
+                O perfil de avaliação define critérios específicos para correção (deixe vazio se não quiser usar)
               </p>
             </div>
 
