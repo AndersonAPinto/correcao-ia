@@ -1,13 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Settings, User, CreditCard, Key, Webhook } from 'lucide-react';
+import { Settings, User, CreditCard, Key, Webhook, Palette } from 'lucide-react';
 
 export default function ConfiguracoesSection({ user, credits }) {
   const [formData, setFormData] = useState({
