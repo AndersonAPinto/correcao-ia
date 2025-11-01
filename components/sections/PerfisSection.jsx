@@ -1,0 +1,246 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { toast } from 'sonner';
+import { Award, Sparkles, Upload as UploadIcon } from 'lucide-react';
+
+export default function PerfisSection() {
+  const [perfis, setPerfis] = useState([]);
+  const [formData, setFormData] = useState({
+    nome: '',
+    conteudo: '',
+    arquivo: null
+  });
+  const [creating, setCreating] = useState(false);
+  const [generating, setGenerating] = useState(false);
+
+  useEffect(() => {
+    loadPerfis();
+  }, []);
+
+  const loadPerfis = async () => {
+    const token = localStorage.getItem('token');
+    try {
+      const response = await fetch('/api/perfis', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setPerfis(data.perfis || []);
+      }
+    } catch (error) {
+      console.error('Failed to load perfis:', error);
+    }
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setFormData({ ...formData, arquivo: file });
+    }
+  };
+
+  const handleGerarComIA = async () => {
+    if (!formData.conteudo.trim()) {
+      toast.error('Digite algum conteúdo base primeiro');
+      return;
+    }
+
+    setGenerating(true);
+    const token = localStorage.getItem('token');
+
+    try {
+      const response = await fetch('/api/perfis/gerar', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ conteudo: formData.conteudo })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setFormData({ ...formData, conteudo: data.perfilGerado });
+        toast.success('Perfil gerado com IA!');
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Erro ao gerar perfil');
+      }
+    } catch (error) {
+      toast.error('Erro ao gerar perfil com IA');
+    }
+    setGenerating(false);
+  };
+
+  const handleCreate = async (e) => {
+    e.preventDefault();
+
+    if (!formData.nome) {
+      toast.error('Nome é obrigatório');
+      return;
+    }
+
+    setCreating(true);
+    const token = localStorage.getItem('token');
+    const data = new FormData();
+    data.append('nome', formData.nome);
+    data.append('conteudo', formData.conteudo);
+    if (formData.arquivo) {
+      data.append('arquivo', formData.arquivo);
+    }
+
+    try {
+      const response = await fetch('/api/perfis', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: data
+      });
+
+      if (response.ok) {
+        toast.success('Perfil criado com sucesso!');
+        setFormData({ nome: '', conteudo: '', arquivo: null });
+        loadPerfis();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Erro ao criar perfil');
+      }
+    } catch (error) {
+      toast.error('Erro ao criar perfil');
+    }
+    setCreating(false);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold mb-2">Perfis de Avaliação</h2>
+        <p className="text-gray-600">Defina critérios e diretrizes de correção</p>
+      </div>
+
+      {/* Create Form */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Award className="h-5 w-5" />
+            Criar Perfil de Avaliação
+          </CardTitle>
+          <CardDescription>
+            Upload de documento ou digite manualmente. Use IA para gerar perfil customizado!
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleCreate} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="nome">Nome do Perfil *</Label>
+              <Input
+                id="nome"
+                placeholder="ex: Perfil ENEM Redação, Critérios Escola XYZ"
+                value={formData.nome}
+                onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="arquivo-perfil">Upload de Documento (opcional)</Label>
+              <Input
+                id="arquivo-perfil"
+                type="file"
+                accept=".pdf,.doc,.docx"
+                onChange={handleFileChange}
+              />
+              <p className="text-xs text-gray-500">
+                Envie o documento com critérios de avaliação da sua escola
+              </p>
+              {formData.arquivo && (
+                <p className="text-sm text-green-600">✓ {formData.arquivo.name}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="conteudo-perfil">Conteúdo do Perfil</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleGerarComIA}
+                  disabled={generating || !formData.conteudo.trim()}
+                  className="gap-1"
+                >
+                  <Sparkles className="h-3 w-3" />
+                  {generating ? 'Gerando...' : 'Gerar com IA'}
+                </Button>
+              </div>
+              <Textarea
+                id="conteudo-perfil"
+                placeholder="Digite os critérios de avaliação, escalas de nota, aspectos a considerar...\n\nExemplo base para IA melhorar:\n- Considerar clareza e coerência\n- Avaliar uso correto de conceitos\n- Pontuar organização e estrutura"
+                value={formData.conteudo}
+                onChange={(e) => setFormData({ ...formData, conteudo: e.target.value })}
+                rows={10}
+              />
+              <p className="text-xs text-blue-600">
+                🧪 Dica: Digite um texto base e clique em "Gerar com IA" para criar um perfil profissional!
+              </p>
+            </div>
+
+            <Button type="submit" className="w-full" disabled={creating}>
+              {creating ? 'Criando...' : 'Criar Perfil'}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      {/* List */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Seus Perfis</CardTitle>
+          <CardDescription>{perfis.length} perfil(is) criado(s)</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {perfis.length === 0 ? (
+            <p className="text-center text-gray-500 py-8">
+              Nenhum perfil criado ainda. Crie seu primeiro perfil acima!
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {perfis.map((perfil) => (
+                <div key={perfil.id} className="p-4 border rounded-lg hover:bg-gray-50">
+                  <h3 className="font-semibold text-lg">{perfil.nome}</h3>
+                  {perfil.conteudo && (
+                    <p className="text-sm text-gray-600 mt-1 line-clamp-3 whitespace-pre-wrap">
+                      {perfil.conteudo}
+                    </p>
+                  )}
+                  {perfil.arquivoUrl && (
+                    <div className="mt-2">
+                      <a 
+                        href={perfil.arquivoUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-sm text-blue-600 hover:underline flex items-center gap-1"
+                      >
+                        <UploadIcon className="h-3 w-3" />
+                        Ver documento anexado
+                      </a>
+                    </div>
+                  )}
+                  <p className="text-xs text-gray-400 mt-2">
+                    Criado em: {new Date(perfil.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
