@@ -142,10 +142,10 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className=\"min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center\">
-        <div className=\"text-center\">
-          <div className=\"animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto\"></div>
-          <p className=\"mt-4 text-gray-600\">Carregando...</p>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Carregando...</p>
         </div>
       </div>
     );
@@ -153,78 +153,78 @@ export default function App() {
 
   if (!isAuthenticated) {
     return (
-      <div className=\"min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4\">
-        <Card className=\"w-full max-w-md\">
-          <CardHeader className=\"space-y-1 text-center\">
-            <CardTitle className=\"text-3xl font-bold\">Corretor 80/20</CardTitle>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="space-y-1 text-center">
+            <CardTitle className="text-3xl font-bold">Corretor 80/20</CardTitle>
             <CardDescription>Plataforma de Correção com IA</CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs value={authMode} onValueChange={setAuthMode}>
-              <TabsList className=\"grid w-full grid-cols-2\">
-                <TabsTrigger value=\"login\">Login</TabsTrigger>
-                <TabsTrigger value=\"register\">Registrar</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="login">Login</TabsTrigger>
+                <TabsTrigger value="register">Registrar</TabsTrigger>
               </TabsList>
-              <TabsContent value=\"login\">
-                <form onSubmit={handleAuth} className=\"space-y-4\">
-                  <div className=\"space-y-2\">
-                    <Label htmlFor=\"email\">Email</Label>
+              <TabsContent value="login">
+                <form onSubmit={handleAuth} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
                     <Input
-                      id=\"email\"
-                      type=\"email\"
-                      placeholder=\"seu@email.com\"
+                      id="email"
+                      type="email"
+                      placeholder="seu@email.com"
                       value={authForm.email}
                       onChange={(e) => setAuthForm({ ...authForm, email: e.target.value })}
                       required
                     />
                   </div>
-                  <div className=\"space-y-2\">
-                    <Label htmlFor=\"password\">Senha</Label>
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Senha</Label>
                     <Input
-                      id=\"password\"
-                      type=\"password\"
+                      id="password"
+                      type="password"
                       value={authForm.password}
                       onChange={(e) => setAuthForm({ ...authForm, password: e.target.value })}
                       required
                     />
                   </div>
-                  <Button type=\"submit\" className=\"w-full\">Entrar</Button>
+                  <Button type="submit" className="w-full">Entrar</Button>
                 </form>
               </TabsContent>
-              <TabsContent value=\"register\">
-                <form onSubmit={handleAuth} className=\"space-y-4\">
-                  <div className=\"space-y-2\">
-                    <Label htmlFor=\"name\">Nome</Label>
+              <TabsContent value="register">
+                <form onSubmit={handleAuth} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Nome</Label>
                     <Input
-                      id=\"name\"
-                      placeholder=\"Seu nome\"
+                      id="name"
+                      placeholder="Seu nome"
                       value={authForm.name}
                       onChange={(e) => setAuthForm({ ...authForm, name: e.target.value })}
                       required
                     />
                   </div>
-                  <div className=\"space-y-2\">
-                    <Label htmlFor=\"reg-email\">Email</Label>
+                  <div className="space-y-2">
+                    <Label htmlFor="reg-email">Email</Label>
                     <Input
-                      id=\"reg-email\"
-                      type=\"email\"
-                      placeholder=\"seu@email.com\"
+                      id="reg-email"
+                      type="email"
+                      placeholder="seu@email.com"
                       value={authForm.email}
                       onChange={(e) => setAuthForm({ ...authForm, email: e.target.value })}
                       required
                     />
                   </div>
-                  <div className=\"space-y-2\">
-                    <Label htmlFor=\"reg-password\">Senha</Label>
+                  <div className="space-y-2">
+                    <Label htmlFor="reg-password">Senha</Label>
                     <Input
-                      id=\"reg-password\"
-                      type=\"password\"
+                      id="reg-password"
+                      type="password"
                       value={authForm.password}
                       onChange={(e) => setAuthForm({ ...authForm, password: e.target.value })}
                       required
                     />
                   </div>
-                  <Button type=\"submit\" className=\"w-full\">Criar Conta</Button>
+                  <Button type="submit" className="w-full">Criar Conta</Button>
                 </form>
               </TabsContent>
             </Tabs>
