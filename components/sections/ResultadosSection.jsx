@@ -97,50 +97,70 @@ export default function ResultadosSection({ view }) {
               </p>
             ) : (
               <div className="space-y-3">
-                {avaliacoes.map((av) => (
-                  <div 
-                    key={av.id} 
-                    className="p-4 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
-                    onClick={() => handleView(av)}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          {view === 'pendentes' ? (
-                            <Clock className="h-4 w-4 text-yellow-600" />
-                          ) : (
-                            <CheckCircle2 className="h-4 w-4 text-green-600" />
-                          )}
-                          <h3 className="font-semibold">{av.gabaritoTitulo}</h3>
-                        </div>
-                        <div className="text-sm text-gray-600 space-y-1">
-                          <p><strong>Turma:</strong> {av.turmaNome}</p>
-                          <p><strong>Aluno:</strong> {av.alunoNome}</p>
-                          <p><strong>Período:</strong> {av.periodo}</p>
-                          {av.nota !== null && (
-                            <p><strong>Nota:</strong> <span className="text-blue-600 font-semibold">{av.nota}/10</span></p>
-                          )}
-                        </div>
-                        {view === 'pendentes' && (
-                          <div className="mt-3">
-                            <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
-                              Aguardando Validação
-                            </Badge>
+                {avaliacoes.map((av) => {
+                  const isProcessing = av.status === 'pending';
+                  const isCompleted = av.status === 'completed';
+                  
+                  return (
+                    <div 
+                      key={av.id} 
+                      className={`p-4 border rounded-lg transition-colors ${
+                        isCompleted ? 'hover:bg-gray-50 cursor-pointer' : 'bg-blue-50/50'
+                      }`}
+                      onClick={() => isCompleted && handleView(av)}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            {isProcessing ? (
+                              <div className="relative">
+                                <Clock className="h-4 w-4 text-blue-600 animate-pulse" />
+                              </div>
+                            ) : view === 'pendentes' ? (
+                              <Clock className="h-4 w-4 text-yellow-600" />
+                            ) : (
+                              <CheckCircle2 className="h-4 w-4 text-green-600" />
+                            )}
+                            <h3 className="font-semibold">{av.gabaritoTitulo}</h3>
                           </div>
-                        )}
-                      </div>
-                      <div className="text-right ml-4">
-                        <Button size="sm" variant="outline" className="gap-1">
-                          <Eye className="h-3 w-3" />
-                          Ver
-                        </Button>
-                        <p className="text-xs text-gray-400 mt-2">
-                          {new Date(view === 'pendentes' ? av.completedAt : av.validadoAt).toLocaleString()}
-                        </p>
+                          <div className="text-sm text-gray-600 space-y-1">
+                            <p><strong>Turma:</strong> {av.turmaNome}</p>
+                            <p><strong>Aluno:</strong> {av.alunoNome}</p>
+                            <p><strong>Período:</strong> {av.periodo}</p>
+                            {av.nota !== null && (
+                              <p><strong>Nota:</strong> <span className="text-blue-600 font-semibold">{av.nota}/10</span></p>
+                            )}
+                          </div>
+                          <div className="mt-3">
+                            {isProcessing ? (
+                              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                                🔄 Processando no N8N...
+                              </Badge>
+                            ) : view === 'pendentes' ? (
+                              <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
+                                ⏳ Aguardando Validação
+                              </Badge>
+                            ) : null}
+                          </div>
+                        </div>
+                        <div className="text-right ml-4">
+                          {isCompleted && (
+                            <Button size="sm" variant="outline" className="gap-1">
+                              <Eye className="h-3 w-3" />
+                              Ver
+                            </Button>
+                          )}
+                          {isProcessing && (
+                            <p className="text-xs text-blue-600 font-medium">Processando...</p>
+                          )}
+                          <p className="text-xs text-gray-400 mt-2">
+                            {new Date(av.createdAt).toLocaleString()}
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>
