@@ -42,7 +42,7 @@ async function handleRegister(request) {
     await db.collection('creditos').insertOne({
       id: uuidv4(),
       userId,
-      saldoAtual: 10,
+      saldoAtual: 1000,
       createdAt: new Date()
     });
 
@@ -50,7 +50,7 @@ async function handleRegister(request) {
       id: uuidv4(),
       userId,
       tipo: 'credito',
-      quantidade: 10,
+      quantidade: 1000,
       descricao: 'Créditos iniciais de boas-vindas',
       createdAt: new Date()
     });
