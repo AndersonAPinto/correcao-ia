@@ -1,0 +1,14 @@
+Entrar app innovationlatam
+1 Criar uma conta 'natura' 
+	editar para admindev
+2 baixar dbeaver
+3 Criar desafio
+4 Btn ver empresa (deveria redirecionar para naturacampus.com.br)
+
+TASK:
+Criar um aba com o nome 'dominios'. na criação de LP
+	Dentro da aba deve ter um campo para adicionar a url.
+	Essa aba estar disponivel apenas para 'admin'
+	
+Criar migrations nova para coluna chama domain na tabela landing pages
+
