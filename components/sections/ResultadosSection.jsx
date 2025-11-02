@@ -15,6 +15,12 @@ export default function ResultadosSection({ view }) {
 
   useEffect(() => {
     loadAvaliacoes();
+    
+    // Auto-refresh every 10 seconds if viewing pendentes
+    if (view === 'pendentes') {
+      const interval = setInterval(loadAvaliacoes, 10000);
+      return () => clearInterval(interval);
+    }
   }, [view]);
 
   const loadAvaliacoes = async () => {
