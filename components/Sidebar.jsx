@@ -8,7 +8,8 @@ import {
   ClipboardCheck, 
   Settings, 
   ChevronRight,
-  Award
+  Award,
+  BarChart3
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -17,7 +18,9 @@ export default function Sidebar({ activeView, setActiveView, pendingCount = 0 })
 
   const menuItems = [
     { id: 'painel', label: 'Painel', icon: LayoutDashboard },
+    { id: 'analytics', label: 'Analytics', icon: BarChart3 },
     { id: 'gabaritos', label: 'Gabaritos', icon: FileText },
+    { id: 'habilidades', label: 'Habilidades', icon: Award },
     { id: 'perfis', label: 'Perfis de Avaliação', icon: Award },
     { 
       id: 'resultados', 

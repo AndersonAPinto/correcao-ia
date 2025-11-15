@@ -4,24 +4,49 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Clock, CheckCircle2, Eye } from 'lucide-react';
+import { Clock, CheckCircle2, Eye, Download } from 'lucide-react';
 import ValidationModal from '@/components/ValidationModal';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { toast } from 'sonner';
 
 export default function ResultadosSection({ view }) {
   const [avaliacoes, setAvaliacoes] = useState([]);
   const [selectedAvaliacao, setSelectedAvaliacao] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [turmas, setTurmas] = useState([]);
+  const [selectedTurma, setSelectedTurma] = useState('');
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     loadAvaliacoes();
+    if (view === 'concluidas') {
+      loadTurmas();
+    }
     
     // Auto-refresh every 10 seconds if viewing pendentes
     if (view === 'pendentes') {
       const interval = setInterval(loadAvaliacoes, 10000);
       return () => clearInterval(interval);
     }
-  }, [view]);
+  }, [view, selectedTurma]);
+
+  const loadTurmas = async () => {
+    const token = localStorage.getItem('token');
+    try {
+      const response = await fetch('/api/turmas', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setTurmas(data.turmas || []);
+      }
+    } catch (error) {
+      console.error('Failed to load turmas:', error);
+    }
+  };
 
   const loadAvaliacoes = async () => {
     setLoading(true);
@@ -37,7 +62,14 @@ export default function ResultadosSection({ view }) {
       
       if (response.ok) {
         const data = await response.json();
-        setAvaliacoes(data.avaliacoes || []);
+        let avaliacoes = data.avaliacoes || [];
+        
+        // Aplicar filtro de turma se selecionado
+        if (view === 'concluidas' && selectedTurma) {
+          avaliacoes = avaliacoes.filter(av => av.turmaId === selectedTurma);
+        }
+        
+        setAvaliacoes(avaliacoes);
       }
     } catch (error) {
       console.error('Failed to load avaliacoes:', error);
@@ -53,6 +85,45 @@ export default function ResultadosSection({ view }) {
   const handleValidated = () => {
     setModalOpen(false);
     loadAvaliacoes();
+  };
+
+  const handleExport = async (format) => {
+    if (view !== 'concluidas') {
+      toast.error('Exportação disponível apenas para avaliações concluídas');
+      return;
+    }
+
+    setExporting(true);
+    const token = localStorage.getItem('token');
+    
+    try {
+      const params = new URLSearchParams();
+      if (selectedTurma) params.append('turmaId', selectedTurma);
+      
+      const response = await fetch(`/api/export/${format}?${params.toString()}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = response.headers.get('Content-Disposition')?.split('filename=')[1]?.replace(/"/g, '') || `avaliacoes.${format === 'csv' ? 'csv' : 'xls'}`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        toast.success(`Exportação ${format.toUpperCase()} realizada com sucesso!`);
+      } else {
+        const data = await response.json();
+        toast.error(data.error || 'Erro ao exportar');
+      }
+    } catch (error) {
+      toast.error('Erro ao exportar dados');
+    }
+    
+    setExporting(false);
   };
 
   const title = view === 'pendentes' 
@@ -73,10 +144,47 @@ export default function ResultadosSection({ view }) {
 
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>{title}</span>
-              <Badge variant="secondary">{avaliacoes.length}</Badge>
-            </CardTitle>
+            <div className="flex items-center justify-between mb-2">
+              <CardTitle className="flex items-center gap-2">
+                <span>{title}</span>
+                <Badge variant="secondary">{avaliacoes.length}</Badge>
+              </CardTitle>
+              {view === 'concluidas' && avaliacoes.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <Select value={selectedTurma} onValueChange={setSelectedTurma}>
+                    <SelectTrigger className="w-48">
+                      <SelectValue placeholder="Filtrar por turma" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Todas as turmas</SelectItem>
+                      {turmas.map((turma) => (
+                        <SelectItem key={turma.id} value={turma.id}>
+                          {turma.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleExport('csv')}
+                    disabled={exporting}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    CSV
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleExport('excel')}
+                    disabled={exporting}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Excel
+                  </Button>
+                </div>
+              )}
+            </div>
             <CardDescription>
               {view === 'pendentes' 
                 ? 'Clique para visualizar e validar cada avaliação'
