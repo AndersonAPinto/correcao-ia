@@ -58,8 +58,7 @@ async function handleRegister(request) {
     const token = generateToken(userId);
     return NextResponse.json({ token, user: { id: userId, email, name, isAdmin } });
   } catch (error) {
-    console.error('Register error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleError(error);
   }
 }
 
@@ -92,8 +91,7 @@ async function handleLogin(request) {
       user: { id: user.id, email: user.email, name: user.name, isAdmin: user.isAdmin || 0 } 
     });
   } catch (error) {
-    console.error('Login error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleError(error);
   }
 }
 
@@ -117,7 +115,7 @@ async function handleGetMe(request) {
       } 
     });
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 401 });
+    return handleError(error);
   }
 }
 
@@ -143,13 +141,19 @@ async function handleCreateTurma(request) {
     await db.collection('turmas').insertOne(turma);
     return NextResponse.json({ turma });
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 401 });
+    return handleError(error);
   }
 }
 
 async function handleGetTurmas(request) {
   try {
     const userId = await requireAuth(request);
+    const { nome, descricao } = await request.json();
+    
+    if (!nome) {
+      return NextResponse.json({ error: 'Missing habilidade name' }, { status: 400 });
+    }
+
     const { db } = await connectToDatabase();
     
     const turmas = await db.collection('turmas')
@@ -159,7 +163,8 @@ async function handleGetTurmas(request) {
 
     return NextResponse.json({ turmas });
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 401 });
+    console.error('Create habilidade error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
@@ -422,6 +427,327 @@ async function handleCreateGabarito(request) {
       return NextResponse.json({ error: 'Missing title' }, { status: 400 });
     }
 
+    // Salvar arquivo
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+    
+    const uploadDir = join(process.cwd(), 'public', 'uploads');
+    if (!existsSync(uploadDir)) {
+      await mkdir(uploadDir, { recursive: true });
+    }
+
+    const filename = `${uuidv4()}-${file.name}`;
+    const filepath = join(uploadDir, filename);
+    await writeFile(filepath, buffer);
+
+    const imageUrl = `/uploads/${filename}`;
+    const fullImageUrl = `${process.env.NEXT_PUBLIC_BASE_URL}${imageUrl}`;
+
+    // Obter API key do Gemini
+    const user = await db.collection('users').findOne({ id: userId });
+    let settings = await db.collection('settings').findOne({ 
+      userId: user.isAdmin ? userId : { $exists: true }
+    });
+    
+    if (!settings || !settings.geminiApiKey) {
+      return NextResponse.json({ 
+        error: 'Gemini API key not configured.' 
+      }, { status: 400 });
+    }
+
+    // Converter imagem para base64
+    const base64Image = buffer.toString('base64');
+    const mimeType = file.type || 'image/jpeg';
+
+    // Criar prompt para OCR de múltipla escolha
+    const questoesInfo = gabarito.questoes.map(q => 
+      `Questão ${q.numero}: Resposta correta é ${q.respostaCorreta}`
+    ).join('\n');
+
+    const prompt = `Você é um sistema de OCR especializado em identificar respostas de múltipla escolha em provas.
+
+Analise a imagem da prova e identifique QUAL alternativa foi marcada para cada questão.
+
+GABARITO ESPERADO:
+${questoesInfo}
+
+Tarefas:
+1. Identifique cada questão numerada na prova
+2. Para cada questão, identifique qual alternativa (A, B, C, D ou E) foi marcada pelo aluno
+3. Se não conseguir identificar, retorne "N/A" para aquela questão
+
+Retorne APENAS um JSON válido no formato:
+{
+  "respostas": [
+    {"numero": 1, "resposta_aluno": "A"},
+    {"numero": 2, "resposta_aluno": "B"},
+    {"numero": 3, "resposta_aluno": "N/A"}
+  ]
+}
+
+IMPORTANTE: Retorne apenas o JSON, sem texto adicional.`;
+
+    // Chamar Gemini para OCR (usando flash para ser mais rápido e econômico)
+    const geminiResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${settings.geminiApiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              {
+                inline_data: {
+                  mime_type: mimeType,
+                  data: base64Image
+                }
+              },
+              { text: prompt }
+            ]
+          }]
+        })
+      }
+    );
+
+    if (!geminiResponse.ok) {
+      const errorText = await geminiResponse.text();
+      console.error('Gemini API error:', errorText);
+      return NextResponse.json({ 
+        error: 'Failed to process image with Gemini API' 
+      }, { status: 500 });
+    }
+
+    const geminiData = await geminiResponse.json();
+    const ocrText = geminiData.candidates[0].content.parts[0].text;
+    
+    // Extrair JSON da resposta
+    let respostasAluno = [];
+    try {
+      // Tentar extrair JSON da resposta (pode ter texto antes/depois)
+      const jsonMatch = ocrText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        respostasAluno = parsed.respostas || [];
+      }
+    } catch (e) {
+      console.error('Failed to parse Gemini response:', e);
+      return NextResponse.json({ 
+        error: 'Failed to parse OCR response. Please try again.' 
+      }, { status: 500 });
+    }
+
+    // Processar correção
+    let questoesDetalhes = [];
+    let habilidadesAcertadas = [];
+    let habilidadesErradas = [];
+    let totalPontos = 0;
+    let pontosObtidos = 0;
+
+    gabarito.questoes.forEach((questaoGabarito) => {
+      const respostaAluno = respostasAluno.find(r => r.numero === questaoGabarito.numero);
+      const respostaMarcada = respostaAluno?.resposta_aluno?.toUpperCase().trim();
+      const respostaCorreta = questaoGabarito.respostaCorreta.toUpperCase().trim();
+      const acertou = respostaMarcada === respostaCorreta && respostaMarcada !== 'N/A';
+      
+      const pontuacao = questaoGabarito.pontuacao || 1;
+      const notaQuestao = acertou ? pontuacao : 0;
+      
+      totalPontos += pontuacao;
+      pontosObtidos += notaQuestao;
+
+      questoesDetalhes.push({
+        numero: questaoGabarito.numero,
+        respostaAluno: respostaMarcada || 'N/A',
+        respostaCorreta: respostaCorreta,
+        acertou: acertou,
+        nota: notaQuestao,
+        notaMaxima: pontuacao,
+        habilidadeId: questaoGabarito.habilidadeId,
+        feedback: acertou 
+          ? `Resposta correta!` 
+          : respostaMarcada === 'N/A' 
+            ? `Resposta não identificada. Resposta correta: ${respostaCorreta}`
+            : `Resposta incorreta. Você marcou ${respostaMarcada}, mas a correta é ${respostaCorreta}`
+      });
+
+      if (questaoGabarito.habilidadeId) {
+        if (acertou) {
+          if (!habilidadesAcertadas.includes(questaoGabarito.habilidadeId)) {
+            habilidadesAcertadas.push(questaoGabarito.habilidadeId);
+          }
+        } else {
+          if (!habilidadesErradas.includes(questaoGabarito.habilidadeId)) {
+            habilidadesErradas.push(questaoGabarito.habilidadeId);
+          }
+        }
+      }
+    });
+
+    // Calcular nota final (0-10)
+    const notaFinal = totalPontos > 0 ? (pontosObtidos / totalPontos) * 10 : 0;
+    const percentualAcerto = totalPontos > 0 ? (pontosObtidos / totalPontos) * 100 : 0;
+
+    // Criar feedback geral
+    const feedbackGeral = `Você acertou ${pontosObtidos} de ${totalPontos} questões (${percentualAcerto.toFixed(1)}%). Nota: ${notaFinal.toFixed(2)}/10.`;
+
+    // Debitar créditos
+    await db.collection('creditos').updateOne(
+      { userId },
+      { $inc: { saldoAtual: -3 } }
+    );
+
+    await db.collection('transacoes_creditos').insertOne({
+      id: uuidv4(),
+      userId,
+      tipo: 'debito',
+      quantidade: -3,
+      descricao: 'Correção de prova (múltipla escolha)',
+      createdAt: new Date()
+    });
+
+    // Criar avaliação já corrigida
+    const assessmentId = uuidv4();
+    await db.collection('avaliacoes_corrigidas').insertOne({
+      id: assessmentId,
+      userId,
+      gabaritoId: gabarito.id,
+      turmaId,
+      alunoId,
+      periodo,
+      imageUrl: fullImageUrl,
+      textoOcr: ocrText,
+      nota: notaFinal,
+      feedback: feedbackGeral,
+      exercicios: questoesDetalhes.map(q => ({
+        numero: q.numero,
+        nota: q.nota,
+        nota_maxima: q.notaMaxima,
+        feedback: q.feedback
+      })),
+      questoesDetalhes: questoesDetalhes,
+      habilidadesAcertadas: habilidadesAcertadas,
+      habilidadesErradas: habilidadesErradas,
+      status: 'completed',
+      validado: false,
+      createdAt: new Date(),
+      completedAt: new Date()
+    });
+
+    // Criar notificação
+    await createNotification(
+      db,
+      userId,
+      'avaliacao_concluida',
+      `Avaliação de múltipla escolha corrigida automaticamente. Nota: ${notaFinal.toFixed(2)}/10`,
+      assessmentId
+    );
+
+    return NextResponse.json({ 
+      success: true, 
+      assessmentId,
+      imageUrl,
+      nota: notaFinal,
+      correcaoAutomatica: true
+    });
+
+  } catch (error) {
+    console.error('Multipla escolha upload error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+async function handleUpload(request) {
+  try {
+    const userId = await requireAuth(request);
+    const { db } = await connectToDatabase();
+
+    // Check credits
+    const credits = await db.collection('creditos').findOne({ userId });
+    if (!credits || credits.saldoAtual < 3) {
+      return NextResponse.json({ 
+        error: 'Insufficient credits. Need at least 3 credits.' 
+      }, { status: 400 });
+    }
+
+    // Check plano limits
+    const planoStatus = await checkPlanoLimits(userId, db);
+    if (!planoStatus.allowed) {
+      return NextResponse.json({ 
+        error: `Limite mensal atingido. Você já usou ${planoStatus.usado} de ${planoStatus.limites.provasPorMes} provas este mês. Faça upgrade para Premium para correção ilimitada.`,
+        planoStatus
+      }, { status: 403 });
+    }
+
+    // Get settings (admin or user) - apenas para verificar Gemini API key
+    const user = await db.collection('users').findOne({ id: userId });
+    let settings = await db.collection('settings').findOne({ 
+      userId: user.isAdmin ? userId : { $exists: true }
+    });
+    
+    if (!settings || !settings.geminiApiKey) {
+      return NextResponse.json({ 
+        error: 'Gemini API key not configured.' 
+      }, { status: 400 });
+    }
+
+    const formData = await request.formData();
+    const file = formData.get('image');
+    const gabaritoId = formData.get('gabaritoId');
+    const turmaId = formData.get('turmaId');
+    const alunoId = formData.get('alunoId');
+    const periodo = formData.get('periodo');
+
+    if (!file || !gabaritoId || !turmaId || !alunoId || !periodo) {
+      return NextResponse.json({ 
+        error: 'Missing required fields' 
+      }, { status: 400 });
+    }
+
+    // Verify gabarito
+    const gabarito = await db.collection('gabaritos').findOne({ id: gabaritoId, userId });
+    if (!gabarito) {
+      return NextResponse.json({ error: 'Gabarito not found' }, { status: 404 });
+    }
+
+    // Processar baseado no tipo de gabarito
+    if (gabarito.tipo === 'multipla_escolha') {
+      return await handleMultiplaEscolhaUpload(
+        file, gabarito, turmaId, alunoId, periodo, userId, db
+      );
+    } else {
+      // Dissertativa ou mista - usar OCR direto
+      return await handleDissertativaUpload(
+        file, gabarito, turmaId, alunoId, periodo, userId, db
+      );
+    }
+  } catch (error) {
+    return handleError(error);
+  }
+}
+
+async function handleGetAvaliacoesPendentes(request) {
+  try {
+    const userId = requireAuth(request);
+    const avaliacoes = await GradingService.getPendingAvaliacoes(userId);
+    return NextResponse.json({ avaliacoes });
+  } catch (error) {
+    return handleError(error);
+  }
+}
+
+async function handleGetAvaliacoesConcluidas(request) {
+  try {
+    const userId = requireAuth(request);
+    const avaliacoes = await GradingService.getCompletedAvaliacoes(userId);
+    return NextResponse.json({ avaliacoes });
+  } catch (error) {
+    return handleError(error);
+  }
+}
+
+async function handleValidarAvaliacao(request, avaliacaoId) {
+  try {
+    const userId = await requireAuth(request);
     const { db } = await connectToDatabase();
     let arquivoUrl = '';
 
