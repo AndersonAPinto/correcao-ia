@@ -8,7 +8,7 @@ import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 
-// ==================== AUTH HANDLERS ====================
+// ==================== AUTH CONTROLLERS ====================
 
 async function handleRegister(request) {
   try {
@@ -18,48 +18,10 @@ async function handleRegister(request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    const { db } = await connectToDatabase();
-    
-    const existingUser = await db.collection('users').findOne({ email });
-    if (existingUser) {
-      return NextResponse.json({ error: 'Email already registered' }, { status: 400 });
-    }
-
-    const userId = uuidv4();
-    const hashedPassword = hashPassword(password);
-    const isAdmin = email === ADMIN_EMAIL ? 1 : 0;
-    
-    await db.collection('users').insertOne({
-      id: userId,
-      email,
-      password: hashedPassword,
-      name,
-      isAdmin,
-      assinatura: 'free',
-      createdAt: new Date()
-    });
-
-    await db.collection('creditos').insertOne({
-      id: uuidv4(),
-      userId,
-      saldoAtual: 1000,
-      createdAt: new Date()
-    });
-
-    await db.collection('transacoes_creditos').insertOne({
-      id: uuidv4(),
-      userId,
-      tipo: 'credito',
-      quantidade: 1000,
-      descricao: 'Créditos iniciais de boas-vindas',
-      createdAt: new Date()
-    });
-
-    const token = generateToken(userId);
-    return NextResponse.json({ token, user: { id: userId, email, name, isAdmin } });
+    const result = await AuthService.registerUser(email, password, name);
+    return NextResponse.json(result);
   } catch (error) {
-    console.error('Register error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleError(error);
   }
 }
 
@@ -71,261 +33,126 @@ async function handleLogin(request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    const { db } = await connectToDatabase();
-    const user = await db.collection('users').findOne({ email });
-    
-    console.log('[LOGIN] Email:', email);
-    console.log('[LOGIN] User found:', !!user);
-    if (user) {
-      console.log('[LOGIN] Has password:', !!user.password);
-      const passwordMatch = verifyPassword(password, user.password);
-      console.log('[LOGIN] Password match:', passwordMatch);
-    }
-    
-    if (!user || !verifyPassword(password, user.password)) {
-      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
-    }
-
-    const token = generateToken(user.id);
-    return NextResponse.json({ 
-      token, 
-      user: { id: user.id, email: user.email, name: user.name, isAdmin: user.isAdmin || 0 } 
-    });
+    const result = await AuthService.loginUser(email, password);
+    return NextResponse.json(result);
   } catch (error) {
-    console.error('Login error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleError(error);
   }
 }
 
 async function handleGetMe(request) {
   try {
-    const userId = await requireAuth(request);
-    const { db } = await connectToDatabase();
-    const user = await db.collection('users').findOne({ id: userId });
-    
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    return NextResponse.json({ 
-      user: { 
-        id: user.id, 
-        email: user.email, 
-        name: user.name, 
-        isAdmin: user.isAdmin || 0,
-        assinatura: user.assinatura || 'free'
-      } 
-    });
+    const userId = requireAuth(request);
+    const user = await AuthService.getUserById(userId);
+    return NextResponse.json({ user });
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 401 });
+    return handleError(error);
   }
 }
 
-// ==================== TURMAS HANDLERS ====================
+// ==================== CREDIT CONTROLLERS ====================
+
+async function handleGetCredits(request) {
+  try {
+    const userId = requireAuth(request);
+    const saldoAtual = await CreditService.getBalance(userId);
+    return NextResponse.json({ saldoAtual });
+  } catch (error) {
+    return handleError(error);
+  }
+}
+
+// ==================== TURMA CONTROLLERS ====================
 
 async function handleCreateTurma(request) {
   try {
-    const userId = await requireAuth(request);
+    const userId = requireAuth(request);
     const { nome } = await request.json();
     
-    if (!nome) {
-      return NextResponse.json({ error: 'Missing turma name' }, { status: 400 });
-    }
-
-    const { db } = await connectToDatabase();
-    const turma = {
-      id: uuidv4(),
-      userId,
-      nome,
-      createdAt: new Date()
-    };
-
-    await db.collection('turmas').insertOne(turma);
+    const turma = await TurmaService.createTurma(userId, nome);
     return NextResponse.json({ turma });
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 401 });
+    return handleError(error);
   }
 }
 
 async function handleGetTurmas(request) {
   try {
-    const userId = await requireAuth(request);
-    const { db } = await connectToDatabase();
-    
-    const turmas = await db.collection('turmas')
-      .find({ userId })
-      .sort({ createdAt: -1 })
-      .toArray();
-
+    const userId = requireAuth(request);
+    const turmas = await TurmaService.getTurmasByUserId(userId);
     return NextResponse.json({ turmas });
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 401 });
+    return handleError(error);
   }
 }
 
-// ==================== ALUNOS HANDLERS ====================
+// ==================== ALUNO CONTROLLERS ====================
 
 async function handleCreateAluno(request) {
   try {
-    const userId = await requireAuth(request);
+    const userId = requireAuth(request);
     const { turmaId, nome } = await request.json();
     
-    if (!turmaId || !nome) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
-    }
-
-    const { db } = await connectToDatabase();
-    
-    // Verify turma belongs to user
-    const turma = await db.collection('turmas').findOne({ id: turmaId, userId });
-    if (!turma) {
-      return NextResponse.json({ error: 'Turma not found' }, { status: 404 });
-    }
-
-    const aluno = {
-      id: uuidv4(),
-      turmaId,
-      nome,
-      createdAt: new Date()
-    };
-
-    await db.collection('alunos').insertOne(aluno);
+    const aluno = await AlunoService.createAluno(userId, turmaId, nome);
     return NextResponse.json({ aluno });
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 401 });
+    return handleError(error);
   }
 }
 
 async function handleGetAlunos(request, turmaId) {
   try {
-    const userId = await requireAuth(request);
-    const { db } = await connectToDatabase();
-    
-    // Verify turma belongs to user
-    const turma = await db.collection('turmas').findOne({ id: turmaId, userId });
-    if (!turma) {
-      return NextResponse.json({ error: 'Turma not found' }, { status: 404 });
-    }
-
-    const alunos = await db.collection('alunos')
-      .find({ turmaId })
-      .sort({ nome: 1 })
-      .toArray();
-
+    const userId = requireAuth(request);
+    const alunos = await AlunoService.getAlunosByTurmaId(turmaId, userId);
     return NextResponse.json({ alunos });
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 401 });
+    return handleError(error);
   }
 }
 
-// ==================== PERFIS DE AVALIAÇÃO HANDLERS ====================
+// ==================== PERFIL AVALIAÇÃO CONTROLLERS ====================
 
 async function handleCreatePerfil(request) {
   try {
-    const userId = await requireAuth(request);
+    const userId = requireAuth(request);
     const formData = await request.formData();
     
     const nome = formData.get('nome');
     const conteudo = formData.get('conteudo');
     const arquivo = formData.get('arquivo');
 
-    if (!nome) {
-      return NextResponse.json({ error: 'Missing perfil name' }, { status: 400 });
-    }
-
-    const { db } = await connectToDatabase();
     let arquivoUrl = '';
-
-    // Handle file upload if provided
     if (arquivo && arquivo.size > 0) {
-      const bytes = await arquivo.arrayBuffer();
-      const buffer = Buffer.from(bytes);
-      
-      const uploadDir = join(process.cwd(), 'public', 'perfis');
-      if (!existsSync(uploadDir)) {
-        await mkdir(uploadDir, { recursive: true });
-      }
-
-      const filename = `${uuidv4()}-${arquivo.name}`;
-      const filepath = join(uploadDir, filename);
-      await writeFile(filepath, buffer);
-      arquivoUrl = `/perfis/${filename}`;
+      const fileData = await FileService.savePerfilFile(arquivo);
+      arquivoUrl = fileData.relativeUrl;
     }
 
-    const perfil = {
-      id: uuidv4(),
-      userId,
-      nome,
-      conteudo: conteudo || '',
-      arquivoUrl,
-      createdAt: new Date()
-    };
-
-    await db.collection('perfis_avaliacao').insertOne(perfil);
+    const perfil = await PerfilAvaliacaoService.createPerfil(userId, nome, conteudo, arquivoUrl);
     return NextResponse.json({ perfil });
   } catch (error) {
-    console.error('Create perfil error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return handleError(error);
   }
 }
 
 async function handleGetPerfis(request) {
   try {
-    const userId = await requireAuth(request);
-    const { db } = await connectToDatabase();
-    
-    const perfis = await db.collection('perfis_avaliacao')
-      .find({ userId })
-      .sort({ createdAt: -1 })
-      .toArray();
-
+    const userId = requireAuth(request);
+    const perfis = await PerfilAvaliacaoService.getPerfisByUserId(userId);
     return NextResponse.json({ perfis });
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 401 });
+    return handleError(error);
   }
 }
 
 async function handleGerarPerfil(request) {
   try {
-    const userId = await requireAuth(request);
+    requireAuth(request);
     const { conteudo } = await request.json();
     
-    if (!conteudo) {
-      return NextResponse.json({ error: 'Missing content' }, { status: 400 });
-    }
-
-    const { db } = await connectToDatabase();
-    
-    // Get Gemini API key from admin settings
-    const adminSettings = await db.collection('settings').findOne({ 
-      userId: { $exists: true }
-    });
-    
-    if (!adminSettings || !adminSettings.geminiApiKey) {
-      return NextResponse.json({ 
-        error: 'Gemini API key not configured by admin' 
-      }, { status: 400 });
-    }
-
-    const prompt = `Você é um especialista em avaliação educacional. Com base no seguinte texto, gere um perfil de avaliação estruturado e profissional que possa ser usado para corrigir provas de alunos.
-
-Texto base:
-${conteudo}
-
-Crie um perfil de avaliação que inclua:
-1. Critérios de avaliação claros
-2. Escala de pontuação
-3. Diretrizes de correção
-4. Aspectos a serem considerados
-
-Formato: Texto estruturado, claro e objetivo.`;
-
-    const resultado = await callGeminiAPI(adminSettings.geminiApiKey, prompt);
-    
-    return NextResponse.json({ perfilGerado: resultado });
+    const perfilGerado = await PerfilAvaliacaoService.generatePerfilWithAI(conteudo);
+    return NextResponse.json({ perfilGerado });
   } catch (error) {
-    console.error('Generate perfil error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return handleError(error);
   }
 }
 
@@ -408,7 +235,7 @@ async function handleDeleteHabilidade(request, habilidadeId) {
 
 async function handleCreateGabarito(request) {
   try {
-    const userId = await requireAuth(request);
+    const userId = requireAuth(request);
     const formData = await request.formData();
     
     const titulo = formData.get('titulo');
@@ -418,27 +245,10 @@ async function handleCreateGabarito(request) {
     const tipo = formData.get('tipo') || 'dissertativa'; // 'multipla_escolha' ou 'dissertativa'
     const questoesJson = formData.get('questoes'); // JSON string para questões de múltipla escolha
 
-    if (!titulo) {
-      return NextResponse.json({ error: 'Missing title' }, { status: 400 });
-    }
-
-    const { db } = await connectToDatabase();
     let arquivoUrl = '';
-
-    // Handle file upload if provided
     if (arquivo && arquivo.size > 0) {
-      const bytes = await arquivo.arrayBuffer();
-      const buffer = Buffer.from(bytes);
-      
-      const uploadDir = join(process.cwd(), 'public', 'gabaritos');
-      if (!existsSync(uploadDir)) {
-        await mkdir(uploadDir, { recursive: true });
-      }
-
-      const filename = `${uuidv4()}-${arquivo.name}`;
-      const filepath = join(uploadDir, filename);
-      await writeFile(filepath, buffer);
-      arquivoUrl = `/gabaritos/${filename}`;
+      const fileData = await FileService.saveGabaritoFile(arquivo);
+      arquivoUrl = fileData.relativeUrl;
     }
 
     // Parse questões se for múltipla escolha
@@ -479,28 +289,21 @@ async function handleCreateGabarito(request) {
     await db.collection('gabaritos').insertOne(gabarito);
     return NextResponse.json({ gabarito });
   } catch (error) {
-    console.error('Create gabarito error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return handleError(error);
   }
 }
 
 async function handleGetGabaritos(request) {
   try {
-    const userId = await requireAuth(request);
-    const { db } = await connectToDatabase();
-    
-    const gabaritos = await db.collection('gabaritos')
-      .find({ userId })
-      .sort({ createdAt: -1 })
-      .toArray();
-
+    const userId = requireAuth(request);
+    const gabaritos = await GabaritoService.getGabaritosByUserId(userId);
     return NextResponse.json({ gabaritos });
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 401 });
+    return handleError(error);
   }
 }
 
-// ==================== UPLOAD & ASSESSMENT HANDLERS ====================
+// ==================== GRADING CONTROLLERS ====================
 
 // Handler para questões dissertativas - OCR + correção com Gemini
 async function handleDissertativaUpload(file, gabarito, turmaId, alunoId, periodo, userId, db) {
@@ -1083,74 +886,27 @@ async function handleUpload(request) {
       );
     }
   } catch (error) {
-    console.error('Upload error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return handleError(error);
   }
 }
 
-// ==================== AVALIACOES HANDLERS ====================
-
 async function handleGetAvaliacoesPendentes(request) {
   try {
-    const userId = await requireAuth(request);
-    const { db } = await connectToDatabase();
-    
-    const avaliacoes = await db.collection('avaliacoes_corrigidas')
-      .find({ userId, status: 'completed', validado: false })
-      .sort({ completedAt: -1 })
-      .toArray();
-
-    // Populate related data
-    const enriched = await Promise.all(
-      avaliacoes.map(async (av) => {
-        const gabarito = await db.collection('gabaritos').findOne({ id: av.gabaritoId });
-        const turma = await db.collection('turmas').findOne({ id: av.turmaId });
-        const aluno = await db.collection('alunos').findOne({ id: av.alunoId });
-        
-        return {
-          ...av,
-          gabaritoTitulo: gabarito?.titulo || 'Unknown',
-          turmaNome: turma?.nome || 'Unknown',
-          alunoNome: aluno?.nome || 'Unknown'
-        };
-      })
-    );
-
-    return NextResponse.json({ avaliacoes: enriched });
+    const userId = requireAuth(request);
+    const avaliacoes = await GradingService.getPendingAvaliacoes(userId);
+    return NextResponse.json({ avaliacoes });
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 401 });
+    return handleError(error);
   }
 }
 
 async function handleGetAvaliacoesConcluidas(request) {
   try {
-    const userId = await requireAuth(request);
-    const { db } = await connectToDatabase();
-    
-    const avaliacoes = await db.collection('avaliacoes_corrigidas')
-      .find({ userId, validado: true })
-      .sort({ validadoAt: -1 })
-      .limit(100)
-      .toArray();
-
-    const enriched = await Promise.all(
-      avaliacoes.map(async (av) => {
-        const gabarito = await db.collection('gabaritos').findOne({ id: av.gabaritoId });
-        const turma = await db.collection('turmas').findOne({ id: av.turmaId });
-        const aluno = await db.collection('alunos').findOne({ id: av.alunoId });
-        
-        return {
-          ...av,
-          gabaritoTitulo: gabarito?.titulo || 'Unknown',
-          turmaNome: turma?.nome || 'Unknown',
-          alunoNome: aluno?.nome || 'Unknown'
-        };
-      })
-    );
-
-    return NextResponse.json({ avaliacoes: enriched });
+    const userId = requireAuth(request);
+    const avaliacoes = await GradingService.getCompletedAvaliacoes(userId);
+    return NextResponse.json({ avaliacoes });
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 401 });
+    return handleError(error);
   }
 }
 
@@ -1234,40 +990,29 @@ async function handleValidarAvaliacao(request, avaliacaoId) {
 
 // ==================== NOTIFICACOES HANDLERS ====================
 
-async function handleGetNotificacoes(request) {
+async function handleGetSettings(request) {
   try {
-    const userId = await requireAuth(request);
-    const { db } = await connectToDatabase();
-    
-    const notificacoes = await db.collection('notificacoes')
-      .find({ userId })
-      .sort({ createdAt: -1 })
-      .limit(50)
-      .toArray();
-
-    return NextResponse.json({ notificacoes });
+    const userId = requireAuth(request);
+    const settings = await SettingsService.getSettings(userId);
+    return NextResponse.json(settings);
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 401 });
+    return handleError(error);
   }
 }
 
-async function handleMarcarComoLida(request, notificacaoId) {
+async function handleUpdateSettings(request) {
   try {
-    const userId = await requireAuth(request);
-    const { db } = await connectToDatabase();
+    const userId = requireAuth(request);
+    const data = await request.json();
     
-    await db.collection('notificacoes').updateOne(
-      { id: notificacaoId, userId },
-      { $set: { lida: true } }
-    );
-
+    await SettingsService.updateSettings(userId, data);
     return NextResponse.json({ success: true });
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 401 });
+    return handleError(error);
   }
 }
 
-// ==================== CREDITS & SETTINGS ====================
+// ==================== NOTIFICATION CONTROLLERS ====================
 
 async function handleGetCredits(request) {
   try {
@@ -1357,40 +1102,21 @@ async function handleUpdateSettings(request) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 401 });
+    return handleError(error);
   }
 }
 
-// ==================== ADMIN HANDLERS ====================
-
-async function handleAddAdmin(request) {
+async function handleMarcarComoLida(request, notificacaoId) {
   try {
-    await requireAdmin(request);
-    const { email } = await request.json();
-    
-    if (!email) {
-      return NextResponse.json({ error: 'Missing email' }, { status: 400 });
-    }
-
-    const { db } = await connectToDatabase();
-    const user = await db.collection('users').findOne({ email });
-    
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    await db.collection('users').updateOne(
-      { email },
-      { $set: { isAdmin: 1 } }
-    );
-
+    const userId = requireAuth(request);
+    await NotificationService.markAsRead(notificacaoId, userId);
     return NextResponse.json({ success: true });
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 403 });
+    return handleError(error);
   }
 }
 
-// ==================== MAIN ROUTER ====================
+// ==================== ROUTER ====================
 
 export async function POST(request) {
   const pathname = new URL(request.url).pathname;
@@ -1423,7 +1149,7 @@ export async function GET(request) {
   if (pathname === '/api/avaliacoes/concluidas') return handleGetAvaliacoesConcluidas(request);
   if (pathname === '/api/notificacoes') return handleGetNotificacoes(request);
   
-  // Handle dynamic routes with IDs
+  // Dynamic routes
   if (pathname.startsWith('/api/alunos/')) {
     const turmaId = pathname.split('/').pop();
     return handleGetAlunos(request, turmaId);
@@ -1460,13 +1186,12 @@ export async function PUT(request) {
 
   if (pathname === '/api/settings') return handleUpdateSettings(request);
   
-  // Handle validar avaliacao
+  // Dynamic routes
   if (pathname.match(/\/api\/avaliacoes\/(.+)\/validar/)) {
     const avaliacaoId = pathname.split('/')[3];
     return handleValidarAvaliacao(request, avaliacaoId);
   }
   
-  // Handle marcar notificacao como lida
   if (pathname.match(/\/api\/notificacoes\/(.+)\/ler/)) {
     const notificacaoId = pathname.split('/')[3];
     return handleMarcarComoLida(request, notificacaoId);
