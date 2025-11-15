@@ -33,6 +33,8 @@ dist
 # Environment files (comprehensive coverage)
 *token.json*
 *credentials.json*
+google-credencials.json
+**/google-credencials.json
 
 # Logs and debug files
 npm-debug.log*
@@ -79,10 +81,6 @@ agenthub/agents/youtube/db
 android-sdk/ node_modules/@next/swc-linux-arm64-gnu/next-swc.linux-arm64-gnu.node
 node_modules/@next/swc-linux-arm64-musl/next-swc.linux-arm64-musl.node
 node_modules/@next/swc-linux-arm64-gnu/next-swc.linux-arm64-gnu.node
--e 
-# Environment files
-*.env
-*.env.*
 -e 
 # Environment files
 *.env
