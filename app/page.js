@@ -12,7 +12,9 @@ import { Coins, LogOut } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import NotificationBell from '@/components/NotificationBell';
 import PainelSection from '@/components/sections/PainelSection';
+import AnalyticsSection from '@/components/sections/AnalyticsSection';
 import GabaritosSection from '@/components/sections/GabaritosSection';
+import HabilidadesSection from '@/components/sections/HabilidadesSection';
 import PerfisSection from '@/components/sections/PerfisSection';
 import ResultadosSection from '@/components/sections/ResultadosSection';
 import ConfiguracoesSection from '@/components/sections/ConfiguracoesSection';
@@ -270,7 +272,9 @@ export default function App() {
             {activeView === 'painel' && (
               <PainelSection onUploadSuccess={handleUploadSuccess} />
             )}
+            {activeView === 'analytics' && <AnalyticsSection />}
             {activeView === 'gabaritos' && <GabaritosSection />}
+            {activeView === 'habilidades' && <HabilidadesSection />}
             {activeView === 'perfis' && <PerfisSection />}
             {(activeView === 'pendentes' || activeView === 'concluidas') && (
               <ResultadosSection view={activeView} />

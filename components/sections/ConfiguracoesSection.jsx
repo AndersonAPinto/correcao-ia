@@ -9,17 +9,19 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Settings, User, CreditCard, Key, Webhook, Palette } from 'lucide-react';
+import { Settings, User, CreditCard, Key, Palette, Crown } from 'lucide-react';
+import PaywallModal from '@/components/PaywallModal';
 
 export default function ConfiguracoesSection({ user, credits }) {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
-    geminiApiKey: '',
-    n8nWebhookUrl: ''
+    geminiApiKey: ''
   });
   const [saving, setSaving] = useState(false);
+  const [planoStatus, setPlanoStatus] = useState(null);
+  const [paywallOpen, setPaywallOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -28,11 +30,28 @@ export default function ConfiguracoesSection({ user, credits }) {
   useEffect(() => {
     if (user) {
       setFormData(prev => ({ ...prev, name: user.name }));
+      loadPlanoStatus();
     }
     if (user?.isAdmin) {
       loadAdminSettings();
     }
   }, [user]);
+
+  const loadPlanoStatus = async () => {
+    const token = localStorage.getItem('token');
+    try {
+      const response = await fetch('/api/plano/status', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setPlanoStatus(data);
+      }
+    } catch (error) {
+      console.error('Failed to load plano status:', error);
+    }
+  };
 
   const loadAdminSettings = async () => {
     const token = localStorage.getItem('token');
@@ -45,8 +64,7 @@ export default function ConfiguracoesSection({ user, credits }) {
         const data = await response.json();
         setFormData(prev => ({
           ...prev,
-          geminiApiKey: data.geminiApiKey || '',
-          n8nWebhookUrl: data.n8nWebhookUrl || ''
+          geminiApiKey: data.geminiApiKey || ''
         }));
       }
     } catch (error) {
@@ -187,21 +205,64 @@ export default function ConfiguracoesSection({ user, credits }) {
         </CardContent>
       </Card>
 
-      {/* Upgrade Card (for non-admin) */}
-      {!isAdmin && (
+      {/* Plano Status Card */}
+      {!isAdmin && planoStatus && (
         <Card className="border-blue-200 bg-blue-50/50">
           <CardHeader>
-            <CardTitle>Upgrade de Plano</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Crown className="h-5 w-5 text-yellow-600" />
+              Plano Atual: {planoStatus.plano === 'free' ? 'Gratuito' : 'Premium'}
+            </CardTitle>
             <CardDescription>
-              Desbloqueie recursos premium e obtenha mais créditos
+              {planoStatus.plano === 'free' 
+                ? `Você usou ${planoStatus.usado} de ${planoStatus.limites.provasPorMes} provas este mês`
+                : 'Correção ilimitada ativada'}
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <Button className="w-full">
-              Fazer Upgrade para Pro
+          <CardContent className="space-y-4">
+            {planoStatus.plano === 'free' && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Uso mensal</span>
+                  <span className="text-sm font-semibold">
+                    {planoStatus.usado} / {planoStatus.limites.provasPorMes}
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-blue-600 h-2 rounded-full transition-all"
+                    style={{ width: `${(planoStatus.usado / planoStatus.limites.provasPorMes) * 100}%` }}
+                  />
+                </div>
+                {planoStatus.restante > 0 ? (
+                  <p className="text-xs text-gray-600">
+                    {planoStatus.restante} provas restantes este mês
+                  </p>
+                ) : (
+                  <p className="text-xs text-red-600 font-semibold">
+                    Limite mensal atingido!
+                  </p>
+                )}
+              </div>
+            )}
+            <Button 
+              className="w-full" 
+              onClick={() => setPaywallOpen(true)}
+              variant={planoStatus.plano === 'premium' ? 'outline' : 'default'}
+            >
+              {planoStatus.plano === 'premium' ? 'Gerenciar Assinatura' : 'Fazer Upgrade para Premium'}
             </Button>
           </CardContent>
         </Card>
+      )}
+
+      {/* Paywall Modal */}
+      {planoStatus && (
+        <PaywallModal
+          open={paywallOpen}
+          onOpenChange={setPaywallOpen}
+          planoStatus={planoStatus}
+        />
       )}
 
       {/* Admin Settings */}
@@ -234,22 +295,8 @@ export default function ConfiguracoesSection({ user, credits }) {
                   <p className="text-xs text-gray-500">
                     Obtenha em: <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Google AI Studio</a>
                   </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="n8n-webhook" className="flex items-center gap-2">
-                    <Webhook className="h-4 w-4" />
-                    N8N Webhook URL
-                  </Label>
-                  <Input
-                    id="n8n-webhook"
-                    type="url"
-                    placeholder="https://your-n8n-instance.com/webhook/..."
-                    value={formData.n8nWebhookUrl}
-                    onChange={(e) => setFormData({ ...formData, n8nWebhookUrl: e.target.value })}
-                  />
-                  <p className="text-xs text-gray-500">
-                    URL do webhook do N8N para processar correções
+                  <p className="text-xs text-gray-500 mt-2">
+                    A correção agora é feita diretamente via Gemini API, sem necessidade de N8N.
                   </p>
                 </div>
 

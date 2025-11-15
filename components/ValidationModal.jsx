@@ -11,28 +11,84 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { CheckCircle2, Image as ImageIcon } from 'lucide-react';
-import { useState } from 'react';
+import { CheckCircle2, Image as ImageIcon, Edit2, Save } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 export default function ValidationModal({ open, onOpenChange, avaliacao, onValidated, isPending }) {
   const [validating, setValidating] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [notaFinal, setNotaFinal] = useState(0);
+  const [questoesEditadas, setQuestoesEditadas] = useState([]);
+
+  useEffect(() => {
+    if (avaliacao) {
+      // Usar nota ajustada se existir, senão usar nota original
+      setNotaFinal(avaliacao.nota || 0);
+      // Inicializar questões editadas com valores atuais
+      if (avaliacao.exercicios && avaliacao.exercicios.length > 0) {
+        setQuestoesEditadas(
+          avaliacao.exercicios.map(ex => ({
+            numero: ex.numero || 0,
+            nota: ex.nota || 0,
+            notaMaxima: ex.nota_maxima || 1,
+            feedback: ex.feedback || '',
+            notaOriginal: ex.nota || 0 // Nota original da IA
+          }))
+        );
+      } else {
+        setQuestoesEditadas([]);
+      }
+    }
+  }, [avaliacao]);
+
+  const handleQuestaoChange = (index, field, value) => {
+    const novasQuestoes = [...questoesEditadas];
+    novasQuestoes[index][field] = field === 'nota' ? parseFloat(value) || 0 : value;
+    setQuestoesEditadas(novasQuestoes);
+    
+    // Recalcular nota final
+    const totalPontos = novasQuestoes.reduce((sum, q) => sum + (q.notaMaxima || 1), 0);
+    const pontosObtidos = novasQuestoes.reduce((sum, q) => sum + (q.nota || 0), 0);
+    const novaNotaFinal = totalPontos > 0 ? (pontosObtidos / totalPontos) * 10 : 0;
+    setNotaFinal(novaNotaFinal);
+  };
 
   const handleValidate = async () => {
     setValidating(true);
     const token = localStorage.getItem('token');
 
     try {
+      // Preparar dados de ajuste
+      const notasAjustadas = questoesEditadas
+        .filter(q => q.nota !== q.notaOriginal || q.feedback !== (avaliacao.exercicios?.find(ex => ex.numero === q.numero)?.feedback || ''))
+        .map(q => ({
+          numero: q.numero,
+          nota: q.nota,
+          feedback: q.feedback
+        }));
+
       const response = await fetch(`/api/avaliacoes/${avaliacao.id}/validar`, {
         method: 'PUT',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          notaFinal: notaFinal,
+          notasAjustadas: notasAjustadas
+        })
       });
 
       if (response.ok) {
         toast.success('Avaliação validada com sucesso!');
         onValidated();
       } else {
-        toast.error('Erro ao validar avaliação');
+        const error = await response.json();
+        toast.error(error.error || 'Erro ao validar avaliação');
       }
     } catch (error) {
       toast.error('Erro ao validar avaliação');
@@ -42,11 +98,37 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
 
   if (!avaliacao) return null;
 
+  const temAjustes = questoesEditadas.some(q => 
+    q.nota !== q.notaOriginal || 
+    q.feedback !== (avaliacao.exercicios?.find(ex => ex.numero === q.numero)?.feedback || '')
+  ) || notaFinal !== (avaliacao.nota || 0);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-7xl max-h-[90vh] overflow-hidden">
         <DialogHeader>
-          <DialogTitle>Correção da Avaliação</DialogTitle>
+          <DialogTitle className="flex items-center justify-between">
+            <span>Correção da Avaliação</span>
+            {isPending && (
+              <Button
+                variant={editing ? "default" : "outline"}
+                size="sm"
+                onClick={() => setEditing(!editing)}
+              >
+                {editing ? (
+                  <>
+                    <Save className="h-4 w-4 mr-2" />
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    <Edit2 className="h-4 w-4 mr-2" />
+                    Ajustar Notas
+                  </>
+                )}
+              </Button>
+            )}
+          </DialogTitle>
           <DialogDescription>
             {avaliacao.alunoNome} - {avaliacao.turmaNome} - {avaliacao.periodo}
           </DialogDescription>
@@ -76,13 +158,54 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
           <Card className="flex flex-col h-[600px]">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center justify-between">
-                <span>Correção da IA</span>
-                <Badge className="bg-blue-600">{avaliacao.nota}/10</Badge>
+                <span>Correção {editing ? '(Editando)' : ''}</span>
+                <div className="flex items-center gap-2">
+                  {avaliacao.notaOriginal && Math.abs(avaliacao.notaOriginal - notaFinal) > 0.01 && (
+                    <Badge variant="outline" className="text-xs">
+                      Original: {avaliacao.notaOriginal.toFixed(2)}
+                    </Badge>
+                  )}
+                  {!avaliacao.notaOriginal && avaliacao.nota && Math.abs(avaliacao.nota - notaFinal) > 0.01 && (
+                    <Badge variant="outline" className="text-xs">
+                      Sugestão IA: {avaliacao.nota.toFixed(2)}
+                    </Badge>
+                  )}
+                  <Badge className={editing && temAjustes ? "bg-orange-600" : "bg-blue-600"}>
+                    {notaFinal.toFixed(2)}/10
+                  </Badge>
+                </div>
               </CardTitle>
             </CardHeader>
             <CardContent className="flex-1 overflow-hidden flex flex-col">
               <ScrollArea className="flex-1">
                 <div className="space-y-4 pr-4">
+                  {/* Nota Final Editável */}
+                  {editing && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                      <Label className="text-sm font-semibold mb-2 block">
+                        Nota Final (0-10)
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          min="0"
+                          max="10"
+                          step="0.1"
+                          value={notaFinal}
+                          onChange={(e) => setNotaFinal(parseFloat(e.target.value) || 0)}
+                          className="w-24"
+                        />
+                        <span className="text-sm text-gray-600">/ 10</span>
+                        <span className="text-xs text-gray-500 ml-auto">
+                          {avaliacao.nota && `Sugestão da IA: ${avaliacao.nota.toFixed(2)}`}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        A nota final será recalculada automaticamente ao ajustar questões individuais
+                      </p>
+                    </div>
+                  )}
+
                   {/* Feedback Geral */}
                   <div>
                     <h4 className="font-semibold text-sm mb-2">Feedback Geral</h4>
@@ -92,7 +215,88 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
                   </div>
 
                   {/* Exercícios */}
-                  {avaliacao.exercicios && avaliacao.exercicios.length > 0 && (
+                  {questoesEditadas.length > 0 ? (
+                    <div>
+                      <h4 className="font-semibold text-sm mb-2">
+                        Feedback por Exercício {editing && '(Clique para editar)'}
+                      </h4>
+                      <div className="space-y-3">
+                        {questoesEditadas.map((questao, idx) => {
+                          const questaoOriginal = avaliacao.exercicios?.find(ex => ex.numero === questao.numero);
+                          const foiAjustada = questao.nota !== questao.notaOriginal || 
+                            questao.feedback !== (questaoOriginal?.feedback || '');
+
+                          return (
+                            <div 
+                              key={idx} 
+                              className={`border rounded-lg p-3 ${
+                                editing 
+                                  ? 'bg-white border-2 border-blue-200' 
+                                  : foiAjustada 
+                                    ? 'bg-orange-50 border-orange-200' 
+                                    : 'bg-gray-50'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="font-semibold text-sm">
+                                  Exercício {questao.numero}
+                                </span>
+                                <div className="flex items-center gap-2">
+                                  {foiAjustada && editing && (
+                                    <Badge variant="outline" className="text-xs bg-orange-100">
+                                      Ajustada
+                                    </Badge>
+                                  )}
+                                  {editing ? (
+                                    <div className="flex items-center gap-1">
+                                      <Input
+                                        type="number"
+                                        min="0"
+                                        step="0.1"
+                                        value={questao.nota}
+                                        onChange={(e) => handleQuestaoChange(idx, 'nota', e.target.value)}
+                                        className="w-16 h-7 text-sm"
+                                      />
+                                      <span className="text-xs">/ {questao.notaMaxima}</span>
+                                    </div>
+                                  ) : (
+                                    <Badge variant="outline">
+                                      {questao.nota.toFixed(1)}/{questao.notaMaxima}
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                              {editing ? (
+                                <div className="space-y-2">
+                                  <Textarea
+                                    value={questao.feedback}
+                                    onChange={(e) => handleQuestaoChange(idx, 'feedback', e.target.value)}
+                                    placeholder="Digite o feedback para esta questão..."
+                                    rows={3}
+                                    className="text-sm"
+                                  />
+                                  {questaoOriginal && questaoOriginal.feedback && (
+                                    <details className="text-xs">
+                                      <summary className="cursor-pointer text-gray-500">
+                                        Ver sugestão original da IA
+                                      </summary>
+                                      <p className="mt-1 p-2 bg-gray-100 rounded text-gray-700">
+                                        {questaoOriginal.feedback}
+                                      </p>
+                                    </details>
+                                  )}
+                                </div>
+                              ) : (
+                                <p className="text-sm text-gray-700">
+                                  {questao.feedback || 'Sem feedback'}
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : avaliacao.exercicios && avaliacao.exercicios.length > 0 ? (
                     <div>
                       <h4 className="font-semibold text-sm mb-2">Feedback por Exercício</h4>
                       <div className="space-y-3">
@@ -113,7 +317,7 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
                         ))}
                       </div>
                     </div>
-                  )}
+                  ) : null}
 
                   {/* OCR Text */}
                   {avaliacao.textoOcr && (
@@ -132,6 +336,11 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
               {/* Validate Button */}
               {isPending && (
                 <div className="mt-4 pt-4 border-t">
+                  {temAjustes && editing && (
+                    <div className="mb-3 p-2 bg-orange-50 border border-orange-200 rounded text-sm text-orange-700">
+                      ⚠️ Você fez ajustes nas notas. A nota final será recalculada ao validar.
+                    </div>
+                  )}
                   <Button 
                     onClick={handleValidate} 
                     className="w-full gap-2"
