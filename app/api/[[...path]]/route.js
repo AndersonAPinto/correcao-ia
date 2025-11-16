@@ -228,6 +228,7 @@ async function handleCreatePerfil(request) {
     const nome = formData.get('nome');
     const conteudo = formData.get('conteudo');
     const arquivo = formData.get('arquivo');
+    const criteriosRigorJson = formData.get('criteriosRigor');
 
     if (!nome) {
       return NextResponse.json({ error: 'Missing perfil name' }, { status: 400 });
@@ -252,11 +253,32 @@ async function handleCreatePerfil(request) {
       arquivoUrl = `/perfis/${filename}`;
     }
 
+    // Parse criteriosRigor if provided
+    let criteriosRigor = [];
+    if (criteriosRigorJson) {
+      try {
+        criteriosRigor = JSON.parse(criteriosRigorJson);
+        // Validar estrutura
+        if (Array.isArray(criteriosRigor)) {
+          criteriosRigor = criteriosRigor.filter(c => 
+            c.criterio && 
+            ['rigoroso', 'moderado', 'flexivel'].includes(c.nivelRigor)
+          );
+        } else {
+          criteriosRigor = [];
+        }
+      } catch (e) {
+        console.error('Error parsing criteriosRigor:', e);
+        criteriosRigor = [];
+      }
+    }
+
     const perfil = {
       id: uuidv4(),
       userId,
       nome,
       conteudo: conteudo || '',
+      criteriosRigor: criteriosRigor || [],
       arquivoUrl,
       createdAt: new Date()
     };
@@ -613,12 +635,14 @@ async function handleDissertativaUpload(file, gabarito, turmaId, alunoId, period
 
     // Buscar perfil de avaliação se existir
     let perfilConteudo = '';
+    let criteriosRigor = [];
     if (gabarito.perfilAvaliacaoId) {
       const perfil = await db.collection('perfis_avaliacao').findOne({ 
         id: gabarito.perfilAvaliacaoId 
       });
       if (perfil) {
         perfilConteudo = perfil.conteudo;
+        criteriosRigor = perfil.criteriosRigor || [];
       }
     }
 
@@ -628,6 +652,25 @@ async function handleDissertativaUpload(file, gabarito, turmaId, alunoId, period
       .toArray();
     const habilidadesMap = {};
     habilidades.forEach(h => habilidadesMap[h.id] = h.nome);
+
+    // Construir seção de critérios de rigor
+    let criteriosRigorTexto = '';
+    if (criteriosRigor.length > 0) {
+      criteriosRigorTexto = '\nCRITÉRIOS DE RIGOR DO PERFIL DE AVALIAÇÃO:\n';
+      criteriosRigor.forEach(c => {
+        const nivelTexto = c.nivelRigor === 'rigoroso' ? 'RIGOROSO' : 
+                          c.nivelRigor === 'moderado' ? 'MODERADO' : 'FLEXÍVEL';
+        criteriosRigorTexto += `- ${c.criterio}: ${nivelTexto}`;
+        if (c.descricao) {
+          criteriosRigorTexto += ` - ${c.descricao}`;
+        }
+        criteriosRigorTexto += '\n';
+      });
+      criteriosRigorTexto += '\nAo corrigir, APLIQUE esses níveis de rigor:\n';
+      criteriosRigorTexto += '- RIGOROSO: Seja severo na avaliação deste critério. Erros devem ser penalizados significativamente.\n';
+      criteriosRigorTexto += '- MODERADO: Seja equilibrado, considerando tanto o processo quanto o resultado.\n';
+      criteriosRigorTexto += '- FLEXÍVEL: Seja compreensivo, valorizando esforço e criatividade mesmo com pequenos erros.\n';
+    }
 
     // Criar prompt para OCR + Correção de questões dissertativas
     const prompt = `Você é um sistema especializado em OCR e correção de provas dissertativas.
@@ -641,14 +684,19 @@ Analise as respostas do aluno comparando com o gabarito fornecido e avalie cada 
 GABARITO/CRITÉRIOS DE CORREÇÃO:
 ${gabarito.conteudo || 'Não fornecido'}
 
-${perfilConteudo ? `PERFIL DE AVALIAÇÃO:\n${perfilConteudo}\n` : ''}
+${perfilConteudo ? `PERFIL DE AVALIAÇÃO:\n${perfilConteudo}\n` : ''}${criteriosRigorTexto}
 
 INSTRUÇÕES DE CORREÇÃO:
 1. Para cada questão identificada, avalie a resposta do aluno
 2. Atribua uma nota de 0 a 10 para cada questão (ou use a pontuação máxima especificada)
 3. Forneça feedback construtivo para cada questão
-4. Identifique quais habilidades foram demonstradas (acertadas) e quais precisam de reforço (erradas)
-5. Calcule a nota final (0-10) considerando todas as questões
+4. AVALIE CADA HABILIDADE INDIVIDUALMENTE com uma pontuação de 1 a 10, onde:
+   - 1-3: Habilidade não demonstrada ou muito fraca
+   - 4-6: Habilidade parcialmente demonstrada, precisa de reforço
+   - 7-8: Habilidade demonstrada adequadamente
+   - 9-10: Habilidade demonstrada com excelência
+5. Identifique quais habilidades foram demonstradas (acertadas) e quais precisam de reforço (erradas)
+6. Calcule a nota final (0-10) considerando todas as questões
 
 HABILIDADES DISPONÍVEIS:
 ${habilidades.map(h => `- ${h.nome} (ID: ${h.id})`).join('\n') || 'Nenhuma habilidade cadastrada'}
@@ -657,7 +705,7 @@ Retorne APENAS um JSON válido no formato:
 {
   "texto_ocr": "Texto completo transcrito da prova...",
   "nota_final": 8.5,
-  "feedback_geral": "Resumo geral do desempenho...",
+  "feedback_geral": "Resumo geral do desempenho. Mencione as habilidades com melhor e pior desempenho.",
   "exercicios": [
     {
       "numero": 1,
@@ -667,14 +715,29 @@ Retorne APENAS um JSON válido no formato:
       "habilidades_acertadas": ["id_habilidade_1", "id_habilidade_2"],
       "habilidades_erradas": []
     }
+  ],
+  "habilidades_avaliacao": [
+    {
+      "habilidade_id": "id_habilidade_1",
+      "pontuacao": 8.5,
+      "justificativa": "Demonstrou boa compreensão do conceito, mas com pequenos erros de cálculo"
+    },
+    {
+      "habilidade_id": "id_habilidade_2",
+      "pontuacao": 9.0,
+      "justificativa": "Excelente domínio da habilidade, respostas precisas e bem fundamentadas"
+    }
   ]
 }
 
 IMPORTANTE: 
 - Retorne apenas o JSON válido, sem texto adicional
 - Use IDs de habilidades que existem na lista fornecida
-- Seja rigoroso mas justo na correção
-- O feedback deve ser construtivo e educativo`;
+- Avalie TODAS as habilidades relevantes demonstradas na prova (mínimo 2-3 habilidades)
+- Pontuações de habilidades devem estar entre 1 e 10
+- Seja rigoroso mas justo na correção, aplicando os critérios de rigor quando especificados
+- O feedback deve ser construtivo e educativo
+- No feedback_geral, mencione explicitamente as habilidades com melhor e pior desempenho`;
 
     // Debitar créditos ANTES de processar (será revertido em caso de erro)
     await db.collection('creditos').updateOne(
@@ -783,13 +846,45 @@ IMPORTANTE:
     const feedbackGeral = correcaoData.feedback_geral || '';
     const exercicios = correcaoData.exercicios || [];
 
-    // Processar habilidades acertadas/erradas
+    // Processar habilidades com pontuação (1-10)
+    let habilidadesPontuacao = [];
+    if (correcaoData.habilidades_avaliacao && Array.isArray(correcaoData.habilidades_avaliacao)) {
+      correcaoData.habilidades_avaliacao.forEach(hab => {
+        const pontuacao = parseFloat(hab.pontuacao);
+        // Validar pontuação entre 1-10
+        if (!isNaN(pontuacao) && pontuacao >= 1 && pontuacao <= 10) {
+          // Validar que a habilidade existe
+          if (habilidadesMap[hab.habilidade_id]) {
+            habilidadesPontuacao.push({
+              habilidadeId: hab.habilidade_id,
+              pontuacao: pontuacao,
+              justificativa: hab.justificativa || ''
+            });
+          }
+        }
+      });
+    }
+
+    // Processar habilidades acertadas/erradas (compatibilidade + baseado em pontuação)
     let habilidadesAcertadas = [];
     let habilidadesErradas = [];
     let questoesDetalhes = [];
 
+    // Primeiro, processar habilidades baseado em pontuação (>= 7 = acertada)
+    habilidadesPontuacao.forEach(hab => {
+      if (hab.pontuacao >= 7) {
+        if (!habilidadesAcertadas.includes(hab.habilidadeId)) {
+          habilidadesAcertadas.push(hab.habilidadeId);
+        }
+      } else {
+        if (!habilidadesErradas.includes(hab.habilidadeId)) {
+          habilidadesErradas.push(hab.habilidadeId);
+        }
+      }
+    });
+
     exercicios.forEach((ex) => {
-      // Adicionar habilidades acertadas
+      // Adicionar habilidades acertadas (compatibilidade com formato antigo)
       if (ex.habilidades_acertadas && Array.isArray(ex.habilidades_acertadas)) {
         ex.habilidades_acertadas.forEach(habId => {
           if (!habilidadesAcertadas.includes(habId)) {
@@ -798,7 +893,7 @@ IMPORTANTE:
         });
       }
 
-      // Adicionar habilidades erradas
+      // Adicionar habilidades erradas (compatibilidade com formato antigo)
       if (ex.habilidades_erradas && Array.isArray(ex.habilidades_erradas)) {
         ex.habilidades_erradas.forEach(habId => {
           if (!habilidadesErradas.includes(habId)) {
@@ -842,6 +937,7 @@ IMPORTANTE:
       questoesDetalhes: questoesDetalhes,
       habilidadesAcertadas: habilidadesAcertadas,
       habilidadesErradas: habilidadesErradas,
+      habilidadesPontuacao: habilidadesPontuacao, // Nova estrutura com pontuação 1-10
       status: 'completed',
       validado: false,
       createdAt: new Date(),
@@ -1565,6 +1661,16 @@ export async function GET(request) {
     return handleGetTurmaMetrics(request, turmaId);
   }
   
+  if (pathname.match(/^\/api\/analytics\/habilidades\/(.+)\/evolucao$/)) {
+    const turmaId = pathname.split('/')[3];
+    return handleGetHabilidadesEvolucao(request, turmaId);
+  }
+  
+  if (pathname.match(/^\/api\/analytics\/habilidades\/(.+)\/correlacao$/)) {
+    const turmaId = pathname.split('/')[3];
+    return handleGetHabilidadesCorrelacao(request, turmaId);
+  }
+  
   if (pathname.match(/^\/api\/analytics\/habilidades\/(.+)$/)) {
     const turmaId = pathname.split('/')[3];
     return handleGetHabilidadesReport(request, turmaId);
@@ -1711,28 +1817,50 @@ async function handleGetHabilidadesReport(request, turmaId) {
 
     // Agregar dados por habilidade
     const habilidadesStats = {};
+    const habilidadesPontuacoes = {}; // Para calcular média de pontuação
     
     avaliacoes.forEach(av => {
-      // Processar habilidades acertadas
-      if (av.habilidadesAcertadas && Array.isArray(av.habilidadesAcertadas)) {
-        av.habilidadesAcertadas.forEach(habId => {
+      // Processar habilidades com pontuação (nova estrutura)
+      if (av.habilidadesPontuacao && Array.isArray(av.habilidadesPontuacao)) {
+        av.habilidadesPontuacao.forEach(hab => {
+          const habId = hab.habilidadeId;
+          if (!habilidadesPontuacoes[habId]) {
+            habilidadesPontuacoes[habId] = [];
+          }
+          habilidadesPontuacoes[habId].push(hab.pontuacao);
+          
+          // Atualizar stats baseado em pontuação >= 7
           if (!habilidadesStats[habId]) {
             habilidadesStats[habId] = { acertos: 0, erros: 0, total: 0 };
           }
-          habilidadesStats[habId].acertos++;
+          if (hab.pontuacao >= 7) {
+            habilidadesStats[habId].acertos++;
+          } else {
+            habilidadesStats[habId].erros++;
+          }
           habilidadesStats[habId].total++;
         });
-      }
+      } else {
+        // Fallback: processar habilidades acertadas/erradas (compatibilidade)
+        if (av.habilidadesAcertadas && Array.isArray(av.habilidadesAcertadas)) {
+          av.habilidadesAcertadas.forEach(habId => {
+            if (!habilidadesStats[habId]) {
+              habilidadesStats[habId] = { acertos: 0, erros: 0, total: 0 };
+            }
+            habilidadesStats[habId].acertos++;
+            habilidadesStats[habId].total++;
+          });
+        }
 
-      // Processar habilidades erradas
-      if (av.habilidadesErradas && Array.isArray(av.habilidadesErradas)) {
-        av.habilidadesErradas.forEach(habId => {
-          if (!habilidadesStats[habId]) {
-            habilidadesStats[habId] = { acertos: 0, erros: 0, total: 0 };
-          }
-          habilidadesStats[habId].erros++;
-          habilidadesStats[habId].total++;
-        });
+        if (av.habilidadesErradas && Array.isArray(av.habilidadesErradas)) {
+          av.habilidadesErradas.forEach(habId => {
+            if (!habilidadesStats[habId]) {
+              habilidadesStats[habId] = { acertos: 0, erros: 0, total: 0 };
+            }
+            habilidadesStats[habId].erros++;
+            habilidadesStats[habId].total++;
+          });
+        }
       }
     });
 
@@ -1747,13 +1875,21 @@ async function handleGetHabilidadesReport(request, turmaId) {
       const stats = habilidadesStats[hab.id] || { acertos: 0, erros: 0, total: 0 };
       const taxaAcerto = stats.total > 0 ? (stats.acertos / stats.total) * 100 : 0;
       
+      // Calcular média de pontuação se disponível
+      let mediaPontuacao = null;
+      if (habilidadesPontuacoes[hab.id] && habilidadesPontuacoes[hab.id].length > 0) {
+        const soma = habilidadesPontuacoes[hab.id].reduce((sum, p) => sum + p, 0);
+        mediaPontuacao = parseFloat((soma / habilidadesPontuacoes[hab.id].length).toFixed(2));
+      }
+      
       return {
         id: hab.id,
         nome: hab.nome,
         acertos: stats.acertos,
         erros: stats.erros,
         total: stats.total,
-        taxaAcerto: parseFloat(taxaAcerto.toFixed(1))
+        taxaAcerto: parseFloat(taxaAcerto.toFixed(1)),
+        mediaPontuacao: mediaPontuacao
       };
     });
 
@@ -1765,6 +1901,242 @@ async function handleGetHabilidadesReport(request, turmaId) {
     });
 
     return NextResponse.json({ habilidades: report });
+  } catch (error) {
+    return NextResponse.json({ error: error.message }, { status: 401 });
+  }
+}
+
+async function handleGetHabilidadesEvolucao(request, turmaId) {
+  try {
+    const userId = await requireAuth(request);
+    const { db } = await connectToDatabase();
+    
+    // Verificar se turma pertence ao usuário
+    const turma = await db.collection('turmas').findOne({ id: turmaId, userId });
+    if (!turma) {
+      return NextResponse.json({ error: 'Turma not found' }, { status: 404 });
+    }
+
+    // Buscar todas as avaliações validadas da turma, ordenadas por data
+    const avaliacoes = await db.collection('avaliacoes_corrigidas')
+      .find({ 
+        userId, 
+        turmaId, 
+        validado: true 
+      })
+      .sort({ validadoAt: 1 }) // Ordenar por data crescente
+      .toArray();
+
+    // Agrupar avaliações por período
+    const avaliacoesPorPeriodo = {};
+    avaliacoes.forEach(av => {
+      const periodo = av.periodo || 'Sem período';
+      if (!avaliacoesPorPeriodo[periodo]) {
+        avaliacoesPorPeriodo[periodo] = [];
+      }
+      avaliacoesPorPeriodo[periodo].push(av);
+    });
+
+    // Calcular média de pontuação por habilidade em cada período
+    const habilidadesEvolucao = {};
+    
+    Object.keys(avaliacoesPorPeriodo).forEach(periodo => {
+      const avaliacoesPeriodo = avaliacoesPorPeriodo[periodo];
+      const habilidadesPontuacoesPeriodo = {};
+      
+      avaliacoesPeriodo.forEach(av => {
+        if (av.habilidadesPontuacao && Array.isArray(av.habilidadesPontuacao)) {
+          av.habilidadesPontuacao.forEach(hab => {
+            const habId = hab.habilidadeId;
+            if (!habilidadesPontuacoesPeriodo[habId]) {
+              habilidadesPontuacoesPeriodo[habId] = [];
+            }
+            habilidadesPontuacoesPeriodo[habId].push(hab.pontuacao);
+          });
+        }
+      });
+      
+      // Calcular média por habilidade neste período
+      Object.keys(habilidadesPontuacoesPeriodo).forEach(habId => {
+        if (!habilidadesEvolucao[habId]) {
+          habilidadesEvolucao[habId] = [];
+        }
+        
+        const pontuacoes = habilidadesPontuacoesPeriodo[habId];
+        const soma = pontuacoes.reduce((sum, p) => sum + p, 0);
+        const media = soma / pontuacoes.length;
+        
+        habilidadesEvolucao[habId].push({
+          periodo: periodo,
+          mediaPontuacao: parseFloat(media.toFixed(2)),
+          avaliacoes: pontuacoes.length
+        });
+      });
+    });
+
+    // Buscar nomes das habilidades
+    const habilidadesIds = Object.keys(habilidadesEvolucao);
+    const habilidades = await db.collection('habilidades')
+      .find({ id: { $in: habilidadesIds }, userId })
+      .toArray();
+
+    // Formatar resultado
+    const evolucao = habilidades.map(hab => ({
+      id: hab.id,
+      nome: hab.nome,
+      evolucao: habilidadesEvolucao[hab.id] || []
+    }));
+
+    return NextResponse.json({ habilidades: evolucao });
+  } catch (error) {
+    return NextResponse.json({ error: error.message }, { status: 401 });
+  }
+}
+
+async function handleGetHabilidadesCorrelacao(request, turmaId) {
+  try {
+    const userId = await requireAuth(request);
+    const { db } = await connectToDatabase();
+    
+    // Verificar se turma pertence ao usuário
+    const turma = await db.collection('turmas').findOne({ id: turmaId, userId });
+    if (!turma) {
+      return NextResponse.json({ error: 'Turma not found' }, { status: 404 });
+    }
+
+    // Buscar todas as avaliações validadas da turma
+    const avaliacoes = await db.collection('avaliacoes_corrigidas')
+      .find({ 
+        userId, 
+        turmaId, 
+        validado: true 
+      })
+      .toArray();
+
+    // Coletar pontuações por aluno e habilidade
+    const pontuacoesPorAluno = {}; // { alunoId: { habilidadeId: [pontuacoes] } }
+    
+    avaliacoes.forEach(av => {
+      const alunoId = av.alunoId;
+      if (!pontuacoesPorAluno[alunoId]) {
+        pontuacoesPorAluno[alunoId] = {};
+      }
+      
+      if (av.habilidadesPontuacao && Array.isArray(av.habilidadesPontuacao)) {
+        av.habilidadesPontuacao.forEach(hab => {
+          const habId = hab.habilidadeId;
+          if (!pontuacoesPorAluno[alunoId][habId]) {
+            pontuacoesPorAluno[alunoId][habId] = [];
+          }
+          pontuacoesPorAluno[alunoId][habId].push(hab.pontuacao);
+        });
+      }
+    });
+
+    // Calcular média de pontuação por habilidade para cada aluno
+    const mediasPorAluno = {};
+    Object.keys(pontuacoesPorAluno).forEach(alunoId => {
+      mediasPorAluno[alunoId] = {};
+      Object.keys(pontuacoesPorAluno[alunoId]).forEach(habId => {
+        const pontuacoes = pontuacoesPorAluno[alunoId][habId];
+        const soma = pontuacoes.reduce((sum, p) => sum + p, 0);
+        mediasPorAluno[alunoId][habId] = soma / pontuacoes.length;
+      });
+    });
+
+    // Calcular correlação entre pares de habilidades
+    const todasHabilidades = new Set();
+    Object.values(mediasPorAluno).forEach(medias => {
+      Object.keys(medias).forEach(habId => todasHabilidades.add(habId));
+    });
+    
+    const habilidadesArray = Array.from(todasHabilidades);
+    const correlacoes = [];
+    
+    for (let i = 0; i < habilidadesArray.length; i++) {
+      for (let j = i + 1; j < habilidadesArray.length; j++) {
+        const hab1Id = habilidadesArray[i];
+        const hab2Id = habilidadesArray[j];
+        
+        // Coletar valores de ambas habilidades para alunos que têm ambas
+        const valoresHab1 = [];
+        const valoresHab2 = [];
+        
+        Object.keys(mediasPorAluno).forEach(alunoId => {
+          if (mediasPorAluno[alunoId][hab1Id] !== undefined && 
+              mediasPorAluno[alunoId][hab2Id] !== undefined) {
+            valoresHab1.push(mediasPorAluno[alunoId][hab1Id]);
+            valoresHab2.push(mediasPorAluno[alunoId][hab2Id]);
+          }
+        });
+        
+        // Calcular correlação de Pearson simplificada
+        if (valoresHab1.length >= 3) { // Mínimo 3 alunos para calcular correlação
+          const media1 = valoresHab1.reduce((sum, v) => sum + v, 0) / valoresHab1.length;
+          const media2 = valoresHab2.reduce((sum, v) => sum + v, 0) / valoresHab2.length;
+          
+          let numerador = 0;
+          let denom1 = 0;
+          let denom2 = 0;
+          
+          for (let k = 0; k < valoresHab1.length; k++) {
+            const diff1 = valoresHab1[k] - media1;
+            const diff2 = valoresHab2[k] - media2;
+            numerador += diff1 * diff2;
+            denom1 += diff1 * diff1;
+            denom2 += diff2 * diff2;
+          }
+          
+          const denominador = Math.sqrt(denom1 * denom2);
+          const correlacao = denominador > 0 ? numerador / denominador : 0;
+          
+          // Só incluir correlações significativas (|r| > 0.3)
+          if (Math.abs(correlacao) > 0.3) {
+            correlacoes.push({
+              habilidade1: { id: hab1Id },
+              habilidade2: { id: hab2Id },
+              correlacao: parseFloat(correlacao.toFixed(3)),
+              tipo: correlacao > 0 ? 'positiva' : 'negativa',
+              amostras: valoresHab1.length
+            });
+          }
+        }
+      }
+    }
+
+    // Buscar nomes das habilidades
+    const todasHabilidadesIds = new Set();
+    correlacoes.forEach(c => {
+      todasHabilidadesIds.add(c.habilidade1.id);
+      todasHabilidadesIds.add(c.habilidade2.id);
+    });
+    
+    const habilidades = await db.collection('habilidades')
+      .find({ id: { $in: Array.from(todasHabilidadesIds) }, userId })
+      .toArray();
+    
+    const habilidadesMap = {};
+    habilidades.forEach(h => habilidadesMap[h.id] = h.nome);
+    
+    // Adicionar nomes às correlações
+    const correlacoesComNomes = correlacoes.map(c => ({
+      habilidade1: {
+        id: c.habilidade1.id,
+        nome: habilidadesMap[c.habilidade1.id] || 'Desconhecida'
+      },
+      habilidade2: {
+        id: c.habilidade2.id,
+        nome: habilidadesMap[c.habilidade2.id] || 'Desconhecida'
+      },
+      correlacao: c.correlacao,
+      tipo: c.tipo,
+      amostras: c.amostras
+    }));
+
+    // Ordenar por valor absoluto de correlação (mais forte primeiro)
+    correlacoesComNomes.sort((a, b) => Math.abs(b.correlacao) - Math.abs(a.correlacao));
+
+    return NextResponse.json({ correlacoes: correlacoesComNomes });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 401 });
   }
