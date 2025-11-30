@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Award, Sparkles, Upload as UploadIcon } from 'lucide-react';
+import { Award, Sparkles, Upload as UploadIcon, Plus, X } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function PerfisSection() {
   const [perfis, setPerfis] = useState([]);
@@ -16,6 +17,7 @@ export default function PerfisSection() {
     conteudo: '',
     arquivo: null
   });
+  const [criteriosRigor, setCriteriosRigor] = useState([]);
   const [creating, setCreating] = useState(false);
   const [generating, setGenerating] = useState(false);
 
@@ -79,6 +81,24 @@ export default function PerfisSection() {
     setGenerating(false);
   };
 
+  const handleAddCriterio = () => {
+    setCriteriosRigor([...criteriosRigor, {
+      criterio: '',
+      nivelRigor: 'moderado',
+      descricao: ''
+    }]);
+  };
+
+  const handleRemoveCriterio = (index) => {
+    setCriteriosRigor(criteriosRigor.filter((_, i) => i !== index));
+  };
+
+  const handleCriterioChange = (index, field, value) => {
+    const novos = [...criteriosRigor];
+    novos[index][field] = value;
+    setCriteriosRigor(novos);
+  };
+
   const handleCreate = async (e) => {
     e.preventDefault();
 
@@ -95,6 +115,12 @@ export default function PerfisSection() {
     if (formData.arquivo) {
       data.append('arquivo', formData.arquivo);
     }
+    
+    // Filtrar critérios válidos antes de enviar
+    const criteriosValidos = criteriosRigor.filter(c => c.criterio.trim() !== '');
+    if (criteriosValidos.length > 0) {
+      data.append('criteriosRigor', JSON.stringify(criteriosValidos));
+    }
 
     try {
       const response = await fetch('/api/perfis', {
@@ -106,6 +132,7 @@ export default function PerfisSection() {
       if (response.ok) {
         toast.success('Perfil criado com sucesso!');
         setFormData({ nome: '', conteudo: '', arquivo: null });
+        setCriteriosRigor([]);
         loadPerfis();
       } else {
         const error = await response.json();
@@ -191,6 +218,72 @@ export default function PerfisSection() {
               </p>
             </div>
 
+            {/* Critérios de Rigor */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Critérios de Rigor (Opcional)</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAddCriterio}
+                  className="gap-1"
+                >
+                  <Plus className="h-3 w-3" />
+                  Adicionar Critério
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500">
+                Defina níveis de rigor para diferentes critérios de avaliação (ex: Ortografia, Criatividade, Raciocínio)
+              </p>
+              
+              {criteriosRigor.length > 0 && (
+                <div className="space-y-3 mt-3 p-3 border rounded-lg bg-gray-50">
+                  {criteriosRigor.map((criterio, index) => (
+                    <div key={index} className="flex gap-2 items-start">
+                      <div className="flex-1 space-y-2">
+                        <Input
+                          placeholder="Nome do critério (ex: Ortografia, Criatividade)"
+                          value={criterio.criterio}
+                          onChange={(e) => handleCriterioChange(index, 'criterio', e.target.value)}
+                        />
+                        <div className="flex gap-2">
+                          <Select
+                            value={criterio.nivelRigor}
+                            onValueChange={(value) => handleCriterioChange(index, 'nivelRigor', value)}
+                          >
+                            <SelectTrigger className="w-[140px]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="rigoroso">Rigoroso</SelectItem>
+                              <SelectItem value="moderado">Moderado</SelectItem>
+                              <SelectItem value="flexivel">Flexível</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Input
+                            placeholder="Descrição (opcional)"
+                            value={criterio.descricao}
+                            onChange={(e) => handleCriterioChange(index, 'descricao', e.target.value)}
+                            className="flex-1"
+                          />
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveCriterio(index)}
+                        className="mt-1"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <Button type="submit" className="w-full" disabled={creating}>
               {creating ? 'Criando...' : 'Criar Perfil'}
             </Button>
@@ -218,6 +311,20 @@ export default function PerfisSection() {
                     <p className="text-sm text-gray-600 mt-1 line-clamp-3 whitespace-pre-wrap">
                       {perfil.conteudo}
                     </p>
+                  )}
+                  {perfil.criteriosRigor && perfil.criteriosRigor.length > 0 && (
+                    <div className="mt-3 p-2 bg-blue-50 rounded border border-blue-200">
+                      <p className="text-xs font-semibold text-blue-900 mb-2">Critérios de Rigor:</p>
+                      <div className="space-y-1">
+                        {perfil.criteriosRigor.map((c, idx) => (
+                          <div key={idx} className="text-xs text-blue-800">
+                            <span className="font-medium">{c.criterio}</span>: 
+                            <span className="ml-1 capitalize">{c.nivelRigor}</span>
+                            {c.descricao && <span className="ml-1 text-blue-600">- {c.descricao}</span>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   )}
                   {perfil.arquivoUrl && (
                     <div className="mt-2">
