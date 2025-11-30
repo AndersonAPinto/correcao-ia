@@ -7,15 +7,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Coins, LogOut } from 'lucide-react';
+import { Coins, LogOut, Chrome } from 'lucide-react';
 
-import Sidebar from '@/components/Sidebar';
+import AppSidebar from '@/components/Sidebar';
 import NotificationBell from '@/components/NotificationBell';
+import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import PainelSection from '@/components/sections/PainelSection';
+import AnalyticsSection from '@/components/sections/AnalyticsSection';
 import GabaritosSection from '@/components/sections/GabaritosSection';
+import HabilidadesSection from '@/components/sections/HabilidadesSection';
 import PerfisSection from '@/components/sections/PerfisSection';
 import ResultadosSection from '@/components/sections/ResultadosSection';
 import ConfiguracoesSection from '@/components/sections/ConfiguracoesSection';
+import CorretorIASection from '@/components/sections/CorretorIA';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -29,7 +33,45 @@ export default function App() {
   const [authForm, setAuthForm] = useState({ email: '', password: '', name: '' });
 
   useEffect(() => {
-    checkAuth();
+    // Processar token do callback OAuth
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    const provider = urlParams.get('provider');
+    const error = urlParams.get('error');
+
+    if (error) {
+      const errorMessages = {
+        'oauth_cancelled': 'Login cancelado',
+        'email_not_verified': 'Email não verificado. Verifique seu email no Google.',
+        'oauth_failed': 'Erro ao autenticar com Google. Tente novamente.',
+        'account_exists_email': 'Conta já existe com email/senha. Use login tradicional.',
+        'invalid_token': 'Token inválido',
+        'token_expired': 'Token expirado',
+        'audience_mismatch': 'Erro de segurança no token',
+        'invalid_state': 'Estado inválido. Tente novamente.',
+        'state_expired': 'Sessão expirada. Tente novamente.',
+        'no_id_token': 'Erro ao obter token de autenticação'
+      };
+      toast.error(errorMessages[error] || 'Erro na autenticação');
+      // Limpar URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+      checkAuth();
+      return;
+    }
+
+    if (token && provider === 'google') {
+      // Limpar URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+      
+      // Salvar token
+      localStorage.setItem('token', token);
+      
+      // Verificar autenticação
+      checkAuth();
+      toast.success('Login com Google realizado com sucesso!');
+    } else {
+      checkAuth();
+    }
   }, []);
 
   useEffect(() => {
@@ -188,6 +230,26 @@ export default function App() {
                   </div>
                   <Button type="submit" className="w-full">Entrar</Button>
                 </form>
+                <div className="relative my-4">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-white dark:bg-gray-950 px-2 text-muted-foreground">Ou</span>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    const currentPath = window.location.pathname;
+                    window.location.href = `/api/auth/google?redirect=${encodeURIComponent(currentPath)}`;
+                  }}
+                >
+                  <Chrome className="h-4 w-4 mr-2" />
+                  Continuar com Google
+                </Button>
               </TabsContent>
               <TabsContent value="register">
                 <form onSubmit={handleAuth} className="space-y-4">
@@ -224,6 +286,26 @@ export default function App() {
                   </div>
                   <Button type="submit" className="w-full">Criar Conta</Button>
                 </form>
+                <div className="relative my-4">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-white dark:bg-gray-950 px-2 text-muted-foreground">Ou</span>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    const currentPath = window.location.pathname;
+                    window.location.href = `/api/auth/google?redirect=${encodeURIComponent(currentPath)}`;
+                  }}
+                >
+                  <Chrome className="h-4 w-4 mr-2" />
+                  Continuar com Google
+                </Button>
               </TabsContent>
             </Tabs>
           </CardContent>
@@ -233,21 +315,21 @@ export default function App() {
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-950">
-      <Sidebar 
+    <SidebarProvider>
+      <AppSidebar 
         activeView={activeView} 
         setActiveView={setActiveView} 
         pendingCount={pendingCount}
       />
-
-      <div className="flex-1 flex flex-col">
-        <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 sticky top-0 z-10">
-          <div className="px-6 py-4 flex items-center justify-between">
+      <SidebarInset>
+        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+          <SidebarTrigger className="-ml-1" />
+          <div className="flex flex-1 items-center justify-between">
             <div>
-              <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
+              <h1 className="text-lg font-semibold">
                 Olá, {user?.name}
               </h1>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+              <p className="text-xs text-muted-foreground">
                 {user?.isAdmin === 1 ? 'Administrador' : 'Bem-vindo à plataforma'}
               </p>
             </div>
@@ -264,13 +346,18 @@ export default function App() {
             </div>
           </div>
         </header>
-
-        <main className="flex-1 overflow-y-auto p-6 bg-gray-50 dark:bg-gray-950">
-          <div className="max-w-7xl mx-auto">
+        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+          <div className="min-h-[100vh] flex-1 rounded-xl bg-muted/50 p-4">
             {activeView === 'painel' && (
-              <PainelSection onUploadSuccess={handleUploadSuccess} />
+              <PainelSection 
+                onUploadSuccess={handleUploadSuccess}
+                setActiveView={setActiveView}
+              />
             )}
+            {activeView === 'analytics' && <AnalyticsSection />}
+            {activeView === 'corretor-ia' && <CorretorIASection />}
             {activeView === 'gabaritos' && <GabaritosSection />}
+            {activeView === 'habilidades' && <HabilidadesSection />}
             {activeView === 'perfis' && <PerfisSection />}
             {(activeView === 'pendentes' || activeView === 'concluidas') && (
               <ResultadosSection view={activeView} />
@@ -279,8 +366,8 @@ export default function App() {
               <ConfiguracoesSection user={user} credits={credits} />
             )}
           </div>
-        </main>
-      </div>
-    </div>
+        </div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }

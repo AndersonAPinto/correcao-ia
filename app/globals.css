@@ -84,14 +84,15 @@ code {
         --chart-4: 43 74% 66%;
         --chart-5: 27 87% 67%;
         --radius: 0.5rem;
-        --sidebar-background: 0 0% 98%;
-        --sidebar-foreground: 240 5.3% 26.1%;
-        --sidebar-primary: 240 5.9% 10%;
-        --sidebar-primary-foreground: 0 0% 98%;
-        --sidebar-accent: 240 4.8% 95.9%;
-        --sidebar-accent-foreground: 240 5.9% 10%;
-        --sidebar-border: 220 13% 91%;
-        --sidebar-ring: 217.2 91.2% 59.8%;
+        /* Sidebar - Tema Claro (Azul/Educacional) */
+        --sidebar-background: 222 47% 11%; /* Azul escuro */
+        --sidebar-foreground: 210 40% 98%; /* Texto branco/claro */
+        --sidebar-primary: 217 91% 60%; /* Azul vibrante para logo */
+        --sidebar-primary-foreground: 0 0% 100%; /* Texto branco no logo */
+        --sidebar-accent: 217 33% 17%; /* Azul médio para hover */
+        --sidebar-accent-foreground: 210 40% 98%; /* Texto claro no hover */
+        --sidebar-border: 217 33% 25%; /* Borda azul */
+        --sidebar-ring: 217 91% 60%; /* Anel de foco azul */
     }
   .dark {
         --background: 222.2 84% 4.9%;
@@ -118,14 +119,15 @@ code {
         --chart-3: 30 80% 55%;
         --chart-4: 280 65% 60%;
         --chart-5: 340 75% 55%;
-        --sidebar-background: 240 5.9% 10%;
-        --sidebar-foreground: 240 4.8% 95.9%;
-        --sidebar-primary: 224.3 76.3% 48%;
-        --sidebar-primary-foreground: 0 0% 100%;
-        --sidebar-accent: 240 3.7% 15.9%;
-        --sidebar-accent-foreground: 240 4.8% 95.9%;
-        --sidebar-border: 240 3.7% 15.9%;
-        --sidebar-ring: 217.2 91.2% 59.8%;
+        /* Sidebar - Tema Escuro */
+        --sidebar-background: 222 47% 8%; /* Azul muito escuro */
+        --sidebar-foreground: 210 40% 98%; /* Texto branco */
+        --sidebar-primary: 217 91% 60%; /* Azul vibrante para logo */
+        --sidebar-primary-foreground: 0 0% 100%; /* Texto branco no logo */
+        --sidebar-accent: 217 33% 20%; /* Azul médio para hover */
+        --sidebar-accent-foreground: 210 40% 98%; /* Texto claro no hover */
+        --sidebar-border: 217 33% 30%; /* Borda azul */
+        --sidebar-ring: 217 91% 60%; /* Anel de foco azul */
     }
 }
 
