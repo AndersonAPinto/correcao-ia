@@ -19,7 +19,7 @@ async function handleRegister(request) {
     }
 
     const { db } = await connectToDatabase();
-    
+
     const existingUser = await db.collection('users').findOne({ email });
     if (existingUser) {
       return NextResponse.json({ error: 'Email already registered' }, { status: 400 });
@@ -28,7 +28,7 @@ async function handleRegister(request) {
     const userId = uuidv4();
     const hashedPassword = hashPassword(password);
     const isAdmin = email === ADMIN_EMAIL ? 1 : 0;
-    
+
     await db.collection('users').insertOne({
       id: userId,
       email,
@@ -73,7 +73,7 @@ async function handleLogin(request) {
 
     const { db } = await connectToDatabase();
     const user = await db.collection('users').findOne({ email });
-    
+
     console.log('[LOGIN] Email:', email);
     console.log('[LOGIN] User found:', !!user);
     if (user) {
@@ -81,15 +81,15 @@ async function handleLogin(request) {
       const passwordMatch = verifyPassword(password, user.password);
       console.log('[LOGIN] Password match:', passwordMatch);
     }
-    
+
     if (!user || !verifyPassword(password, user.password)) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
     const token = generateToken(user.id);
-    return NextResponse.json({ 
-      token, 
-      user: { id: user.id, email: user.email, name: user.name, isAdmin: user.isAdmin || 0 } 
+    return NextResponse.json({
+      token,
+      user: { id: user.id, email: user.email, name: user.name, isAdmin: user.isAdmin || 0 }
     });
   } catch (error) {
     console.error('Login error:', error);
@@ -102,19 +102,19 @@ async function handleGetMe(request) {
     const userId = await requireAuth(request);
     const { db } = await connectToDatabase();
     const user = await db.collection('users').findOne({ id: userId });
-    
+
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ 
-      user: { 
-        id: user.id, 
-        email: user.email, 
-        name: user.name, 
+    return NextResponse.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
         isAdmin: user.isAdmin || 0,
         assinatura: user.assinatura || 'free'
-      } 
+      }
     });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 401 });
@@ -127,7 +127,7 @@ async function handleCreateTurma(request) {
   try {
     const userId = await requireAuth(request);
     const { nome } = await request.json();
-    
+
     if (!nome) {
       return NextResponse.json({ error: 'Missing turma name' }, { status: 400 });
     }
@@ -151,7 +151,7 @@ async function handleGetTurmas(request) {
   try {
     const userId = await requireAuth(request);
     const { db } = await connectToDatabase();
-    
+
     const turmas = await db.collection('turmas')
       .find({ userId })
       .sort({ createdAt: -1 })
@@ -169,13 +169,13 @@ async function handleCreateAluno(request) {
   try {
     const userId = await requireAuth(request);
     const { turmaId, nome } = await request.json();
-    
+
     if (!turmaId || !nome) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
     const { db } = await connectToDatabase();
-    
+
     // Verify turma belongs to user
     const turma = await db.collection('turmas').findOne({ id: turmaId, userId });
     if (!turma) {
@@ -200,7 +200,7 @@ async function handleGetAlunos(request, turmaId) {
   try {
     const userId = await requireAuth(request);
     const { db } = await connectToDatabase();
-    
+
     // Verify turma belongs to user
     const turma = await db.collection('turmas').findOne({ id: turmaId, userId });
     if (!turma) {
@@ -224,7 +224,7 @@ async function handleCreatePerfil(request) {
   try {
     const userId = await requireAuth(request);
     const formData = await request.formData();
-    
+
     const nome = formData.get('nome');
     const conteudo = formData.get('conteudo');
     const arquivo = formData.get('arquivo');
@@ -241,7 +241,7 @@ async function handleCreatePerfil(request) {
     if (arquivo && arquivo.size > 0) {
       const bytes = await arquivo.arrayBuffer();
       const buffer = Buffer.from(bytes);
-      
+
       const uploadDir = join(process.cwd(), 'public', 'perfis');
       if (!existsSync(uploadDir)) {
         await mkdir(uploadDir, { recursive: true });
@@ -260,8 +260,8 @@ async function handleCreatePerfil(request) {
         criteriosRigor = JSON.parse(criteriosRigorJson);
         // Validar estrutura
         if (Array.isArray(criteriosRigor)) {
-          criteriosRigor = criteriosRigor.filter(c => 
-            c.criterio && 
+          criteriosRigor = criteriosRigor.filter(c =>
+            c.criterio &&
             ['rigoroso', 'moderado', 'flexivel'].includes(c.nivelRigor)
           );
         } else {
@@ -295,7 +295,7 @@ async function handleGetPerfis(request) {
   try {
     const userId = await requireAuth(request);
     const { db } = await connectToDatabase();
-    
+
     const perfis = await db.collection('perfis_avaliacao')
       .find({ userId })
       .sort({ createdAt: -1 })
@@ -311,21 +311,21 @@ async function handleGerarPerfil(request) {
   try {
     const userId = await requireAuth(request);
     const { conteudo } = await request.json();
-    
+
     if (!conteudo) {
       return NextResponse.json({ error: 'Missing content' }, { status: 400 });
     }
 
     const { db } = await connectToDatabase();
-    
+
     // Get Gemini API key from admin settings
-    const adminSettings = await db.collection('settings').findOne({ 
+    const adminSettings = await db.collection('settings').findOne({
       userId: { $exists: true }
     });
-    
+
     if (!adminSettings || !adminSettings.geminiApiKey) {
-      return NextResponse.json({ 
-        error: 'Gemini API key not configured by admin' 
+      return NextResponse.json({
+        error: 'Gemini API key not configured by admin'
       }, { status: 400 });
     }
 
@@ -343,7 +343,7 @@ Crie um perfil de avaliação que inclua:
 Formato: Texto estruturado, claro e objetivo.`;
 
     const resultado = await callGeminiAPI(adminSettings.geminiApiKey, prompt);
-    
+
     return NextResponse.json({ perfilGerado: resultado });
   } catch (error) {
     console.error('Generate perfil error:', error);
@@ -357,19 +357,19 @@ async function handleCreateHabilidade(request) {
   try {
     const userId = await requireAuth(request);
     const { nome, descricao } = await request.json();
-    
+
     if (!nome) {
       return NextResponse.json({ error: 'Missing habilidade name' }, { status: 400 });
     }
 
     const { db } = await connectToDatabase();
-    
+
     // Verificar se já existe habilidade com mesmo nome para o usuário
-    const existing = await db.collection('habilidades').findOne({ 
-      userId, 
-      nome: nome.trim() 
+    const existing = await db.collection('habilidades').findOne({
+      userId,
+      nome: nome.trim()
     });
-    
+
     if (existing) {
       return NextResponse.json({ error: 'Habilidade já existe' }, { status: 400 });
     }
@@ -394,7 +394,7 @@ async function handleGetHabilidades(request) {
   try {
     const userId = await requireAuth(request);
     const { db } = await connectToDatabase();
-    
+
     const habilidades = await db.collection('habilidades')
       .find({ userId })
       .sort({ nome: 1 })
@@ -410,12 +410,12 @@ async function handleDeleteHabilidade(request, habilidadeId) {
   try {
     const userId = await requireAuth(request);
     const { db } = await connectToDatabase();
-    
-    const result = await db.collection('habilidades').deleteOne({ 
-      id: habilidadeId, 
-      userId 
+
+    const result = await db.collection('habilidades').deleteOne({
+      id: habilidadeId,
+      userId
     });
-    
+
     if (result.deletedCount === 0) {
       return NextResponse.json({ error: 'Habilidade not found' }, { status: 404 });
     }
@@ -432,7 +432,7 @@ async function handleCreateGabarito(request) {
   try {
     const userId = await requireAuth(request);
     const formData = await request.formData();
-    
+
     const titulo = formData.get('titulo');
     const conteudo = formData.get('conteudo');
     const perfilAvaliacaoId = formData.get('perfilAvaliacaoId');
@@ -451,7 +451,7 @@ async function handleCreateGabarito(request) {
     if (arquivo && arquivo.size > 0) {
       const bytes = await arquivo.arrayBuffer();
       const buffer = Buffer.from(bytes);
-      
+
       const uploadDir = join(process.cwd(), 'public', 'gabaritos');
       if (!existsSync(uploadDir)) {
         await mkdir(uploadDir, { recursive: true });
@@ -475,8 +475,8 @@ async function handleCreateGabarito(request) {
         // Validar cada questão
         for (const q of questoes) {
           if (!q.numero || !q.respostaCorreta || !q.habilidadeId) {
-            return NextResponse.json({ 
-              error: 'Each question must have numero, respostaCorreta, and habilidadeId' 
+            return NextResponse.json({
+              error: 'Each question must have numero, respostaCorreta, and habilidadeId'
             }, { status: 400 });
           }
         }
@@ -510,7 +510,7 @@ async function handleGetGabaritos(request) {
   try {
     const userId = await requireAuth(request);
     const { db } = await connectToDatabase();
-    
+
     const gabaritos = await db.collection('gabaritos')
       .find({ userId })
       .sort({ createdAt: -1 })
@@ -527,32 +527,32 @@ async function handleGetGabaritos(request) {
 // Helper function para chamar Gemini API com retry e validação
 async function callGeminiAPIWithRetry(url, body, maxRetries = 3) {
   let lastError = null;
-  
+
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
       const response = await fetch(url, body);
-      
+
       if (response.ok) {
         const data = await response.json();
-        
+
         // Validar estrutura da resposta
         if (!data.candidates || data.candidates.length === 0) {
           throw new Error('No candidates in Gemini API response');
         }
-        
+
         const candidate = data.candidates[0];
         if (!candidate?.content?.parts || candidate.content.parts.length === 0) {
           throw new Error('Invalid response structure from Gemini API');
         }
-        
+
         const responseText = candidate.content.parts[0].text;
         if (!responseText) {
           throw new Error('Empty response from Gemini API');
         }
-        
+
         return responseText;
       }
-      
+
       // Se for erro 429 (rate limit), aguardar mais tempo
       if (response.status === 429) {
         const waitTime = Math.pow(2, attempt) * 1000; // Exponential backoff
@@ -560,7 +560,7 @@ async function callGeminiAPIWithRetry(url, body, maxRetries = 3) {
         await new Promise(resolve => setTimeout(resolve, waitTime));
         continue;
       }
-      
+
       // Para outros erros, tentar novamente com backoff
       if (attempt < maxRetries - 1) {
         const waitTime = 1000 * (attempt + 1);
@@ -569,11 +569,11 @@ async function callGeminiAPIWithRetry(url, body, maxRetries = 3) {
         await new Promise(resolve => setTimeout(resolve, waitTime));
         continue;
       }
-      
+
       // Última tentativa falhou
       const errorText = await response.text();
       throw new Error(`Gemini API failed: ${errorText}`);
-      
+
     } catch (error) {
       lastError = error;
       if (attempt < maxRetries - 1) {
@@ -583,7 +583,7 @@ async function callGeminiAPIWithRetry(url, body, maxRetries = 3) {
       }
     }
   }
-  
+
   throw lastError || new Error('Failed to call Gemini API after all retries');
 }
 
@@ -604,7 +604,7 @@ async function handleDissertativaUpload(file, gabarito, turmaId, alunoId, period
     // Salvar arquivo
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    
+
     const uploadDir = join(process.cwd(), 'public', 'uploads');
     if (!existsSync(uploadDir)) {
       await mkdir(uploadDir, { recursive: true });
@@ -619,13 +619,13 @@ async function handleDissertativaUpload(file, gabarito, turmaId, alunoId, period
 
     // Obter API key do Gemini
     const user = await db.collection('users').findOne({ id: userId });
-    let settings = await db.collection('settings').findOne({ 
+    let settings = await db.collection('settings').findOne({
       userId: user.isAdmin ? userId : { $exists: true }
     });
-    
+
     if (!settings || !settings.geminiApiKey) {
-      return NextResponse.json({ 
-        error: 'Gemini API key not configured.' 
+      return NextResponse.json({
+        error: 'Gemini API key not configured.'
       }, { status: 400 });
     }
 
@@ -637,8 +637,8 @@ async function handleDissertativaUpload(file, gabarito, turmaId, alunoId, period
     let perfilConteudo = '';
     let criteriosRigor = [];
     if (gabarito.perfilAvaliacaoId) {
-      const perfil = await db.collection('perfis_avaliacao').findOne({ 
-        id: gabarito.perfilAvaliacaoId 
+      const perfil = await db.collection('perfis_avaliacao').findOne({
+        id: gabarito.perfilAvaliacaoId
       });
       if (perfil) {
         perfilConteudo = perfil.conteudo;
@@ -658,8 +658,8 @@ async function handleDissertativaUpload(file, gabarito, turmaId, alunoId, period
     if (criteriosRigor.length > 0) {
       criteriosRigorTexto = '\nCRITÉRIOS DE RIGOR DO PERFIL DE AVALIAÇÃO:\n';
       criteriosRigor.forEach(c => {
-        const nivelTexto = c.nivelRigor === 'rigoroso' ? 'RIGOROSO' : 
-                          c.nivelRigor === 'moderado' ? 'MODERADO' : 'FLEXÍVEL';
+        const nivelTexto = c.nivelRigor === 'rigoroso' ? 'RIGOROSO' :
+          c.nivelRigor === 'moderado' ? 'MODERADO' : 'FLEXÍVEL';
         criteriosRigorTexto += `- ${c.criterio}: ${nivelTexto}`;
         if (c.descricao) {
           criteriosRigorTexto += ` - ${c.descricao}`;
@@ -794,13 +794,13 @@ IMPORTANTE:
         { id: transactionId },
         { $set: { descricao: 'Correção de prova (dissertativa) - ERRO: créditos restaurados' } }
       );
-      
+
       console.error('Gemini API error:', error);
-      return NextResponse.json({ 
-        error: 'Failed to process image with Gemini API. Credits have been restored. Please try again.' 
+      return NextResponse.json({
+        error: 'Failed to process image with Gemini API. Credits have been restored. Please try again.'
       }, { status: 500 });
     }
-    
+
     // Extrair e validar JSON da resposta
     let correcaoData = null;
     try {
@@ -808,18 +808,18 @@ IMPORTANTE:
       if (!jsonMatch) {
         throw new Error('No JSON found in Gemini response');
       }
-      
+
       correcaoData = JSON.parse(jsonMatch[0]);
-      
+
       // Validar estrutura esperada
       if (!correcaoData.texto_ocr || typeof correcaoData.texto_ocr !== 'string') {
         throw new Error('Missing or invalid texto_ocr in response');
       }
-      
+
       if (correcaoData.nota_final === undefined || typeof correcaoData.nota_final !== 'number') {
         throw new Error('Missing or invalid nota_final in response');
       }
-      
+
       if (!Array.isArray(correcaoData.exercicios)) {
         throw new Error('Missing or invalid exercicios array in response');
       }
@@ -833,10 +833,10 @@ IMPORTANTE:
         { id: transactionId },
         { $set: { descricao: 'Correção de prova (dissertativa) - ERRO DE PARSING: créditos restaurados' } }
       );
-      
+
       console.error('Failed to parse Gemini response:', e, responseText);
-      return NextResponse.json({ 
-        error: 'Failed to parse correction response. Credits have been restored. Please try again.' 
+      return NextResponse.json({
+        error: 'Failed to parse correction response. Credits have been restored. Please try again.'
       }, { status: 500 });
     }
 
@@ -953,8 +953,8 @@ IMPORTANTE:
       assessmentId
     );
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       assessmentId,
       imageUrl,
       nota: notaFinal,
@@ -984,7 +984,7 @@ async function handleMultiplaEscolhaUpload(file, gabarito, turmaId, alunoId, per
     // Salvar arquivo
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    
+
     const uploadDir = join(process.cwd(), 'public', 'uploads');
     if (!existsSync(uploadDir)) {
       await mkdir(uploadDir, { recursive: true });
@@ -999,20 +999,20 @@ async function handleMultiplaEscolhaUpload(file, gabarito, turmaId, alunoId, per
 
     // Obter API key do Gemini
     const user = await db.collection('users').findOne({ id: userId });
-    let settings = await db.collection('settings').findOne({ 
+    let settings = await db.collection('settings').findOne({
       userId: user.isAdmin ? userId : { $exists: true }
     });
-    
+
     if (!settings || !settings.geminiApiKey) {
-      return NextResponse.json({ 
-        error: 'Gemini API key not configured.' 
+      return NextResponse.json({
+        error: 'Gemini API key not configured.'
       }, { status: 400 });
     }
 
     // Validar questões do gabarito
     if (!gabarito.questoes || !Array.isArray(gabarito.questoes) || gabarito.questoes.length === 0) {
-      return NextResponse.json({ 
-        error: 'Gabarito de múltipla escolha deve ter pelo menos uma questão definida' 
+      return NextResponse.json({
+        error: 'Gabarito de múltipla escolha deve ter pelo menos uma questão definida'
       }, { status: 400 });
     }
 
@@ -1021,7 +1021,7 @@ async function handleMultiplaEscolhaUpload(file, gabarito, turmaId, alunoId, per
     const mimeType = file.type || 'image/jpeg';
 
     // Criar prompt para OCR de múltipla escolha
-    const questoesInfo = gabarito.questoes.map(q => 
+    const questoesInfo = gabarito.questoes.map(q =>
       `Questão ${q.numero}: Resposta correta é ${q.respostaCorreta}`
     ).join('\n');
 
@@ -1097,13 +1097,13 @@ IMPORTANTE: Retorne apenas o JSON, sem texto adicional.`;
         { id: transactionId },
         { $set: { descricao: 'Correção de prova (múltipla escolha) - ERRO: créditos restaurados' } }
       );
-      
+
       console.error('Gemini API error:', error);
-      return NextResponse.json({ 
-        error: 'Failed to process image with Gemini API. Credits have been restored. Please try again.' 
+      return NextResponse.json({
+        error: 'Failed to process image with Gemini API. Credits have been restored. Please try again.'
       }, { status: 500 });
     }
-    
+
     // Extrair e validar JSON da resposta
     let respostasAluno = [];
     try {
@@ -1111,14 +1111,14 @@ IMPORTANTE: Retorne apenas o JSON, sem texto adicional.`;
       if (!jsonMatch) {
         throw new Error('No JSON found in Gemini response');
       }
-      
+
       const parsed = JSON.parse(jsonMatch[0]);
-      
+
       // Validar estrutura esperada
       if (!parsed.respostas || !Array.isArray(parsed.respostas)) {
         throw new Error('Missing or invalid respostas array in response');
       }
-      
+
       respostasAluno = parsed.respostas;
     } catch (e) {
       // Rollback: restaurar créditos em caso de erro de parsing
@@ -1130,10 +1130,10 @@ IMPORTANTE: Retorne apenas o JSON, sem texto adicional.`;
         { id: transactionId },
         { $set: { descricao: 'Correção de prova (múltipla escolha) - ERRO DE PARSING: créditos restaurados' } }
       );
-      
+
       console.error('Failed to parse Gemini response:', e, ocrText);
-      return NextResponse.json({ 
-        error: 'Failed to parse OCR response. Credits have been restored. Please try again.' 
+      return NextResponse.json({
+        error: 'Failed to parse OCR response. Credits have been restored. Please try again.'
       }, { status: 500 });
     }
 
@@ -1149,10 +1149,10 @@ IMPORTANTE: Retorne apenas o JSON, sem texto adicional.`;
       const respostaMarcada = respostaAluno?.resposta_aluno?.toUpperCase().trim();
       const respostaCorreta = questaoGabarito.respostaCorreta.toUpperCase().trim();
       const acertou = respostaMarcada === respostaCorreta && respostaMarcada !== 'N/A';
-      
+
       const pontuacao = questaoGabarito.pontuacao || 1;
       const notaQuestao = acertou ? pontuacao : 0;
-      
+
       totalPontos += pontuacao;
       pontosObtidos += notaQuestao;
 
@@ -1164,9 +1164,9 @@ IMPORTANTE: Retorne apenas o JSON, sem texto adicional.`;
         nota: notaQuestao,
         notaMaxima: pontuacao,
         habilidadeId: questaoGabarito.habilidadeId,
-        feedback: acertou 
-          ? `Resposta correta!` 
-          : respostaMarcada === 'N/A' 
+        feedback: acertou
+          ? `Resposta correta!`
+          : respostaMarcada === 'N/A'
             ? `Resposta não identificada. Resposta correta: ${respostaCorreta}`
             : `Resposta incorreta. Você marcou ${respostaMarcada}, mas a correta é ${respostaCorreta}`
       });
@@ -1230,8 +1230,8 @@ IMPORTANTE: Retorne apenas o JSON, sem texto adicional.`;
       assessmentId
     );
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       assessmentId,
       imageUrl,
       nota: notaFinal,
@@ -1252,15 +1252,15 @@ async function handleUpload(request) {
     // Check credits
     const credits = await db.collection('creditos').findOne({ userId });
     if (!credits || credits.saldoAtual < 3) {
-      return NextResponse.json({ 
-        error: 'Insufficient credits. Need at least 3 credits.' 
+      return NextResponse.json({
+        error: 'Insufficient credits. Need at least 3 credits.'
       }, { status: 400 });
     }
 
     // Check plano limits
     const planoStatus = await checkPlanoLimits(userId, db);
     if (!planoStatus.allowed) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: `Limite mensal atingido. Você já usou ${planoStatus.usado} de ${planoStatus.limites.provasPorMes} provas este mês. Faça upgrade para Premium para correção ilimitada.`,
         planoStatus
       }, { status: 403 });
@@ -1268,13 +1268,13 @@ async function handleUpload(request) {
 
     // Get settings (admin or user) - apenas para verificar Gemini API key
     const user = await db.collection('users').findOne({ id: userId });
-    let settings = await db.collection('settings').findOne({ 
+    let settings = await db.collection('settings').findOne({
       userId: user.isAdmin ? userId : { $exists: true }
     });
-    
+
     if (!settings || !settings.geminiApiKey) {
-      return NextResponse.json({ 
-        error: 'Gemini API key not configured.' 
+      return NextResponse.json({
+        error: 'Gemini API key not configured.'
       }, { status: 400 });
     }
 
@@ -1286,8 +1286,8 @@ async function handleUpload(request) {
     const periodo = formData.get('periodo');
 
     if (!file || !gabaritoId || !turmaId || !alunoId || !periodo) {
-      return NextResponse.json({ 
-        error: 'Missing required fields' 
+      return NextResponse.json({
+        error: 'Missing required fields'
       }, { status: 400 });
     }
 
@@ -1320,7 +1320,7 @@ async function handleGetAvaliacoesPendentes(request) {
   try {
     const userId = await requireAuth(request);
     const { db } = await connectToDatabase();
-    
+
     const avaliacoes = await db.collection('avaliacoes_corrigidas')
       .find({ userId, status: 'completed', validado: false })
       .sort({ completedAt: -1 })
@@ -1332,7 +1332,7 @@ async function handleGetAvaliacoesPendentes(request) {
         const gabarito = await db.collection('gabaritos').findOne({ id: av.gabaritoId });
         const turma = await db.collection('turmas').findOne({ id: av.turmaId });
         const aluno = await db.collection('alunos').findOne({ id: av.alunoId });
-        
+
         return {
           ...av,
           gabaritoTitulo: gabarito?.titulo || 'Unknown',
@@ -1352,7 +1352,7 @@ async function handleGetAvaliacoesConcluidas(request) {
   try {
     const userId = await requireAuth(request);
     const { db } = await connectToDatabase();
-    
+
     const avaliacoes = await db.collection('avaliacoes_corrigidas')
       .find({ userId, validado: true })
       .sort({ validadoAt: -1 })
@@ -1364,7 +1364,7 @@ async function handleGetAvaliacoesConcluidas(request) {
         const gabarito = await db.collection('gabaritos').findOne({ id: av.gabaritoId });
         const turma = await db.collection('turmas').findOne({ id: av.turmaId });
         const aluno = await db.collection('alunos').findOne({ id: av.alunoId });
-        
+
         return {
           ...av,
           gabaritoTitulo: gabarito?.titulo || 'Unknown',
@@ -1384,12 +1384,12 @@ async function handleValidarAvaliacao(request, avaliacaoId) {
   try {
     const userId = await requireAuth(request);
     const { db } = await connectToDatabase();
-    
-    const avaliacao = await db.collection('avaliacoes_corrigidas').findOne({ 
-      id: avaliacaoId, 
-      userId 
+
+    const avaliacao = await db.collection('avaliacoes_corrigidas').findOne({
+      id: avaliacaoId,
+      userId
     });
-    
+
     if (!avaliacao) {
       return NextResponse.json({ error: 'Assessment not found' }, { status: 404 });
     }
@@ -1404,7 +1404,7 @@ async function handleValidarAvaliacao(request, avaliacaoId) {
     } catch (e) {
       // Body vazio ou inválido - validação simples sem ajustes
     }
-    
+
     const notasAjustadas = body.notasAjustadas || []; // Array de { numero, nota, feedback }
     const notaFinalAjustada = body.notaFinal !== undefined ? body.notaFinal : avaliacao.nota;
 
@@ -1437,8 +1437,8 @@ async function handleValidarAvaliacao(request, avaliacaoId) {
 
     await db.collection('avaliacoes_corrigidas').updateOne(
       { id: avaliacaoId },
-      { 
-        $set: { 
+      {
+        $set: {
           validado: true,
           validadoAt: new Date(),
           nota: notaFinal,
@@ -1446,7 +1446,7 @@ async function handleValidarAvaliacao(request, avaliacaoId) {
           exercicios: exerciciosAtualizados,
           notasAjustadas: notasAjustadas.length > 0, // Flag indicando que houve ajuste
           ajustadoEm: notasAjustadas.length > 0 ? new Date() : null
-        } 
+        }
       }
     );
 
@@ -1464,7 +1464,7 @@ async function handleGetNotificacoes(request) {
   try {
     const userId = await requireAuth(request);
     const { db } = await connectToDatabase();
-    
+
     const notificacoes = await db.collection('notificacoes')
       .find({ userId })
       .sort({ createdAt: -1 })
@@ -1481,7 +1481,7 @@ async function handleMarcarComoLida(request, notificacaoId) {
   try {
     const userId = await requireAuth(request);
     const { db } = await connectToDatabase();
-    
+
     await db.collection('notificacoes').updateOne(
       { id: notificacaoId, userId },
       { $set: { lida: true } }
@@ -1499,7 +1499,7 @@ async function handleGetCredits(request) {
   try {
     const userId = await requireAuth(request);
     const { db } = await connectToDatabase();
-    
+
     const credits = await db.collection('creditos').findOne({ userId });
     return NextResponse.json({ saldoAtual: credits?.saldoAtual || 0 });
   } catch (error) {
@@ -1511,10 +1511,10 @@ async function handleGetSettings(request) {
   try {
     const userId = await requireAuth(request);
     const { db } = await connectToDatabase();
-    
+
     const user = await db.collection('users').findOne({ id: userId });
     let settings = await db.collection('settings').findOne({ userId });
-    
+
     if (!settings) {
       settings = {
         id: uuidv4(),
@@ -1544,17 +1544,17 @@ async function handleUpdateSettings(request) {
   try {
     const userId = await requireAuth(request);
     const data = await request.json();
-    
+
     const { db } = await connectToDatabase();
     const user = await db.collection('users').findOne({ id: userId });
-    
+
     let updateData = {};
-    
+
     // Only admin can update API keys
     if (user.isAdmin) {
       if (data.geminiApiKey !== undefined) updateData.geminiApiKey = data.geminiApiKey;
     }
-    
+
     // All users can update their profile
     if (data.name) {
       await db.collection('users').updateOne(
@@ -1562,12 +1562,12 @@ async function handleUpdateSettings(request) {
         { $set: { name: data.name } }
       );
     }
-    
+
     if (Object.keys(updateData).length > 0) {
       await db.collection('settings').updateOne(
         { userId },
-        { 
-          $set: { 
+        {
+          $set: {
             ...updateData,
             updatedAt: new Date()
           },
@@ -1593,14 +1593,14 @@ async function handleAddAdmin(request) {
   try {
     await requireAdmin(request);
     const { email } = await request.json();
-    
+
     if (!email) {
       return NextResponse.json({ error: 'Missing email' }, { status: 400 });
     }
 
     const { db } = await connectToDatabase();
     const user = await db.collection('users').findOne({ email });
-    
+
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
@@ -1648,7 +1648,7 @@ export async function GET(request) {
   if (pathname === '/api/avaliacoes/pendentes') return handleGetAvaliacoesPendentes(request);
   if (pathname === '/api/avaliacoes/concluidas') return handleGetAvaliacoesConcluidas(request);
   if (pathname === '/api/notificacoes') return handleGetNotificacoes(request);
-  
+
   // Handle dynamic routes with IDs
   if (pathname.startsWith('/api/alunos/')) {
     const turmaId = pathname.split('/').pop();
@@ -1660,22 +1660,22 @@ export async function GET(request) {
     const turmaId = pathname.split('/')[3];
     return handleGetTurmaMetrics(request, turmaId);
   }
-  
+
   if (pathname.match(/^\/api\/analytics\/habilidades\/(.+)\/evolucao$/)) {
     const turmaId = pathname.split('/')[3];
     return handleGetHabilidadesEvolucao(request, turmaId);
   }
-  
+
   if (pathname.match(/^\/api\/analytics\/habilidades\/(.+)\/correlacao$/)) {
     const turmaId = pathname.split('/')[3];
     return handleGetHabilidadesCorrelacao(request, turmaId);
   }
-  
+
   if (pathname.match(/^\/api\/analytics\/habilidades\/(.+)$/)) {
     const turmaId = pathname.split('/')[3];
     return handleGetHabilidadesReport(request, turmaId);
   }
-  
+
   if (pathname.match(/^\/api\/analytics\/aluno\/(.+)$/)) {
     const alunoId = pathname.split('/')[3];
     return handleGetAlunoDetail(request, alunoId);
@@ -1695,13 +1695,13 @@ export async function PUT(request) {
   const pathname = new URL(request.url).pathname;
 
   if (pathname === '/api/settings') return handleUpdateSettings(request);
-  
+
   // Handle validar avaliacao
   if (pathname.match(/\/api\/avaliacoes\/(.+)\/validar/)) {
     const avaliacaoId = pathname.split('/')[3];
     return handleValidarAvaliacao(request, avaliacaoId);
   }
-  
+
   // Handle marcar notificacao como lida
   if (pathname.match(/\/api\/notificacoes\/(.+)\/ler/)) {
     const notificacaoId = pathname.split('/')[3];
@@ -1717,7 +1717,7 @@ async function handleGetTurmaMetrics(request, turmaId) {
   try {
     const userId = await requireAuth(request);
     const { db } = await connectToDatabase();
-    
+
     // Verificar se turma pertence ao usuário
     const turma = await db.collection('turmas').findOne({ id: turmaId, userId });
     if (!turma) {
@@ -1726,10 +1726,10 @@ async function handleGetTurmaMetrics(request, turmaId) {
 
     // Buscar todas as avaliações validadas da turma
     const avaliacoes = await db.collection('avaliacoes_corrigidas')
-      .find({ 
-        userId, 
-        turmaId, 
-        validado: true 
+      .find({
+        userId,
+        turmaId,
+        validado: true
       })
       .toArray();
 
@@ -1745,10 +1745,10 @@ async function handleGetTurmaMetrics(request, turmaId) {
 
     // Calcular métricas
     const notas = avaliacoes.map(a => a.nota || 0).filter(n => n > 0);
-    const mediaTurma = notas.length > 0 
-      ? notas.reduce((sum, n) => sum + n, 0) / notas.length 
+    const mediaTurma = notas.length > 0
+      ? notas.reduce((sum, n) => sum + n, 0) / notas.length
       : 0;
-    
+
     const aprovados = notas.filter(n => n >= 6).length;
     const taxaAprovacao = notas.length > 0 ? (aprovados / notas.length) * 100 : 0;
 
@@ -1799,7 +1799,7 @@ async function handleGetHabilidadesReport(request, turmaId) {
   try {
     const userId = await requireAuth(request);
     const { db } = await connectToDatabase();
-    
+
     // Verificar se turma pertence ao usuário
     const turma = await db.collection('turmas').findOne({ id: turmaId, userId });
     if (!turma) {
@@ -1808,17 +1808,17 @@ async function handleGetHabilidadesReport(request, turmaId) {
 
     // Buscar todas as avaliações validadas da turma
     const avaliacoes = await db.collection('avaliacoes_corrigidas')
-      .find({ 
-        userId, 
-        turmaId, 
-        validado: true 
+      .find({
+        userId,
+        turmaId,
+        validado: true
       })
       .toArray();
 
     // Agregar dados por habilidade
     const habilidadesStats = {};
     const habilidadesPontuacoes = {}; // Para calcular média de pontuação
-    
+
     avaliacoes.forEach(av => {
       // Processar habilidades com pontuação (nova estrutura)
       if (av.habilidadesPontuacao && Array.isArray(av.habilidadesPontuacao)) {
@@ -1828,7 +1828,7 @@ async function handleGetHabilidadesReport(request, turmaId) {
             habilidadesPontuacoes[habId] = [];
           }
           habilidadesPontuacoes[habId].push(hab.pontuacao);
-          
+
           // Atualizar stats baseado em pontuação >= 7
           if (!habilidadesStats[habId]) {
             habilidadesStats[habId] = { acertos: 0, erros: 0, total: 0 };
@@ -1874,14 +1874,14 @@ async function handleGetHabilidadesReport(request, turmaId) {
     const report = habilidades.map(hab => {
       const stats = habilidadesStats[hab.id] || { acertos: 0, erros: 0, total: 0 };
       const taxaAcerto = stats.total > 0 ? (stats.acertos / stats.total) * 100 : 0;
-      
+
       // Calcular média de pontuação se disponível
       let mediaPontuacao = null;
       if (habilidadesPontuacoes[hab.id] && habilidadesPontuacoes[hab.id].length > 0) {
         const soma = habilidadesPontuacoes[hab.id].reduce((sum, p) => sum + p, 0);
         mediaPontuacao = parseFloat((soma / habilidadesPontuacoes[hab.id].length).toFixed(2));
       }
-      
+
       return {
         id: hab.id,
         nome: hab.nome,
@@ -1910,7 +1910,7 @@ async function handleGetHabilidadesEvolucao(request, turmaId) {
   try {
     const userId = await requireAuth(request);
     const { db } = await connectToDatabase();
-    
+
     // Verificar se turma pertence ao usuário
     const turma = await db.collection('turmas').findOne({ id: turmaId, userId });
     if (!turma) {
@@ -1919,10 +1919,10 @@ async function handleGetHabilidadesEvolucao(request, turmaId) {
 
     // Buscar todas as avaliações validadas da turma, ordenadas por data
     const avaliacoes = await db.collection('avaliacoes_corrigidas')
-      .find({ 
-        userId, 
-        turmaId, 
-        validado: true 
+      .find({
+        userId,
+        turmaId,
+        validado: true
       })
       .sort({ validadoAt: 1 }) // Ordenar por data crescente
       .toArray();
@@ -1939,11 +1939,11 @@ async function handleGetHabilidadesEvolucao(request, turmaId) {
 
     // Calcular média de pontuação por habilidade em cada período
     const habilidadesEvolucao = {};
-    
+
     Object.keys(avaliacoesPorPeriodo).forEach(periodo => {
       const avaliacoesPeriodo = avaliacoesPorPeriodo[periodo];
       const habilidadesPontuacoesPeriodo = {};
-      
+
       avaliacoesPeriodo.forEach(av => {
         if (av.habilidadesPontuacao && Array.isArray(av.habilidadesPontuacao)) {
           av.habilidadesPontuacao.forEach(hab => {
@@ -1955,17 +1955,17 @@ async function handleGetHabilidadesEvolucao(request, turmaId) {
           });
         }
       });
-      
+
       // Calcular média por habilidade neste período
       Object.keys(habilidadesPontuacoesPeriodo).forEach(habId => {
         if (!habilidadesEvolucao[habId]) {
           habilidadesEvolucao[habId] = [];
         }
-        
+
         const pontuacoes = habilidadesPontuacoesPeriodo[habId];
         const soma = pontuacoes.reduce((sum, p) => sum + p, 0);
         const media = soma / pontuacoes.length;
-        
+
         habilidadesEvolucao[habId].push({
           periodo: periodo,
           mediaPontuacao: parseFloat(media.toFixed(2)),
@@ -1997,7 +1997,7 @@ async function handleGetHabilidadesCorrelacao(request, turmaId) {
   try {
     const userId = await requireAuth(request);
     const { db } = await connectToDatabase();
-    
+
     // Verificar se turma pertence ao usuário
     const turma = await db.collection('turmas').findOne({ id: turmaId, userId });
     if (!turma) {
@@ -2006,22 +2006,22 @@ async function handleGetHabilidadesCorrelacao(request, turmaId) {
 
     // Buscar todas as avaliações validadas da turma
     const avaliacoes = await db.collection('avaliacoes_corrigidas')
-      .find({ 
-        userId, 
-        turmaId, 
-        validado: true 
+      .find({
+        userId,
+        turmaId,
+        validado: true
       })
       .toArray();
 
     // Coletar pontuações por aluno e habilidade
     const pontuacoesPorAluno = {}; // { alunoId: { habilidadeId: [pontuacoes] } }
-    
+
     avaliacoes.forEach(av => {
       const alunoId = av.alunoId;
       if (!pontuacoesPorAluno[alunoId]) {
         pontuacoesPorAluno[alunoId] = {};
       }
-      
+
       if (av.habilidadesPontuacao && Array.isArray(av.habilidadesPontuacao)) {
         av.habilidadesPontuacao.forEach(hab => {
           const habId = hab.habilidadeId;
@@ -2049,36 +2049,36 @@ async function handleGetHabilidadesCorrelacao(request, turmaId) {
     Object.values(mediasPorAluno).forEach(medias => {
       Object.keys(medias).forEach(habId => todasHabilidades.add(habId));
     });
-    
+
     const habilidadesArray = Array.from(todasHabilidades);
     const correlacoes = [];
-    
+
     for (let i = 0; i < habilidadesArray.length; i++) {
       for (let j = i + 1; j < habilidadesArray.length; j++) {
         const hab1Id = habilidadesArray[i];
         const hab2Id = habilidadesArray[j];
-        
+
         // Coletar valores de ambas habilidades para alunos que têm ambas
         const valoresHab1 = [];
         const valoresHab2 = [];
-        
+
         Object.keys(mediasPorAluno).forEach(alunoId => {
-          if (mediasPorAluno[alunoId][hab1Id] !== undefined && 
-              mediasPorAluno[alunoId][hab2Id] !== undefined) {
+          if (mediasPorAluno[alunoId][hab1Id] !== undefined &&
+            mediasPorAluno[alunoId][hab2Id] !== undefined) {
             valoresHab1.push(mediasPorAluno[alunoId][hab1Id]);
             valoresHab2.push(mediasPorAluno[alunoId][hab2Id]);
           }
         });
-        
+
         // Calcular correlação de Pearson simplificada
         if (valoresHab1.length >= 3) { // Mínimo 3 alunos para calcular correlação
           const media1 = valoresHab1.reduce((sum, v) => sum + v, 0) / valoresHab1.length;
           const media2 = valoresHab2.reduce((sum, v) => sum + v, 0) / valoresHab2.length;
-          
+
           let numerador = 0;
           let denom1 = 0;
           let denom2 = 0;
-          
+
           for (let k = 0; k < valoresHab1.length; k++) {
             const diff1 = valoresHab1[k] - media1;
             const diff2 = valoresHab2[k] - media2;
@@ -2086,10 +2086,10 @@ async function handleGetHabilidadesCorrelacao(request, turmaId) {
             denom1 += diff1 * diff1;
             denom2 += diff2 * diff2;
           }
-          
+
           const denominador = Math.sqrt(denom1 * denom2);
           const correlacao = denominador > 0 ? numerador / denominador : 0;
-          
+
           // Só incluir correlações significativas (|r| > 0.3)
           if (Math.abs(correlacao) > 0.3) {
             correlacoes.push({
@@ -2110,14 +2110,14 @@ async function handleGetHabilidadesCorrelacao(request, turmaId) {
       todasHabilidadesIds.add(c.habilidade1.id);
       todasHabilidadesIds.add(c.habilidade2.id);
     });
-    
+
     const habilidades = await db.collection('habilidades')
       .find({ id: { $in: Array.from(todasHabilidadesIds) }, userId })
       .toArray();
-    
+
     const habilidadesMap = {};
     habilidades.forEach(h => habilidadesMap[h.id] = h.nome);
-    
+
     // Adicionar nomes às correlações
     const correlacoesComNomes = correlacoes.map(c => ({
       habilidade1: {
@@ -2178,10 +2178,10 @@ async function handleGetPlanoStatus(request) {
   try {
     const userId = await requireAuth(request);
     const { db } = await connectToDatabase();
-    
+
     const status = await checkPlanoLimits(userId, db);
     const user = await db.collection('users').findOne({ id: userId });
-    
+
     return NextResponse.json({
       plano: user?.assinatura || 'free',
       ...status
@@ -2217,7 +2217,7 @@ async function handleExportCSV(request) {
         const gabarito = await db.collection('gabaritos').findOne({ id: av.gabaritoId });
         const turma = await db.collection('turmas').findOne({ id: av.turmaId });
         const aluno = await db.collection('alunos').findOne({ id: av.alunoId });
-        
+
         return {
           ...av,
           gabaritoTitulo: gabarito?.titulo || 'N/A',
@@ -2282,7 +2282,7 @@ async function handleExportExcel(request) {
         const gabarito = await db.collection('gabaritos').findOne({ id: av.gabaritoId });
         const turma = await db.collection('turmas').findOne({ id: av.turmaId });
         const aluno = await db.collection('alunos').findOne({ id: av.alunoId });
-        
+
         return {
           ...av,
           gabaritoTitulo: gabarito?.titulo || 'N/A',
@@ -2347,7 +2347,7 @@ async function handleGetAlunoDetail(request, alunoId) {
   try {
     const userId = await requireAuth(request);
     const { db } = await connectToDatabase();
-    
+
     // Buscar aluno
     const aluno = await db.collection('alunos').findOne({ id: alunoId });
     if (!aluno) {
@@ -2362,10 +2362,10 @@ async function handleGetAlunoDetail(request, alunoId) {
 
     // Buscar todas as avaliações validadas do aluno
     const avaliacoes = await db.collection('avaliacoes_corrigidas')
-      .find({ 
-        userId, 
-        alunoId, 
-        validado: true 
+      .find({
+        userId,
+        alunoId,
+        validado: true
       })
       .sort({ validadoAt: -1 })
       .toArray();
@@ -2407,13 +2407,13 @@ async function handleGetAlunoDetail(request, alunoId) {
 
     // Buscar média da turma para comparação
     const avaliacoesTurma = await db.collection('avaliacoes_corrigidas')
-      .find({ 
-        userId, 
-        turmaId: aluno.turmaId, 
-        validado: true 
+      .find({
+        userId,
+        turmaId: aluno.turmaId,
+        validado: true
       })
       .toArray();
-    
+
     const notasTurma = avaliacoesTurma.map(a => a.nota || 0).filter(n => n > 0);
     const mediaTurma = notasTurma.length > 0
       ? notasTurma.reduce((sum, n) => sum + n, 0) / notasTurma.length
@@ -2446,7 +2446,7 @@ async function handleGetAlunoDetail(request, alunoId) {
 
 export async function DELETE(request) {
   const pathname = new URL(request.url).pathname;
-  
+
   // Handle delete habilidade
   if (pathname.match(/\/api\/habilidades\/(.+)/)) {
     const habilidadeId = pathname.split('/')[3];
