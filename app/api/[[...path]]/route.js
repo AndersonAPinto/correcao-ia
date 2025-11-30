@@ -828,6 +828,69 @@ async function handleGetGabaritos(request) {
 
 // ==================== UPLOAD & ASSESSMENT HANDLERS ====================
 
+// Helper function para chamar Gemini API com retry e validação
+async function callGeminiAPIWithRetry(url, body, maxRetries = 3) {
+  let lastError = null;
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, body);
+      
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Validar estrutura da resposta
+        if (!data.candidates || data.candidates.length === 0) {
+          throw new Error('No candidates in Gemini API response');
+        }
+        
+        const candidate = data.candidates[0];
+        if (!candidate?.content?.parts || candidate.content.parts.length === 0) {
+          throw new Error('Invalid response structure from Gemini API');
+        }
+        
+        const responseText = candidate.content.parts[0].text;
+        if (!responseText) {
+          throw new Error('Empty response from Gemini API');
+        }
+        
+        return responseText;
+      }
+      
+      // Se for erro 429 (rate limit), aguardar mais tempo
+      if (response.status === 429) {
+        const waitTime = Math.pow(2, attempt) * 1000; // Exponential backoff
+        console.warn(`Rate limit hit, waiting ${waitTime}ms before retry ${attempt + 1}/${maxRetries}`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        continue;
+      }
+      
+      // Para outros erros, tentar novamente com backoff
+      if (attempt < maxRetries - 1) {
+        const waitTime = 1000 * (attempt + 1);
+        const errorText = await response.text();
+        console.warn(`Gemini API error (attempt ${attempt + 1}/${maxRetries}):`, errorText);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        continue;
+      }
+      
+      // Última tentativa falhou
+      const errorText = await response.text();
+      throw new Error(`Gemini API failed: ${errorText}`);
+      
+    } catch (error) {
+      lastError = error;
+      if (attempt < maxRetries - 1) {
+        const waitTime = 1000 * (attempt + 1);
+        console.warn(`Gemini API call failed (attempt ${attempt + 1}/${maxRetries}), retrying in ${waitTime}ms:`, error.message);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
+    }
+  }
+  
+  throw lastError || new Error('Failed to call Gemini API after all retries');
+}
+
 // Handler para questões dissertativas - OCR + correção com Gemini
 async function handleDissertativaUpload(file, gabarito, turmaId, alunoId, periodo, userId, db) {
   try {
@@ -939,10 +1002,27 @@ IMPORTANTE:
 - Seja rigoroso mas justo na correção
 - O feedback deve ser construtivo e educativo`;
 
-    // Chamar Gemini para OCR + Correção (usando Pro para melhor qualidade)
-    const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${settings.geminiApiKey}`,
-      {
+    // Debitar créditos ANTES de processar (será revertido em caso de erro)
+    await db.collection('creditos').updateOne(
+      { userId },
+      { $inc: { saldoAtual: -3 } }
+    );
+
+    const transactionId = uuidv4();
+    await db.collection('transacoes_creditos').insertOne({
+      id: transactionId,
+      userId,
+      tipo: 'debito',
+      quantidade: -3,
+      descricao: 'Correção de prova (dissertativa)',
+      createdAt: new Date()
+    });
+
+    let responseText;
+    try {
+      // Chamar Gemini para OCR + Correção (usando Pro para melhor qualidade)
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${settings.geminiApiKey}`;
+      const geminiBody = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -964,33 +1044,62 @@ IMPORTANTE:
             maxOutputTokens: 4096
           }
         })
-      }
-    );
+      };
 
-    if (!geminiResponse.ok) {
-      const errorText = await geminiResponse.text();
-      console.error('Gemini API error:', errorText);
+      responseText = await callGeminiAPIWithRetry(geminiUrl, geminiBody);
+    } catch (error) {
+      // Rollback: restaurar créditos em caso de erro
+      await db.collection('creditos').updateOne(
+        { userId },
+        { $inc: { saldoAtual: 3 } }
+      );
+      await db.collection('transacoes_creditos').updateOne(
+        { id: transactionId },
+        { $set: { descricao: 'Correção de prova (dissertativa) - ERRO: créditos restaurados' } }
+      );
+      
+      console.error('Gemini API error:', error);
       return NextResponse.json({ 
-        error: 'Failed to process image with Gemini API' 
+        error: 'Failed to process image with Gemini API. Credits have been restored. Please try again.' 
       }, { status: 500 });
     }
-
-    const geminiData = await geminiResponse.json();
-    const responseText = geminiData.candidates[0].content.parts[0].text;
     
-    // Extrair JSON da resposta
+    // Extrair e validar JSON da resposta
     let correcaoData = null;
     try {
       const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        correcaoData = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error('No JSON found in response');
+      if (!jsonMatch) {
+        throw new Error('No JSON found in Gemini response');
+      }
+      
+      correcaoData = JSON.parse(jsonMatch[0]);
+      
+      // Validar estrutura esperada
+      if (!correcaoData.texto_ocr || typeof correcaoData.texto_ocr !== 'string') {
+        throw new Error('Missing or invalid texto_ocr in response');
+      }
+      
+      if (correcaoData.nota_final === undefined || typeof correcaoData.nota_final !== 'number') {
+        throw new Error('Missing or invalid nota_final in response');
+      }
+      
+      if (!Array.isArray(correcaoData.exercicios)) {
+        throw new Error('Missing or invalid exercicios array in response');
       }
     } catch (e) {
+      // Rollback: restaurar créditos em caso de erro de parsing
+      await db.collection('creditos').updateOne(
+        { userId },
+        { $inc: { saldoAtual: 3 } }
+      );
+      await db.collection('transacoes_creditos').updateOne(
+        { id: transactionId },
+        { $set: { descricao: 'Correção de prova (dissertativa) - ERRO DE PARSING: créditos restaurados' } }
+      );
+      
       console.error('Failed to parse Gemini response:', e, responseText);
       return NextResponse.json({ 
-        error: 'Failed to parse correction response. Please try again.' 
+        error: 'Failed to parse correction response. Credits have been restored. Please try again.' 
       }, { status: 500 });
     }
 
@@ -1035,20 +1144,7 @@ IMPORTANTE:
       });
     });
 
-    // Debitar créditos
-    await db.collection('creditos').updateOne(
-      { userId },
-      { $inc: { saldoAtual: -3 } }
-    );
-
-    await db.collection('transacoes_creditos').insertOne({
-      id: uuidv4(),
-      userId,
-      tipo: 'debito',
-      quantidade: -3,
-      descricao: 'Correção de prova (dissertativa)',
-      createdAt: new Date()
-    });
+    // Créditos já foram debitados anteriormente (com rollback em caso de erro)
 
     // Criar avaliação já corrigida
     const assessmentId = uuidv4();
@@ -1143,6 +1239,13 @@ async function handleMultiplaEscolhaUpload(file, gabarito, turmaId, alunoId, per
       }, { status: 400 });
     }
 
+    // Validar questões do gabarito
+    if (!gabarito.questoes || !Array.isArray(gabarito.questoes) || gabarito.questoes.length === 0) {
+      return NextResponse.json({ 
+        error: 'Gabarito de múltipla escolha deve ter pelo menos uma questão definida' 
+      }, { status: 400 });
+    }
+
     // Converter imagem para base64
     const base64Image = buffer.toString('base64');
     const mimeType = file.type || 'image/jpeg';
@@ -1175,10 +1278,27 @@ Retorne APENAS um JSON válido no formato:
 
 IMPORTANTE: Retorne apenas o JSON, sem texto adicional.`;
 
-    // Chamar Gemini para OCR (usando flash para ser mais rápido e econômico)
-    const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${settings.geminiApiKey}`,
-      {
+    // Debitar créditos ANTES de processar (será revertido em caso de erro)
+    await db.collection('creditos').updateOne(
+      { userId },
+      { $inc: { saldoAtual: -3 } }
+    );
+
+    const transactionId = uuidv4();
+    await db.collection('transacoes_creditos').insertOne({
+      id: transactionId,
+      userId,
+      tipo: 'debito',
+      quantidade: -3,
+      descricao: 'Correção de prova (múltipla escolha)',
+      createdAt: new Date()
+    });
+
+    let ocrText;
+    try {
+      // Chamar Gemini para OCR (usando flash para ser mais rápido e econômico)
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${settings.geminiApiKey}`;
+      const geminiBody = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1194,33 +1314,56 @@ IMPORTANTE: Retorne apenas o JSON, sem texto adicional.`;
             ]
           }]
         })
-      }
-    );
+      };
 
-    if (!geminiResponse.ok) {
-      const errorText = await geminiResponse.text();
-      console.error('Gemini API error:', errorText);
+      ocrText = await callGeminiAPIWithRetry(geminiUrl, geminiBody);
+    } catch (error) {
+      // Rollback: restaurar créditos em caso de erro
+      await db.collection('creditos').updateOne(
+        { userId },
+        { $inc: { saldoAtual: 3 } }
+      );
+      await db.collection('transacoes_creditos').updateOne(
+        { id: transactionId },
+        { $set: { descricao: 'Correção de prova (múltipla escolha) - ERRO: créditos restaurados' } }
+      );
+      
+      console.error('Gemini API error:', error);
       return NextResponse.json({ 
-        error: 'Failed to process image with Gemini API' 
+        error: 'Failed to process image with Gemini API. Credits have been restored. Please try again.' 
       }, { status: 500 });
     }
-
-    const geminiData = await geminiResponse.json();
-    const ocrText = geminiData.candidates[0].content.parts[0].text;
     
-    // Extrair JSON da resposta
+    // Extrair e validar JSON da resposta
     let respostasAluno = [];
     try {
-      // Tentar extrair JSON da resposta (pode ter texto antes/depois)
       const jsonMatch = ocrText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        respostasAluno = parsed.respostas || [];
+      if (!jsonMatch) {
+        throw new Error('No JSON found in Gemini response');
       }
+      
+      const parsed = JSON.parse(jsonMatch[0]);
+      
+      // Validar estrutura esperada
+      if (!parsed.respostas || !Array.isArray(parsed.respostas)) {
+        throw new Error('Missing or invalid respostas array in response');
+      }
+      
+      respostasAluno = parsed.respostas;
     } catch (e) {
-      console.error('Failed to parse Gemini response:', e);
+      // Rollback: restaurar créditos em caso de erro de parsing
+      await db.collection('creditos').updateOne(
+        { userId },
+        { $inc: { saldoAtual: 3 } }
+      );
+      await db.collection('transacoes_creditos').updateOne(
+        { id: transactionId },
+        { $set: { descricao: 'Correção de prova (múltipla escolha) - ERRO DE PARSING: créditos restaurados' } }
+      );
+      
+      console.error('Failed to parse Gemini response:', e, ocrText);
       return NextResponse.json({ 
-        error: 'Failed to parse OCR response. Please try again.' 
+        error: 'Failed to parse OCR response. Credits have been restored. Please try again.' 
       }, { status: 500 });
     }
 
@@ -1278,20 +1421,7 @@ IMPORTANTE: Retorne apenas o JSON, sem texto adicional.`;
     // Criar feedback geral
     const feedbackGeral = `Você acertou ${pontosObtidos} de ${totalPontos} questões (${percentualAcerto.toFixed(1)}%). Nota: ${notaFinal.toFixed(2)}/10.`;
 
-    // Debitar créditos
-    await db.collection('creditos').updateOne(
-      { userId },
-      { $inc: { saldoAtual: -3 } }
-    );
-
-    await db.collection('transacoes_creditos').insertOne({
-      id: uuidv4(),
-      userId,
-      tipo: 'debito',
-      quantidade: -3,
-      descricao: 'Correção de prova (múltipla escolha)',
-      createdAt: new Date()
-    });
+    // Créditos já foram debitados anteriormente (com rollback em caso de erro)
 
     // Criar avaliação já corrigida
     const assessmentId = uuidv4();

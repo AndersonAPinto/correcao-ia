@@ -19,6 +19,7 @@ import HabilidadesSection from '@/components/sections/HabilidadesSection';
 import PerfisSection from '@/components/sections/PerfisSection';
 import ResultadosSection from '@/components/sections/ResultadosSection';
 import ConfiguracoesSection from '@/components/sections/ConfiguracoesSection';
+import CorretorIASection from '@/components/sections/CorretorIA';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -348,9 +349,13 @@ export default function App() {
         <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
           <div className="min-h-[100vh] flex-1 rounded-xl bg-muted/50 p-4">
             {activeView === 'painel' && (
-              <PainelSection onUploadSuccess={handleUploadSuccess} />
+              <PainelSection 
+                onUploadSuccess={handleUploadSuccess}
+                setActiveView={setActiveView}
+              />
             )}
             {activeView === 'analytics' && <AnalyticsSection />}
+            {activeView === 'corretor-ia' && <CorretorIASection />}
             {activeView === 'gabaritos' && <GabaritosSection />}
             {activeView === 'habilidades' && <HabilidadesSection />}
             {activeView === 'perfis' && <PerfisSection />}

@@ -10,7 +10,8 @@ import {
   ChevronRight,
   Award,
   BarChart3,
-  GraduationCap
+  GraduationCap,
+  BotIcon
 } from 'lucide-react';
 import {
   Sidebar,
@@ -45,6 +46,12 @@ export default function AppSidebar({ activeView, setActiveView, pendingCount = 0
       label: 'Analytics', 
       icon: BarChart3,
       description: 'Métricas e relatórios'
+    },
+    { 
+      id: 'corretor-ia', 
+      label: 'Corretor IA', 
+      icon: BotIcon,
+      description: 'Correção automática e instantânea de provas de múltipla escolha. Para questões discursivas, receba sugestões inteligentes de pontuação.'
     },
     { 
       id: 'gabaritos', 
