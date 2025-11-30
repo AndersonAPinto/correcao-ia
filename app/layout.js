@@ -6,8 +6,53 @@ import { ThemeProvider } from 'next-themes';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
-  title: 'Corretor 80/20 - AI Grading Assistant',
-  description: 'Intelligent AI-powered grading system',
+  title: 'Corretor 80/20 - Correção de Provas com Inteligência Artificial | Economize Tempo',
+  description: 'Plataforma de correção automática de provas com IA. Economize até 80% do tempo corrigindo avaliações. OCR avançado, feedback instantâneo e dashboard completo para professores.',
+  keywords: [
+    'correção de provas',
+    'correção automática',
+    'inteligência artificial para professores',
+    'IA educação',
+    'corretor automático',
+    'OCR manuscrito',
+    'plataforma educacional',
+    'correção com IA',
+    'economizar tempo professor',
+    'avaliação automática',
+    'feedback automático alunos',
+    'gestão de provas'
+  ],
+  authors: [{ name: 'Corretor 80/20' }],
+  creator: 'Corretor 80/20',
+  publisher: 'Corretor 80/20',
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'),
+  alternates: {
+    canonical: '/',
+  },
+  openGraph: {
+    title: 'Corretor 80/20 - Correção de Provas com IA',
+    description: 'Economize até 80% do tempo corrigindo provas. Plataforma com IA, OCR e feedback automático para professores.',
+    url: '/',
+    siteName: 'Corretor 80/20',
+    locale: 'pt_BR',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Corretor 80/20 - Correção de Provas com IA',
+    description: 'Economize até 80% do tempo corrigindo provas com Inteligência Artificial',
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
 };
 
 export default function RootLayout({ children }) {

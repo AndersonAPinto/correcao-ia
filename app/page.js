@@ -20,6 +20,7 @@ import PerfisSection from '@/components/sections/PerfisSection';
 import ResultadosSection from '@/components/sections/ResultadosSection';
 import ConfiguracoesSection from '@/components/sections/ConfiguracoesSection';
 import CorretorIASection from '@/components/sections/CorretorIA';
+import LandingPage from '@/components/LandingPage';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -28,6 +29,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [activeView, setActiveView] = useState('painel');
   const [pendingCount, setPendingCount] = useState(0);
+  const [showAuth, setShowAuth] = useState(false);
 
   const [authMode, setAuthMode] = useState('login');
   const [authForm, setAuthForm] = useState({ email: '', password: '', name: '' });
@@ -62,10 +64,10 @@ export default function App() {
     if (token && provider === 'google') {
       // Limpar URL
       window.history.replaceState({}, document.title, window.location.pathname);
-      
+
       // Salvar token
       localStorage.setItem('token', token);
-      
+
       // Verificar autenticação
       checkAuth();
       toast.success('Login com Google realizado com sucesso!');
@@ -131,7 +133,7 @@ export default function App() {
       const response = await fetch('/api/avaliacoes/pendentes', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setPendingCount(data.avaliacoes?.length || 0);
@@ -192,6 +194,11 @@ export default function App() {
   }
 
   if (!isAuthenticated) {
+    // Show Landing Page first, then auth form when user clicks
+    if (!showAuth) {
+      return <LandingPage onLoginClick={() => setShowAuth(true)} />;
+    }
+
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
@@ -308,6 +315,15 @@ export default function App() {
                 </Button>
               </TabsContent>
             </Tabs>
+            <div className="mt-4 text-center">
+              <Button
+                variant="link"
+                className="text-sm text-gray-600"
+                onClick={() => setShowAuth(false)}
+              >
+                ← Voltar para a página inicial
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -316,9 +332,9 @@ export default function App() {
 
   return (
     <SidebarProvider>
-      <AppSidebar 
-        activeView={activeView} 
-        setActiveView={setActiveView} 
+      <AppSidebar
+        activeView={activeView}
+        setActiveView={setActiveView}
         pendingCount={pendingCount}
       />
       <SidebarInset>
@@ -349,7 +365,7 @@ export default function App() {
         <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
           <div className="min-h-[100vh] flex-1 rounded-xl bg-muted/50 p-4">
             {activeView === 'painel' && (
-              <PainelSection 
+              <PainelSection
                 onUploadSuccess={handleUploadSuccess}
                 setActiveView={setActiveView}
               />

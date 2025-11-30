@@ -39,7 +39,7 @@ export default function AnalyticsSection() {
       const response = await fetch('/api/turmas', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setTurmas(data.turmas || []);
@@ -51,10 +51,10 @@ export default function AnalyticsSection() {
 
   const loadAnalytics = async () => {
     if (!selectedTurma) return;
-    
+
     setLoading(true);
     const token = localStorage.getItem('token');
-    
+
     try {
       const [metricsRes, habilidadesRes, evolucaoRes, correlacaoRes] = await Promise.all([
         fetch(`/api/analytics/turma/${selectedTurma}`, {
@@ -93,7 +93,7 @@ export default function AnalyticsSection() {
     } catch (error) {
       console.error('Failed to load analytics:', error);
     }
-    
+
     setLoading(false);
   };
 
@@ -180,7 +180,7 @@ export default function AnalyticsSection() {
                 <CardContent>
                   <div className="text-2xl font-bold">{turmaMetrics.taxaAprovacao.toFixed(1)}%</div>
                   <p className="text-xs text-muted-foreground">
-                    {turmaMetrics.totalAvaliacoes > 0 
+                    {turmaMetrics.totalAvaliacoes > 0
                       ? `${Math.round((turmaMetrics.taxaAprovacao / 100) * turmaMetrics.totalAvaliacoes)} de ${turmaMetrics.totalAvaliacoes} avaliações`
                       : 'Sem avaliações'
                     }
@@ -241,8 +241,8 @@ export default function AnalyticsSection() {
                 {habilidadesReport.length > 0 ? (
                   <div className="space-y-4">
                     <ResponsiveContainer width="100%" height={400}>
-                      <BarChart 
-                        data={habilidadesReport.slice(0, 10)} 
+                      <BarChart
+                        data={habilidadesReport.slice(0, 10)}
                         layout="vertical"
                         margin={{ top: 5, right: 30, left: 100, bottom: 5 }}
                       >
@@ -326,7 +326,7 @@ export default function AnalyticsSection() {
                     h.evolucao.forEach(e => todosPeriodos.add(e.periodo));
                   });
                   const periodosArray = Array.from(todosPeriodos).sort();
-                  
+
                   // Criar array de dados com todas as habilidades
                   const dadosGrafico = periodosArray.map(periodo => {
                     const ponto = { periodo };
@@ -336,15 +336,15 @@ export default function AnalyticsSection() {
                     });
                     return ponto;
                   });
-                  
+
                   const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
-                  
+
                   return (
                     <ResponsiveContainer width="100%" height={400}>
                       <LineChart data={dadosGrafico}>
                         <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis 
-                          dataKey="periodo" 
+                        <XAxis
+                          dataKey="periodo"
                           angle={-45}
                           textAnchor="end"
                           height={80}
@@ -401,10 +401,10 @@ export default function AnalyticsSection() {
                         <tbody>
                           {habilidadesCorrelacao.map((corr, idx) => {
                             const correlacaoAbs = Math.abs(corr.correlacao);
-                            const corClass = corr.tipo === 'positiva' 
+                            const corClass = corr.tipo === 'positiva'
                               ? correlacaoAbs > 0.7 ? 'text-green-700 bg-green-50' : 'text-green-600'
                               : correlacaoAbs > 0.7 ? 'text-red-700 bg-red-50' : 'text-red-600';
-                            
+
                             return (
                               <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                                 <td className="px-4 py-2 text-sm font-medium">{corr.habilidade1.nome}</td>
@@ -413,11 +413,10 @@ export default function AnalyticsSection() {
                                   {corr.correlacao > 0 ? '+' : ''}{corr.correlacao.toFixed(3)}
                                 </td>
                                 <td className="px-4 py-2 text-center text-sm">
-                                  <span className={`px-2 py-1 rounded text-xs ${
-                                    corr.tipo === 'positiva' 
-                                      ? 'bg-green-100 text-green-700' 
+                                  <span className={`px-2 py-1 rounded text-xs ${corr.tipo === 'positiva'
+                                      ? 'bg-green-100 text-green-700'
                                       : 'bg-red-100 text-red-700'
-                                  }`}>
+                                    }`}>
                                     {corr.tipo === 'positiva' ? 'Positiva' : 'Negativa'}
                                   </span>
                                 </td>
@@ -432,15 +431,15 @@ export default function AnalyticsSection() {
                     </div>
                     <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
                       <p className="text-xs text-blue-800">
-                        <strong>Interpretação:</strong> Correlação positiva indica que alunos com bom desempenho em uma habilidade 
-                        tendem a ter bom desempenho na outra. Correlação negativa indica o oposto. 
+                        <strong>Interpretação:</strong> Correlação positiva indica que alunos com bom desempenho em uma habilidade
+                        tendem a ter bom desempenho na outra. Correlação negativa indica o oposto.
                         Valores próximos de ±1 indicam correlação forte.
                       </p>
                     </div>
                   </div>
                 ) : (
                   <p className="text-center text-gray-500 py-8">
-                    Nenhuma correlação significativa encontrada. É necessário ter dados de múltiplos alunos 
+                    Nenhuma correlação significativa encontrada. É necessário ter dados de múltiplos alunos
                     com avaliações em diferentes habilidades.
                   </p>
                 )}
@@ -460,8 +459,8 @@ export default function AnalyticsSection() {
                 {turmaMetrics.alunos && turmaMetrics.alunos.length > 0 ? (
                   <div className="space-y-2">
                     {turmaMetrics.alunos.map((aluno, index) => (
-                      <div 
-                        key={aluno.id} 
+                      <div
+                        key={aluno.id}
                         className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
                         onClick={() => {
                           setSelectedAlunoId(aluno.id);
@@ -469,12 +468,11 @@ export default function AnalyticsSection() {
                         }}
                       >
                         <div className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                            index === 0 ? 'bg-yellow-100 text-yellow-700' :
-                            index === 1 ? 'bg-gray-100 text-gray-700' :
-                            index === 2 ? 'bg-orange-100 text-orange-700' :
-                            'bg-blue-50 text-blue-700'
-                          }`}>
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${index === 0 ? 'bg-yellow-100 text-yellow-700' :
+                              index === 1 ? 'bg-gray-100 text-gray-700' :
+                                index === 2 ? 'bg-orange-100 text-orange-700' :
+                                  'bg-blue-50 text-blue-700'
+                            }`}>
                             {index + 1}º
                           </div>
                           <div>
