@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { verifyToken } from './lib/auth';
 
 // Paths that require authentication
 const PROTECTED_PATHS = ['/dashboard', '/api/users', '/api/correcoes'];

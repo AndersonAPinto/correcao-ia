@@ -19,7 +19,7 @@ async function handleRegister(request) {
     }
 
     const { db } = await connectToDatabase();
-    
+
     const existingUser = await db.collection('users').findOne({ email });
     if (existingUser) {
       return NextResponse.json({ error: 'Email already registered' }, { status: 400 });
@@ -28,7 +28,7 @@ async function handleRegister(request) {
     const userId = uuidv4();
     const hashedPassword = hashPassword(password);
     const isAdmin = email === ADMIN_EMAIL ? 1 : 0;
-    
+
     await db.collection('users').insertOne({
       id: userId,
       email,
@@ -73,7 +73,7 @@ async function handleLogin(request) {
 
     const { db } = await connectToDatabase();
     const user = await db.collection('users').findOne({ email });
-    
+
     console.log('[LOGIN] Email:', email);
     console.log('[LOGIN] User found:', !!user);
     if (user) {
@@ -81,15 +81,15 @@ async function handleLogin(request) {
       const passwordMatch = verifyPassword(password, user.password);
       console.log('[LOGIN] Password match:', passwordMatch);
     }
-    
+
     if (!user || !verifyPassword(password, user.password)) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
     const token = generateToken(user.id);
-    return NextResponse.json({ 
-      token, 
-      user: { id: user.id, email: user.email, name: user.name, isAdmin: user.isAdmin || 0 } 
+    return NextResponse.json({
+      token,
+      user: { id: user.id, email: user.email, name: user.name, isAdmin: user.isAdmin || 0 }
     });
   } catch (error) {
     console.error('Login error:', error);
@@ -102,19 +102,19 @@ async function handleGetMe(request) {
     const userId = await requireAuth(request);
     const { db } = await connectToDatabase();
     const user = await db.collection('users').findOne({ id: userId });
-    
+
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ 
-      user: { 
-        id: user.id, 
-        email: user.email, 
-        name: user.name, 
+    return NextResponse.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
         isAdmin: user.isAdmin || 0,
         assinatura: user.assinatura || 'free'
-      } 
+      }
     });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 401 });
@@ -127,7 +127,7 @@ async function handleCreateTurma(request) {
   try {
     const userId = await requireAuth(request);
     const { nome } = await request.json();
-    
+
     if (!nome) {
       return NextResponse.json({ error: 'Missing turma name' }, { status: 400 });
     }
@@ -151,7 +151,7 @@ async function handleGetTurmas(request) {
   try {
     const userId = await requireAuth(request);
     const { db } = await connectToDatabase();
-    
+
     const turmas = await db.collection('turmas')
       .find({ userId })
       .sort({ createdAt: -1 })
@@ -169,13 +169,13 @@ async function handleCreateAluno(request) {
   try {
     const userId = await requireAuth(request);
     const { turmaId, nome } = await request.json();
-    
+
     if (!turmaId || !nome) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
     const { db } = await connectToDatabase();
-    
+
     // Verify turma belongs to user
     const turma = await db.collection('turmas').findOne({ id: turmaId, userId });
     if (!turma) {
@@ -200,7 +200,7 @@ async function handleGetAlunos(request, turmaId) {
   try {
     const userId = await requireAuth(request);
     const { db } = await connectToDatabase();
-    
+
     // Verify turma belongs to user
     const turma = await db.collection('turmas').findOne({ id: turmaId, userId });
     if (!turma) {
@@ -224,7 +224,7 @@ async function handleCreatePerfil(request) {
   try {
     const userId = await requireAuth(request);
     const formData = await request.formData();
-    
+
     const nome = formData.get('nome');
     const conteudo = formData.get('conteudo');
     const arquivo = formData.get('arquivo');
@@ -240,7 +240,7 @@ async function handleCreatePerfil(request) {
     if (arquivo && arquivo.size > 0) {
       const bytes = await arquivo.arrayBuffer();
       const buffer = Buffer.from(bytes);
-      
+
       const uploadDir = join(process.cwd(), 'public', 'perfis');
       if (!existsSync(uploadDir)) {
         await mkdir(uploadDir, { recursive: true });
@@ -273,7 +273,7 @@ async function handleGetPerfis(request) {
   try {
     const userId = await requireAuth(request);
     const { db } = await connectToDatabase();
-    
+
     const perfis = await db.collection('perfis_avaliacao')
       .find({ userId })
       .sort({ createdAt: -1 })
@@ -289,21 +289,21 @@ async function handleGerarPerfil(request) {
   try {
     const userId = await requireAuth(request);
     const { conteudo } = await request.json();
-    
+
     if (!conteudo) {
       return NextResponse.json({ error: 'Missing content' }, { status: 400 });
     }
 
     const { db } = await connectToDatabase();
-    
+
     // Get Gemini API key from admin settings
-    const adminSettings = await db.collection('settings').findOne({ 
+    const adminSettings = await db.collection('settings').findOne({
       userId: { $exists: true }
     });
-    
+
     if (!adminSettings || !adminSettings.geminiApiKey) {
-      return NextResponse.json({ 
-        error: 'Gemini API key not configured by admin' 
+      return NextResponse.json({
+        error: 'Gemini API key not configured by admin'
       }, { status: 400 });
     }
 
@@ -321,7 +321,7 @@ Crie um perfil de avaliação que inclua:
 Formato: Texto estruturado, claro e objetivo.`;
 
     const resultado = await callGeminiAPI(adminSettings.geminiApiKey, prompt);
-    
+
     return NextResponse.json({ perfilGerado: resultado });
   } catch (error) {
     console.error('Generate perfil error:', error);
@@ -335,7 +335,7 @@ async function handleCreateGabarito(request) {
   try {
     const userId = await requireAuth(request);
     const formData = await request.formData();
-    
+
     const titulo = formData.get('titulo');
     const conteudo = formData.get('conteudo');
     const perfilAvaliacaoId = formData.get('perfilAvaliacaoId');
@@ -352,7 +352,7 @@ async function handleCreateGabarito(request) {
     if (arquivo && arquivo.size > 0) {
       const bytes = await arquivo.arrayBuffer();
       const buffer = Buffer.from(bytes);
-      
+
       const uploadDir = join(process.cwd(), 'public', 'gabaritos');
       if (!existsSync(uploadDir)) {
         await mkdir(uploadDir, { recursive: true });
@@ -386,7 +386,7 @@ async function handleGetGabaritos(request) {
   try {
     const userId = await requireAuth(request);
     const { db } = await connectToDatabase();
-    
+
     const gabaritos = await db.collection('gabaritos')
       .find({ userId })
       .sort({ createdAt: -1 })
@@ -408,20 +408,20 @@ async function handleUpload(request) {
     // Check credits
     const credits = await db.collection('creditos').findOne({ userId });
     if (!credits || credits.saldoAtual < 3) {
-      return NextResponse.json({ 
-        error: 'Insufficient credits. Need at least 3 credits.' 
+      return NextResponse.json({
+        error: 'Insufficient credits. Need at least 3 credits.'
       }, { status: 400 });
     }
 
     // Get settings (admin or user)
     const user = await db.collection('users').findOne({ id: userId });
-    let settings = await db.collection('settings').findOne({ 
+    let settings = await db.collection('settings').findOne({
       userId: user.isAdmin ? userId : { $exists: true }
     });
-    
+
     if (!settings || !settings.n8nWebhookUrl) {
-      return NextResponse.json({ 
-        error: 'N8N webhook URL not configured.' 
+      return NextResponse.json({
+        error: 'N8N webhook URL not configured.'
       }, { status: 400 });
     }
 
@@ -433,8 +433,8 @@ async function handleUpload(request) {
     const periodo = formData.get('periodo');
 
     if (!file || !gabaritoId || !turmaId || !alunoId || !periodo) {
-      return NextResponse.json({ 
-        error: 'Missing required fields' 
+      return NextResponse.json({
+        error: 'Missing required fields'
       }, { status: 400 });
     }
 
@@ -457,7 +457,7 @@ async function handleUpload(request) {
     // Save file
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    
+
     const uploadDir = join(process.cwd(), 'public', 'uploads');
     if (!existsSync(uploadDir)) {
       await mkdir(uploadDir, { recursive: true });
@@ -488,8 +488,8 @@ async function handleUpload(request) {
     // Get perfil if exists
     let perfilConteudo = '';
     if (gabarito.perfilAvaliacaoId) {
-      const perfil = await db.collection('perfis_avaliacao').findOne({ 
-        id: gabarito.perfilAvaliacaoId 
+      const perfil = await db.collection('perfis_avaliacao').findOne({
+        id: gabarito.perfilAvaliacaoId
       });
       if (perfil) {
         perfilConteudo = perfil.conteudo;
@@ -537,16 +537,16 @@ async function handleUpload(request) {
         console.error('N8N webhook failed:', await webhookResponse.text());
       }
 
-      return NextResponse.json({ 
-        success: true, 
+      return NextResponse.json({
+        success: true,
         assessmentId,
-        imageUrl 
+        imageUrl
       });
     } catch (webhookError) {
       console.error('Webhook error:', webhookError);
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'Failed to connect to N8N.',
-        assessmentId 
+        assessmentId
       }, { status: 500 });
     }
   } catch (error) {
@@ -561,7 +561,7 @@ async function handleGetAvaliacoesPendentes(request) {
   try {
     const userId = await requireAuth(request);
     const { db } = await connectToDatabase();
-    
+
     const avaliacoes = await db.collection('avaliacoes_corrigidas')
       .find({ userId, status: 'completed', validado: false })
       .sort({ completedAt: -1 })
@@ -573,7 +573,7 @@ async function handleGetAvaliacoesPendentes(request) {
         const gabarito = await db.collection('gabaritos').findOne({ id: av.gabaritoId });
         const turma = await db.collection('turmas').findOne({ id: av.turmaId });
         const aluno = await db.collection('alunos').findOne({ id: av.alunoId });
-        
+
         return {
           ...av,
           gabaritoTitulo: gabarito?.titulo || 'Unknown',
@@ -593,7 +593,7 @@ async function handleGetAvaliacoesConcluidas(request) {
   try {
     const userId = await requireAuth(request);
     const { db } = await connectToDatabase();
-    
+
     const avaliacoes = await db.collection('avaliacoes_corrigidas')
       .find({ userId, validado: true })
       .sort({ validadoAt: -1 })
@@ -605,7 +605,7 @@ async function handleGetAvaliacoesConcluidas(request) {
         const gabarito = await db.collection('gabaritos').findOne({ id: av.gabaritoId });
         const turma = await db.collection('turmas').findOne({ id: av.turmaId });
         const aluno = await db.collection('alunos').findOne({ id: av.alunoId });
-        
+
         return {
           ...av,
           gabaritoTitulo: gabarito?.titulo || 'Unknown',
@@ -625,23 +625,23 @@ async function handleValidarAvaliacao(request, avaliacaoId) {
   try {
     const userId = await requireAuth(request);
     const { db } = await connectToDatabase();
-    
-    const avaliacao = await db.collection('avaliacoes_corrigidas').findOne({ 
-      id: avaliacaoId, 
-      userId 
+
+    const avaliacao = await db.collection('avaliacoes_corrigidas').findOne({
+      id: avaliacaoId,
+      userId
     });
-    
+
     if (!avaliacao) {
       return NextResponse.json({ error: 'Assessment not found' }, { status: 404 });
     }
 
     await db.collection('avaliacoes_corrigidas').updateOne(
       { id: avaliacaoId },
-      { 
-        $set: { 
+      {
+        $set: {
           validado: true,
           validadoAt: new Date()
-        } 
+        }
       }
     );
 
@@ -662,9 +662,9 @@ async function handleWebhookResult(request) {
     }
 
     const { db } = await connectToDatabase();
-    
-    const avaliacao = await db.collection('avaliacoes_corrigidas').findOne({ 
-      id: assessment_id 
+
+    const avaliacao = await db.collection('avaliacoes_corrigidas').findOne({
+      id: assessment_id
     });
 
     if (!avaliacao) {
@@ -673,15 +673,15 @@ async function handleWebhookResult(request) {
 
     await db.collection('avaliacoes_corrigidas').updateOne(
       { id: assessment_id },
-      { 
-        $set: { 
+      {
+        $set: {
           textoOcr: texto_ocr || '',
           nota: nota_final || 0,
           feedback: feedback_geral || '',
           exercicios: exercicios || [],
           status: 'completed',
           completedAt: new Date()
-        } 
+        }
       }
     );
 
@@ -707,7 +707,7 @@ async function handleGetNotificacoes(request) {
   try {
     const userId = await requireAuth(request);
     const { db } = await connectToDatabase();
-    
+
     const notificacoes = await db.collection('notificacoes')
       .find({ userId })
       .sort({ createdAt: -1 })
@@ -724,7 +724,7 @@ async function handleMarcarComoLida(request, notificacaoId) {
   try {
     const userId = await requireAuth(request);
     const { db } = await connectToDatabase();
-    
+
     await db.collection('notificacoes').updateOne(
       { id: notificacaoId, userId },
       { $set: { lida: true } }
@@ -742,7 +742,7 @@ async function handleGetCredits(request) {
   try {
     const userId = await requireAuth(request);
     const { db } = await connectToDatabase();
-    
+
     const credits = await db.collection('creditos').findOne({ userId });
     return NextResponse.json({ saldoAtual: credits?.saldoAtual || 0 });
   } catch (error) {
@@ -754,10 +754,10 @@ async function handleGetSettings(request) {
   try {
     const userId = await requireAuth(request);
     const { db } = await connectToDatabase();
-    
+
     const user = await db.collection('users').findOne({ id: userId });
     let settings = await db.collection('settings').findOne({ userId });
-    
+
     if (!settings) {
       settings = {
         id: uuidv4(),
@@ -789,18 +789,18 @@ async function handleUpdateSettings(request) {
   try {
     const userId = await requireAuth(request);
     const data = await request.json();
-    
+
     const { db } = await connectToDatabase();
     const user = await db.collection('users').findOne({ id: userId });
-    
+
     let updateData = {};
-    
+
     // Only admin can update API keys
     if (user.isAdmin) {
       if (data.geminiApiKey !== undefined) updateData.geminiApiKey = data.geminiApiKey;
       if (data.n8nWebhookUrl !== undefined) updateData.n8nWebhookUrl = data.n8nWebhookUrl;
     }
-    
+
     // All users can update their profile
     if (data.name) {
       await db.collection('users').updateOne(
@@ -808,12 +808,12 @@ async function handleUpdateSettings(request) {
         { $set: { name: data.name } }
       );
     }
-    
+
     if (Object.keys(updateData).length > 0) {
       await db.collection('settings').updateOne(
         { userId },
-        { 
-          $set: { 
+        {
+          $set: {
             ...updateData,
             updatedAt: new Date()
           },
@@ -839,14 +839,14 @@ async function handleAddAdmin(request) {
   try {
     await requireAdmin(request);
     const { email } = await request.json();
-    
+
     if (!email) {
       return NextResponse.json({ error: 'Missing email' }, { status: 400 });
     }
 
     const { db } = await connectToDatabase();
     const user = await db.collection('users').findOne({ email });
-    
+
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
@@ -893,7 +893,7 @@ export async function GET(request) {
   if (pathname === '/api/avaliacoes/pendentes') return handleGetAvaliacoesPendentes(request);
   if (pathname === '/api/avaliacoes/concluidas') return handleGetAvaliacoesConcluidas(request);
   if (pathname === '/api/notificacoes') return handleGetNotificacoes(request);
-  
+
   // Handle dynamic routes with IDs
   if (pathname.startsWith('/api/alunos/')) {
     const turmaId = pathname.split('/').pop();
@@ -907,13 +907,13 @@ export async function PUT(request) {
   const pathname = new URL(request.url).pathname;
 
   if (pathname === '/api/settings') return handleUpdateSettings(request);
-  
+
   // Handle validar avaliacao
   if (pathname.match(/\/api\/avaliacoes\/(.+)\/validar/)) {
     const avaliacaoId = pathname.split('/')[3];
     return handleValidarAvaliacao(request, avaliacaoId);
   }
-  
+
   // Handle marcar notificacao como lida
   if (pathname.match(/\/api\/notificacoes\/(.+)\/ler/)) {
     const notificacaoId = pathname.split('/')[3];
