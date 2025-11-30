@@ -2,12 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Coins, LogOut, Chrome } from 'lucide-react';
+import { Coins, LogOut } from 'lucide-react';
 
 import AppSidebar from '@/components/Sidebar';
 import NotificationBell from '@/components/NotificationBell';
@@ -20,7 +16,14 @@ import PerfisSection from '@/components/sections/PerfisSection';
 import ResultadosSection from '@/components/sections/ResultadosSection';
 import ConfiguracoesSection from '@/components/sections/ConfiguracoesSection';
 import CorretorIASection from '@/components/sections/CorretorIA';
-import LandingPage from '@/components/LandingPage';
+
+// Landing Page Components
+import Header from '@/components/landing/Header';
+import Hero from '@/components/landing/Hero';
+import Features from '@/components/landing/Features';
+import Pricing from '@/components/landing/Pricing';
+import Footer from '@/components/landing/Footer';
+import AuthModal from '@/components/auth/AuthModal';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -29,10 +32,10 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [activeView, setActiveView] = useState('painel');
   const [pendingCount, setPendingCount] = useState(0);
-  const [showAuth, setShowAuth] = useState(false);
 
-  const [authMode, setAuthMode] = useState('login');
-  const [authForm, setAuthForm] = useState({ email: '', password: '', name: '' });
+  // Auth State
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authTab, setAuthTab] = useState('login');
 
   useEffect(() => {
     // Processar token do callback OAuth
@@ -55,20 +58,14 @@ export default function App() {
         'no_id_token': 'Erro ao obter token de autenticação'
       };
       toast.error(errorMessages[error] || 'Erro na autenticação');
-      // Limpar URL
       window.history.replaceState({}, document.title, window.location.pathname);
       checkAuth();
       return;
     }
 
     if (token && provider === 'google') {
-      // Limpar URL
       window.history.replaceState({}, document.title, window.location.pathname);
-
-      // Salvar token
       localStorage.setItem('token', token);
-
-      // Verificar autenticação
       checkAuth();
       toast.success('Login com Google realizado com sucesso!');
     } else {
@@ -92,7 +89,7 @@ export default function App() {
     }
 
     try {
-      const response = await fetch('/api/auth/me', {
+      const response = await fetch('/api/users/me', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -118,7 +115,7 @@ export default function App() {
       const creditsRes = await fetch('/api/credits', { headers });
       if (creditsRes.ok) {
         const data = await creditsRes.json();
-        setCredits(data.saldoAtual);
+        setCredits(data.saldo);
       }
 
       await loadPendingCount();
@@ -130,7 +127,7 @@ export default function App() {
   const loadPendingCount = async () => {
     const token = localStorage.getItem('token');
     try {
-      const response = await fetch('/api/avaliacoes/pendentes', {
+      const response = await fetch('/api/avaliacoes?status=pendente', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -143,30 +140,11 @@ export default function App() {
     }
   };
 
-  const handleAuth = async (e) => {
-    e.preventDefault();
-    const endpoint = authMode === 'login' ? '/api/auth/login' : '/api/auth/register';
-
-    try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(authForm)
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        localStorage.setItem('token', data.token);
-        setUser(data.user);
-        setIsAuthenticated(true);
-        toast.success(authMode === 'login' ? 'Login realizado!' : 'Conta criada!');
-      } else {
-        toast.error(data.error || 'Falha na autenticação');
-      }
-    } catch (error) {
-      toast.error('Ocorreu um erro');
-    }
+  const handleAuthSuccess = (data) => {
+    localStorage.setItem('token', data.token);
+    setUser(data.user);
+    setIsAuthenticated(true);
+    setShowAuthModal(false);
   };
 
   const handleLogout = () => {
@@ -182,150 +160,39 @@ export default function App() {
     setActiveView('pendentes');
   };
 
+  const openAuth = (tab = 'login') => {
+    setAuthTab(tab);
+    setShowAuthModal(true);
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Carregando...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Carregando...</p>
         </div>
       </div>
     );
   }
 
   if (!isAuthenticated) {
-    // Show Landing Page first, then auth form when user clicks
-    if (!showAuth) {
-      return <LandingPage onLoginClick={() => setShowAuth(true)} />;
-    }
-
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="space-y-1 text-center">
-            <CardTitle className="text-3xl font-bold">Corretor 80/20</CardTitle>
-            <CardDescription>Plataforma de Correção com IA</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Tabs value={authMode} onValueChange={setAuthMode}>
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="login">Login</TabsTrigger>
-                <TabsTrigger value="register">Registrar</TabsTrigger>
-              </TabsList>
-              <TabsContent value="login">
-                <form onSubmit={handleAuth} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="seu@email.com"
-                      value={authForm.email}
-                      onChange={(e) => setAuthForm({ ...authForm, email: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Senha</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      value={authForm.password}
-                      onChange={(e) => setAuthForm({ ...authForm, password: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <Button type="submit" className="w-full">Entrar</Button>
-                </form>
-                <div className="relative my-4">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-white dark:bg-gray-950 px-2 text-muted-foreground">Ou</span>
-                  </div>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => {
-                    const currentPath = window.location.pathname;
-                    window.location.href = `/api/auth/google?redirect=${encodeURIComponent(currentPath)}`;
-                  }}
-                >
-                  <Chrome className="h-4 w-4 mr-2" />
-                  Continuar com Google
-                </Button>
-              </TabsContent>
-              <TabsContent value="register">
-                <form onSubmit={handleAuth} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Nome</Label>
-                    <Input
-                      id="name"
-                      placeholder="Seu nome"
-                      value={authForm.name}
-                      onChange={(e) => setAuthForm({ ...authForm, name: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="reg-email">Email</Label>
-                    <Input
-                      id="reg-email"
-                      type="email"
-                      placeholder="seu@email.com"
-                      value={authForm.email}
-                      onChange={(e) => setAuthForm({ ...authForm, email: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="reg-password">Senha</Label>
-                    <Input
-                      id="reg-password"
-                      type="password"
-                      value={authForm.password}
-                      onChange={(e) => setAuthForm({ ...authForm, password: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <Button type="submit" className="w-full">Criar Conta</Button>
-                </form>
-                <div className="relative my-4">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-white dark:bg-gray-950 px-2 text-muted-foreground">Ou</span>
-                  </div>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => {
-                    const currentPath = window.location.pathname;
-                    window.location.href = `/api/auth/google?redirect=${encodeURIComponent(currentPath)}`;
-                  }}
-                >
-                  <Chrome className="h-4 w-4 mr-2" />
-                  Continuar com Google
-                </Button>
-              </TabsContent>
-            </Tabs>
-            <div className="mt-4 text-center">
-              <Button
-                variant="link"
-                className="text-sm text-gray-600"
-                onClick={() => setShowAuth(false)}
-              >
-                ← Voltar para a página inicial
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen bg-background text-foreground selection:bg-blue-100 selection:text-blue-900">
+        <Header onLoginClick={openAuth} />
+        <main>
+          <Hero onCtaClick={() => openAuth('register')} />
+          <Features />
+          <Pricing onRegisterClick={() => openAuth('register')} />
+        </main>
+        <Footer />
+
+        <AuthModal
+          isOpen={showAuthModal}
+          onClose={() => setShowAuthModal(false)}
+          defaultTab={authTab}
+          onAuthSuccess={handleAuthSuccess}
+        />
       </div>
     );
   }
@@ -338,7 +205,7 @@ export default function App() {
         pendingCount={pendingCount}
       />
       <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <SidebarTrigger className="-ml-1" />
           <div className="flex flex-1 items-center justify-between">
             <div>
@@ -350,12 +217,12 @@ export default function App() {
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+              <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800">
                 <Coins className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                 <span className="font-semibold text-blue-900 dark:text-blue-300">{credits} créditos</span>
               </div>
               <NotificationBell />
-              <Button variant="outline" size="sm" onClick={handleLogout}>
+              <Button variant="ghost" size="sm" onClick={handleLogout}>
                 <LogOut className="h-4 w-4 mr-2" />
                 Sair
               </Button>
@@ -363,7 +230,7 @@ export default function App() {
           </div>
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-          <div className="min-h-[100vh] flex-1 rounded-xl bg-muted/50 p-4">
+          <div className="min-h-[calc(100vh-4rem)] flex-1 rounded-xl bg-muted/30 p-4 mt-4">
             {activeView === 'painel' && (
               <PainelSection
                 onUploadSuccess={handleUploadSuccess}

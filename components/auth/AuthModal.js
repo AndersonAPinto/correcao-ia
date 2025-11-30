@@ -1,0 +1,146 @@
+'use client';
+
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Chrome, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
+
+export default function AuthModal({ isOpen, onClose, defaultTab = 'login', onAuthSuccess }) {
+    const [isLoading, setIsLoading] = useState(false);
+    const [activeTab, setActiveTab] = useState(defaultTab);
+    const [formData, setFormData] = useState({
+        email: '',
+        password: '',
+        name: ''
+    });
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setIsLoading(true);
+
+        const endpoint = activeTab === 'login' ? '/api/auth/login' : '/api/auth/register';
+
+        try {
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                toast.success(activeTab === 'login' ? 'Login realizado com sucesso!' : 'Conta criada com sucesso!');
+                onAuthSuccess(data);
+                onClose();
+            } else {
+                toast.error(data.error || 'Erro na autenticação');
+            }
+        } catch (error) {
+            toast.error('Erro de conexão. Tente novamente.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleGoogleLogin = () => {
+        const currentPath = window.location.pathname;
+        window.location.href = `/api/auth/google?redirect=${encodeURIComponent(currentPath)}`;
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent className="sm:max-w-[400px] p-0 overflow-hidden gap-0">
+                <div className="p-6 pb-0">
+                    <DialogHeader className="mb-4">
+                        <DialogTitle className="text-2xl text-center">
+                            {activeTab === 'login' ? 'Bem-vindo de volta' : 'Crie sua conta'}
+                        </DialogTitle>
+                        <DialogDescription className="text-center">
+                            {activeTab === 'login'
+                                ? 'Entre para acessar suas correções'
+                                : 'Comece a corrigir provas com IA hoje mesmo'}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                        <TabsList className="grid w-full grid-cols-2 mb-6">
+                            <TabsTrigger value="login">Login</TabsTrigger>
+                            <TabsTrigger value="register">Registrar</TabsTrigger>
+                        </TabsList>
+
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            {activeTab === 'register' && (
+                                <div className="space-y-2">
+                                    <Label htmlFor="name">Nome Completo</Label>
+                                    <Input
+                                        id="name"
+                                        placeholder="Seu nome"
+                                        value={formData.name}
+                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                        required
+                                    />
+                                </div>
+                            )}
+
+                            <div className="space-y-2">
+                                <Label htmlFor="email">Email</Label>
+                                <Input
+                                    id="email"
+                                    type="email"
+                                    placeholder="seu@email.com"
+                                    value={formData.email}
+                                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                    required
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="password">Senha</Label>
+                                <Input
+                                    id="password"
+                                    type="password"
+                                    placeholder="••••••••"
+                                    value={formData.password}
+                                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                    required
+                                />
+                            </div>
+
+                            <Button type="submit" className="w-full h-11" disabled={isLoading}>
+                                {isLoading ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Processando...
+                                    </>
+                                ) : (
+                                    activeTab === 'login' ? 'Entrar' : 'Criar Conta'
+                                )}
+                            </Button>
+                        </form>
+                    </Tabs>
+                </div>
+
+                <div className="p-6 bg-gray-50 dark:bg-gray-900/50 mt-6 border-t">
+                    <div className="relative mb-6">
+                        <div className="absolute inset-0 flex items-center">
+                            <span className="w-full border-t" />
+                        </div>
+                        <div className="relative flex justify-center text-xs uppercase">
+                            <span className="bg-gray-50 dark:bg-gray-900 px-2 text-muted-foreground">Ou continue com</span>
+                        </div>
+                    </div>
+
+                    <Button variant="outline" className="w-full bg-white dark:bg-gray-800" onClick={handleGoogleLogin}>
+                        <Chrome className="mr-2 h-4 w-4" />
+                        Google
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
