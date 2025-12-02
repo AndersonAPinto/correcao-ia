@@ -69,6 +69,13 @@ export default function App() {
       checkAuth();
       toast.success('Login com Google realizado com sucesso!');
     } else {
+      // Verificar se há parâmetro auth na URL para abrir modal automaticamente
+      const authParam = urlParams.get('auth');
+      if (authParam === 'login' || authParam === 'register') {
+        setAuthTab(authParam);
+        setShowAuthModal(true);
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
       checkAuth();
     }
   }, []);

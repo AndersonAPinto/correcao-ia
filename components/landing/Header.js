@@ -4,8 +4,10 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import { Menu, X } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 export default function Header({ onLoginClick }) {
+    const router = useRouter();
     const [isScrolled, setIsScrolled] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -23,20 +25,29 @@ export default function Header({ onLoginClick }) {
                 }`}
         >
             <div className="container mx-auto px-4 flex items-center justify-between">
-                <div className="flex items-center gap-2">
+                <button
+                    onClick={() => router.push('/')}
+                    className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+                    aria-label="Voltar ao início"
+                >
                     <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">
                         80
                     </div>
                     <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">
                         Corretor 80/20
                     </span>
-                </div>
+                </button>
 
                 {/* Desktop Nav */}
                 <nav className="hidden md:flex items-center gap-8">
                     <a href="#features" className="text-sm font-medium hover:text-blue-600 transition-colors">Funcionalidades</a>
                     <a href="#pricing" className="text-sm font-medium hover:text-blue-600 transition-colors">Preços</a>
-                    <a href="#testimonials" className="text-sm font-medium hover:text-blue-600 transition-colors">Depoimentos</a>
+                    <button
+                        onClick={() => router.push('/demo')}
+                        className="text-sm font-medium hover:text-blue-600 transition-colors"
+                    >
+                        Demonstração
+                    </button>
                     <Button variant="ghost" onClick={() => onLoginClick('login')}>Entrar</Button>
                     <Button onClick={() => onLoginClick('register')}>Começar Grátis</Button>
                 </nav>
@@ -56,6 +67,12 @@ export default function Header({ onLoginClick }) {
                 >
                     <a href="#features" className="text-sm font-medium p-2" onClick={() => setMobileMenuOpen(false)}>Funcionalidades</a>
                     <a href="#pricing" className="text-sm font-medium p-2" onClick={() => setMobileMenuOpen(false)}>Preços</a>
+                    <button
+                        className="text-sm font-medium p-2 text-left w-full"
+                        onClick={() => { setMobileMenuOpen(false); router.push('/demo'); }}
+                    >
+                        Demonstração
+                    </button>
                     <Button variant="outline" className="w-full" onClick={() => { setMobileMenuOpen(false); onLoginClick('login'); }}>Entrar</Button>
                     <Button className="w-full" onClick={() => { setMobileMenuOpen(false); onLoginClick('register'); }}>Começar Grátis</Button>
                 </motion.div>

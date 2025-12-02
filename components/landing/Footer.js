@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+
 export default function Footer() {
     return (
         <footer className="bg-gray-50 dark:bg-gray-950 border-t py-12">
@@ -29,9 +31,9 @@ export default function Footer() {
                     <div>
                         <h4 className="font-semibold mb-4">Legal</h4>
                         <ul className="space-y-2 text-sm text-muted-foreground">
-                            <li><a href="#" className="hover:text-blue-600">Termos de Uso</a></li>
-                            <li><a href="#" className="hover:text-blue-600">Privacidade</a></li>
-                            <li><a href="#" className="hover:text-blue-600">Contato</a></li>
+                            <li><Link href="/termos" className="hover:text-blue-600">Termos de Uso</Link></li>
+                            <li><Link href="/privacidade" className="hover:text-blue-600">Privacidade</Link></li>
+                            <li><a href="mailto:contato@contato.com.br" className="hover:text-blue-600">Contato</a></li>
                         </ul>
                     </div>
                 </div>
