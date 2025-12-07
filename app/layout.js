@@ -6,7 +6,7 @@ import { ThemeProvider } from 'next-themes';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
-  title: 'Corretor 80/20 - Correção de Provas com Inteligência Artificial | Economize Tempo',
+  title: 'CorregIA - Correção de Provas com Inteligência Artificial | Economize Tempo',
   description: 'Plataforma de correção automática de provas com IA. Economize até 80% do tempo corrigindo avaliações. OCR avançado, feedback instantâneo e dashboard completo para professores.',
   keywords: [
     'correção de provas',
@@ -22,24 +22,24 @@ export const metadata = {
     'feedback automático alunos',
     'gestão de provas'
   ],
-  authors: [{ name: 'Corretor 80/20' }],
-  creator: 'Corretor 80/20',
-  publisher: 'Corretor 80/20',
+  authors: [{ name: 'CorregIA' }],
+  creator: 'CorregIA',
+  publisher: 'CorregIA',
   metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'),
   alternates: {
     canonical: '/',
   },
   openGraph: {
-    title: 'Corretor 80/20 - Correção de Provas com IA',
+    title: 'CorregIA - Correção de Provas com IA',
     description: 'Economize até 80% do tempo corrigindo provas. Plataforma com IA, OCR e feedback automático para professores.',
     url: '/',
-    siteName: 'Corretor 80/20',
+    siteName: 'CorregIA',
     locale: 'pt_BR',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Corretor 80/20 - Correção de Provas com IA',
+    title: 'CorregIA - Correção de Provas com IA',
     description: 'Economize até 80% do tempo corrigindo provas com Inteligência Artificial',
   },
   robots: {
@@ -52,6 +52,11 @@ export const metadata = {
       'max-image-preview': 'large',
       'max-snippet': -1,
     },
+  },
+  icons: {
+    icon: '/imagens/favicon_logo.png',
+    shortcut: '/imagens/favicon_logo.png',
+    apple: '/imagens/favicon_logo.png',
   },
 };
 
