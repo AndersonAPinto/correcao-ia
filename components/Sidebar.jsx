@@ -2,11 +2,11 @@
 
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { 
-  LayoutDashboard, 
-  FileText, 
-  ClipboardCheck, 
-  Settings, 
+import {
+  LayoutDashboard,
+  FileText,
+  ClipboardCheck,
+  Settings,
   ChevronRight,
   Award,
   BarChart3,
@@ -35,57 +35,57 @@ export default function AppSidebar({ activeView, setActiveView, pendingCount = 0
   const [resultsExpanded, setResultsExpanded] = useState(true);
 
   const menuItems = [
-    { 
-      id: 'painel', 
-      label: 'Painel', 
+    {
+      id: 'painel',
+      label: 'Painel',
       icon: LayoutDashboard,
       description: 'Upload e correção de provas'
     },
-    { 
-      id: 'analytics', 
-      label: 'Analytics', 
+    {
+      id: 'analytics',
+      label: 'Analytics',
       icon: BarChart3,
       description: 'Métricas e relatórios'
     },
-    { 
-      id: 'corretor-ia', 
-      label: 'Corretor IA', 
+    {
+      id: 'corretor-ia',
+      label: 'Corretor IA',
       icon: BotIcon,
       description: 'Correção automática e instantânea de provas de múltipla escolha. Para questões discursivas, receba sugestões inteligentes de pontuação.'
     },
-    { 
-      id: 'gabaritos', 
-      label: 'Gabaritos', 
+    {
+      id: 'gabaritos',
+      label: 'Gabaritos',
       icon: FileText,
       description: 'Gerenciar gabaritos'
     },
-    { 
-      id: 'habilidades', 
-      label: 'Habilidades', 
+    {
+      id: 'habilidades',
+      label: 'Habilidades',
       icon: Award,
       description: 'Gerenciar habilidades'
     },
-    { 
-      id: 'perfis', 
-      label: 'Perfis de Avaliação', 
+    {
+      id: 'perfis',
+      label: 'Perfis de Avaliação',
       icon: GraduationCap,
       description: 'Perfis de correção'
     },
-    { 
-      id: 'resultados', 
-      label: 'Resultados', 
+    {
+      id: 'resultados',
+      label: 'Resultados',
       icon: ClipboardCheck,
       description: 'Avaliações corrigidas',
       expandable: true,
       children: [
-        { 
-          id: 'pendentes', 
-          label: 'Aguardando Validação', 
+        {
+          id: 'pendentes',
+          label: 'Aguardando Validação',
           count: pendingCount,
           description: 'Avaliações pendentes'
         },
-        { 
-          id: 'concluidas', 
+        {
+          id: 'concluidas',
           label: 'Avaliações Concluídas',
           description: 'Histórico de avaliações'
         }
@@ -101,8 +101,8 @@ export default function AppSidebar({ activeView, setActiveView, pendingCount = 0
             <GraduationCap className="size-4" />
           </div>
           <div className="grid flex-1 text-left text-sm leading-tight">
-            <span className="truncate font-semibold">Corretor 80/20</span>
-            <span className="truncate text-xs text-sidebar-foreground/70">Plataforma de Correção IA</span>
+            <span className="truncate font-semibold">CorregIA</span>
+            <span className="truncate text-xs text-sidebar-foreground/70">Plataforma CorregIA</span>
           </div>
         </div>
       </SidebarHeader>
@@ -123,11 +123,11 @@ export default function AppSidebar({ activeView, setActiveView, pendingCount = 0
                       >
                         <item.icon />
                         <span>{item.label}</span>
-                        <ChevronRight 
+                        <ChevronRight
                           className={cn(
                             'ml-auto h-4 w-4 transition-transform',
                             resultsExpanded && 'rotate-90'
-                          )} 
+                          )}
                         />
                       </SidebarMenuButton>
                       {resultsExpanded && (
@@ -140,8 +140,8 @@ export default function AppSidebar({ activeView, setActiveView, pendingCount = 0
                               >
                                 <span>{child.label}</span>
                                 {child.count !== undefined && child.count > 0 && (
-                                  <Badge 
-                                    variant="destructive" 
+                                  <Badge
+                                    variant="destructive"
                                     className="ml-auto h-5 min-w-5 px-1.5 text-xs"
                                   >
                                     {child.count}

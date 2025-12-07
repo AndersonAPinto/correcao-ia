@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
-import { hashPassword, generateToken } from '@/lib/auth';
+import { hashPassword, generateToken, generateVerificationToken } from '@/lib/auth';
 import { ADMIN_EMAIL } from '@/lib/constants';
 import { v4 as uuidv4 } from 'uuid';
+import EmailService from '@/lib/services/EmailService';
 
 export async function POST(request) {
     try {
@@ -30,6 +31,7 @@ export async function POST(request) {
             name,
             isAdmin,
             assinatura: 'free',
+            emailVerified: false,
             createdAt: new Date()
         });
 
@@ -49,8 +51,32 @@ export async function POST(request) {
             createdAt: new Date()
         });
 
+        // Gerar token de verificação de email
+        const verificationToken = generateVerificationToken();
+
+        // Salvar token de verificação
+        await db.collection('email_verifications').insertOne({
+            userId: userId,
+            token: verificationToken,
+            createdAt: new Date(),
+            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 horas
+            used: false
+        });
+
+        // Enviar email de verificação (não bloquear se falhar)
+        try {
+            await EmailService.sendVerificationEmail(email, name, verificationToken);
+        } catch (emailError) {
+            console.error('Error sending verification email:', emailError);
+            // Não falhar o registro se email falhar
+        }
+
         const token = generateToken(userId);
-        return NextResponse.json({ token, user: { id: userId, email, name, isAdmin } });
+        return NextResponse.json({
+            token,
+            user: { id: userId, email, name, isAdmin, emailVerified: false },
+            message: 'Conta criada com sucesso! Verifique seu email para ativar sua conta.'
+        });
     } catch (error) {
         console.error('Register error:', error);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
