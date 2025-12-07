@@ -69,6 +69,28 @@ export default function App() {
       checkAuth();
       toast.success('Login com Google realizado com sucesso!');
     } else {
+      // Verificar se há parâmetro auth na URL para abrir modal automaticamente
+      const authParam = urlParams.get('auth');
+      if (authParam === 'login' || authParam === 'register') {
+        setAuthTab(authParam);
+        setShowAuthModal(true);
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+
+      // Verificar mensagens de sucesso
+      const emailVerified = urlParams.get('email_verified');
+      const passwordReset = urlParams.get('password_reset');
+
+      if (emailVerified === 'true') {
+        toast.success('Email verificado com sucesso!');
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+
+      if (passwordReset === 'true') {
+        toast.success('Senha redefinida com sucesso! Faça login com sua nova senha.');
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+
       checkAuth();
     }
   }, []);

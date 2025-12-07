@@ -12,6 +12,9 @@ import { toast } from 'sonner';
 export default function AuthModal({ isOpen, onClose, defaultTab = 'login', onAuthSuccess }) {
     const [isLoading, setIsLoading] = useState(false);
     const [activeTab, setActiveTab] = useState(defaultTab);
+    const [showForgotPassword, setShowForgotPassword] = useState(false);
+    const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
+    const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
     const [formData, setFormData] = useState({
         email: '',
         password: '',
@@ -52,6 +55,33 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'login', onAut
         window.location.href = `/api/auth/google?redirect=${encodeURIComponent(currentPath)}`;
     };
 
+    const handleForgotPassword = async (e) => {
+        e.preventDefault();
+        setForgotPasswordLoading(true);
+
+        try {
+            const response = await fetch('/api/auth/forgot-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: forgotPasswordEmail })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                toast.success('Se o email existir, você receberá um link de recuperação');
+                setShowForgotPassword(false);
+                setForgotPasswordEmail('');
+            } else {
+                toast.error(data.error || 'Erro ao solicitar recuperação');
+            }
+        } catch (error) {
+            toast.error('Erro de conexão. Tente novamente.');
+        } finally {
+            setForgotPasswordLoading(false);
+        }
+    };
+
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="sm:max-w-[400px] p-0 overflow-hidden gap-0">
@@ -88,7 +118,7 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'login', onAut
                             )}
 
                             <div className="space-y-2">
-                                <Label htmlFor="email">Email</Label>
+                                <Label htmlFor="email">E-mail</Label>
                                 <Input
                                     id="email"
                                     type="email"
@@ -100,7 +130,18 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'login', onAut
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="password">Senha</Label>
+                                <div className="flex items-center justify-between">
+                                    <Label htmlFor="password">Senha</Label>
+                                    {activeTab === 'login' && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowForgotPassword(true)}
+                                            className="text-sm text-blue-600 hover:underline"
+                                        >
+                                            Esqueci minha senha
+                                        </button>
+                                    )}
+                                </div>
                                 <Input
                                     id="password"
                                     type="password"
@@ -141,6 +182,41 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'login', onAut
                     </Button>
                 </div>
             </DialogContent>
+
+            {/* Dialog de Esqueci minha senha */}
+            <Dialog open={showForgotPassword} onOpenChange={setShowForgotPassword}>
+                <DialogContent className="sm:max-w-[400px]">
+                    <DialogHeader>
+                        <DialogTitle>Recuperar Senha</DialogTitle>
+                        <DialogDescription>
+                            Digite seu email e enviaremos um link para redefinir sua senha
+                        </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleForgotPassword} className="space-y-4 mt-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="forgot-email">Email</Label>
+                            <Input
+                                id="forgot-email"
+                                type="email"
+                                placeholder="seu@email.com"
+                                value={forgotPasswordEmail}
+                                onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                                required
+                            />
+                        </div>
+                        <Button type="submit" className="w-full" disabled={forgotPasswordLoading}>
+                            {forgotPasswordLoading ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Enviando...
+                                </>
+                            ) : (
+                                'Enviar Link de Recuperação'
+                            )}
+                        </Button>
+                    </form>
+                </DialogContent>
+            </Dialog>
         </Dialog>
     );
 }

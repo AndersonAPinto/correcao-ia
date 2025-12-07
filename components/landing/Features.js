@@ -12,7 +12,7 @@ const features = [
     {
         icon: <Zap className="h-6 w-6 text-yellow-500" />,
         title: "Correção Instantânea",
-        description: "Faça upload de 50 provas e receba todas corrigidas em menos de 2 minutos."
+        description: "Faça upload de 20 provas e receba todas corrigidas em menos de 2 minutos."
     },
     {
         icon: <BarChart3 className="h-6 w-6 text-blue-500" />,
@@ -39,7 +39,7 @@ const features = [
 export default function Features() {
     return (
         <section id="features" className="py-20 bg-gray-50 dark:bg-gray-900/50">
-            <div className="container mx-auto px-4">
+            <div className="container mx-auto px-10">
                 <div className="text-center max-w-3xl mx-auto mb-16">
                     <h2 className="text-3xl font-bold mb-4">Tudo que você precisa para avaliar melhor</h2>
                     <p className="text-muted-foreground text-lg">
