@@ -57,7 +57,7 @@ export default function DemoPage() {
                                 </TabsTrigger>
                                 <TabsTrigger value="correction" className="flex items-center gap-2">
                                     <Sparkles className="h-4 w-4" />
-                                    <span className="hidden sm:inline">2. Correção IA</span>
+                                    <span className="hidden sm:inline">2. CorregIA</span>
                                     <span className="sm:hidden">IA</span>
                                 </TabsTrigger>
                                 <TabsTrigger value="results" className="flex items-center gap-2">
@@ -90,7 +90,7 @@ export default function DemoPage() {
                                                     Arraste e solte ou clique para selecionar
                                                 </p>
                                                 <p className="text-sm text-muted-foreground mb-6">
-                                                    Suporta: JPG, PNG, PDF (até 50 provas por vez)
+                                                    Suporta: JPG, PNG, PDF (até 20 provas por vez)
                                                 </p>
                                                 <Button size="lg" className="rounded-full">
                                                     Selecionar Arquivos
@@ -122,7 +122,7 @@ export default function DemoPage() {
                                                         <span className="font-semibold">Processamento Rápido</span>
                                                     </div>
                                                     <p className="text-sm text-muted-foreground">
-                                                        50 provas em menos de 2 minutos
+                                                        20 provas em menos de 2 minutos
                                                     </p>
                                                 </div>
                                             </div>
@@ -169,7 +169,7 @@ export default function DemoPage() {
                                                             />
                                                         </div>
                                                         <p className="text-sm text-muted-foreground">
-                                                            Analisando 50 provas... 42/50 concluídas
+                                                            Analisando 20 provas... 42/20 concluídas
                                                         </p>
                                                     </div>
                                                 </div>
@@ -409,7 +409,7 @@ export default function DemoPage() {
                     <div className="container mx-auto px-4">
                         <div className="max-w-4xl mx-auto text-center mb-12">
                             <h2 className="text-3xl md:text-4xl font-bold mb-4">
-                                Por que escolher o Corretor 80/20?
+                                Por que escolher o CorregIA?
                             </h2>
                             <p className="text-lg text-muted-foreground">
                                 Economize tempo, obtenha insights valiosos e foque no que realmente importa: ensinar.
@@ -421,7 +421,7 @@ export default function DemoPage() {
                                 {
                                     icon: Clock,
                                     title: 'Economia de Tempo',
-                                    description: 'Reduza em até 80% o tempo gasto com correções. 50 provas corrigidas em menos de 2 minutos.',
+                                    description: 'Reduza em até 80% o tempo gasto com correções. 20 provas corrigidas em menos de 2 minutos.',
                                     color: 'text-blue-600'
                                 },
                                 {
@@ -467,7 +467,7 @@ export default function DemoPage() {
                                 Pronto para transformar sua forma de corrigir provas?
                             </h2>
                             <p className="text-lg text-muted-foreground mb-8">
-                                Crie sua conta gratuita e comece a economizar tempo hoje mesmo. Sem cartão de crédito necessário.
+                                Crie sua conta gratuita e comece a economizar tempo hoje mesmo.
                             </p>
                             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                                 <Button

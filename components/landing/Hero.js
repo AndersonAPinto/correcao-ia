@@ -55,7 +55,7 @@ export default function Hero({ onCtaClick }) {
                         </div>
                         <div className="flex items-center gap-2">
                             <CheckCircle2 className="h-4 w-4 text-green-500" />
-                            <span>Sem Cartão de Crédito</span>
+                            <span>Inteligência Artificial</span>
                         </div>
                     </div>
                 </motion.div>

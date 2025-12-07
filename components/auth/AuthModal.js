@@ -118,7 +118,7 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'login', onAut
                             )}
 
                             <div className="space-y-2">
-                                <Label htmlFor="email">Email</Label>
+                                <Label htmlFor="email">E-mail</Label>
                                 <Input
                                     id="email"
                                     type="email"

@@ -13,10 +13,10 @@ const plans = {
             price: "R$ 0",
             description: "Para professores que querem experimentar.",
             features: [
-                "50 correções por mês",
+                "20 correções por mês",
                 "1 turma",
                 "Gabaritos simples",
-                "Suporte por email"
+                "7 dias de teste"
             ],
             cta: "Começar Grátis",
             popular: false,
@@ -24,7 +24,7 @@ const plans = {
         },
         {
             name: "Pro",
-            price: "R$ 49",
+            price: "R$ 79",
             period: "/mês",
             description: "Para escolas e professores com muitas turmas.",
             features: [
@@ -44,10 +44,10 @@ const plans = {
             price: "R$ 0",
             description: "Para professores que querem experimentar.",
             features: [
-                "50 correções por mês",
+                "20 correções por mês",
                 "1 turma",
                 "Gabaritos simples",
-                "Suporte por email"
+                "7 dias de teste"
             ],
             cta: "Começar Grátis",
             popular: false,
@@ -55,9 +55,9 @@ const plans = {
         },
         {
             name: "Pro",
-            price: "R$ 39",
+            price: "R$ 59",
             period: "/mês",
-            originalPrice: "R$ 49",
+            originalPrice: "R$ 79",
             description: "Para escolas e professores com muitas turmas.",
             features: [
                 "Correções ilimitadas",

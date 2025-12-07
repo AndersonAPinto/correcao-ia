@@ -12,7 +12,7 @@ const features = [
     {
         icon: <Zap className="h-6 w-6 text-yellow-500" />,
         title: "Correção Instantânea",
-        description: "Faça upload de 50 provas e receba todas corrigidas em menos de 2 minutos."
+        description: "Faça upload de 20 provas e receba todas corrigidas em menos de 2 minutos."
     },
     {
         icon: <BarChart3 className="h-6 w-6 text-blue-500" />,
