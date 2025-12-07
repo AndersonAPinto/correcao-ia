@@ -55,6 +55,18 @@ async function createIndexes() {
         console.log('Creating indexes for creditos...');
         await db.collection('creditos').createIndex({ userId: 1 }, { unique: true });
 
+        // Email verifications indexes
+        console.log('Creating indexes for email_verifications...');
+        await db.collection('email_verifications').createIndex({ token: 1 }, { unique: true });
+        await db.collection('email_verifications').createIndex({ userId: 1 });
+        await db.collection('email_verifications').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
+        // Password reset tokens indexes
+        console.log('Creating indexes for password_reset_tokens...');
+        await db.collection('password_reset_tokens').createIndex({ token: 1 }, { unique: true });
+        await db.collection('password_reset_tokens').createIndex({ userId: 1 });
+        await db.collection('password_reset_tokens').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
         console.log('All indexes created successfully!');
     } catch (error) {
         console.error('Error creating indexes:', error);

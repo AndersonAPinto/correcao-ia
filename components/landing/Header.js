@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import { Menu, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 export default function Header({ onLoginClick }) {
     const router = useRouter();
@@ -24,18 +25,15 @@ export default function Header({ onLoginClick }) {
             className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-white/80 dark:bg-gray-950/80 backdrop-blur-md shadow-sm py-3' : 'bg-transparent py-5'
                 }`}
         >
-            <div className="container mx-auto px-4 flex items-center justify-between">
+            <div className="container mx-auto px-10 flex items-center justify-between">
                 <button
                     onClick={() => router.push('/')}
                     className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
                     aria-label="Voltar ao início"
                 >
-                    <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">
-                        80
+                    <div className="rounded-lg flex items-center justify-center text-white font-bold">
+                        <Image src="/imagens/corregia_logotipo_lateral_sem_fundo.png" alt="Logotipo CorregIA" width={150} height={150} />
                     </div>
-                    <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">
-                        Corretor 80/20
-                    </span>
                 </button>
 
                 {/* Desktop Nav */}
@@ -48,8 +46,8 @@ export default function Header({ onLoginClick }) {
                     >
                         Demonstração
                     </button>
-                    <Button variant="ghost" onClick={() => onLoginClick('login')}>Entrar</Button>
-                    <Button onClick={() => onLoginClick('register')}>Começar Grátis</Button>
+                    <Button variant="ghost" className="text-sm" onClick={() => onLoginClick('login')}>Entrar</Button>
+                    <Button className="text-sm" onClick={() => onLoginClick('register')}>Começar Grátis</Button>
                 </nav>
 
                 {/* Mobile Menu Toggle */}

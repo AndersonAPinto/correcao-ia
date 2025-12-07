@@ -47,7 +47,7 @@ export default function DemoPage() {
 
                 {/* Demo Interativa */}
                 <section className="py-12 bg-gray-50 dark:bg-gray-900/50">
-                    <div className="container mx-auto px-4">
+                    <div className="container mx-auto px-10">
                         <Tabs value={activeTab} onValueChange={setActiveTab} className="max-w-6xl mx-auto">
                             <TabsList className="grid w-full grid-cols-3 mb-8">
                                 <TabsTrigger value="upload" className="flex items-center gap-2">

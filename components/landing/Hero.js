@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 export default function Hero({ onCtaClick }) {
     const router = useRouter();
     return (
-        <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
+        <section className="relative pt-24 pb-12 lg:pt-32 lg:pb-6 overflow-hidden">
             {/* Background Elements */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] bg-blue-400/20 blur-[120px] rounded-full -z-10" />
 
