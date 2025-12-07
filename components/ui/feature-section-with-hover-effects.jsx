@@ -12,7 +12,7 @@ import {
 export function FeaturesSectionWithHoverEffects({ setActiveView }) {
   const features = [
     {
-      title: "Corretor IA",
+      title: "CorregIA",
       description:
         "Correção automática e instantânea de provas de múltipla escolha. Para questões discursivas, receba sugestões inteligentes de pontuação.",
       icon: <BotIcon className="h-6 w-6" />,
@@ -47,13 +47,13 @@ export function FeaturesSectionWithHoverEffects({ setActiveView }) {
       target: "analytics",
     },
   ];
-  
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 relative z-10 py-2 max-w-7xl mx-auto">
       {features.map((feature, index) => (
-        <Feature 
-          key={feature.title} 
-          {...feature} 
+        <Feature
+          key={feature.title}
+          {...feature}
           index={index}
           setActiveView={setActiveView}
         />
@@ -85,7 +85,7 @@ const Feature = ({
     >
       {index < 4 && (
         <div className="opacity-0 group-hover/feature:opacity-100 transition duration-200 absolute inset-0 h-full w-full bg-gradient-to-t from-neutral-100 dark:from-blue-600 to-transparent pointer-events-none" />
-      
+
       )}
       {index >= 4 && (
         <div className="opacity-0 group-hover/feature:opacity-100 transition duration-200 absolute inset-0 h-full w-full bg-gradient-to-b from-neutral-100 dark:from-blue-600 to-transparent pointer-events-none" />
