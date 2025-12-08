@@ -5,6 +5,8 @@ import { generateToken } from '@/lib/auth';
 import { ADMIN_EMAIL } from '@/lib/constants';
 import { v4 as uuidv4 } from 'uuid';
 
+export const dynamic = 'force-dynamic';
+
 const client = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
@@ -64,7 +66,7 @@ export async function GET(request) {
     });
 
     const payload = ticket.getPayload();
-    
+
     // ✅ VALIDAÇÕES DE SEGURANÇA
     if (!payload) {
       return NextResponse.redirect(getAbsoluteUrl('/?error=invalid_token', baseUrl));
@@ -93,7 +95,7 @@ export async function GET(request) {
     // ✅ PROTEÇÃO CONTRA ACCOUNT TAKEOVER
     // Verificar se email já existe com outro provider
     const existingUser = await db.collection('users').findOne({ email });
-    
+
     if (existingUser && existingUser.authProvider === 'email') {
       // Usuário já existe com login por email/senha
       return NextResponse.redirect(getAbsoluteUrl('/?error=account_exists_email', baseUrl));
@@ -178,11 +180,11 @@ export async function GET(request) {
     // Construir URL absoluta para redirecionamento
     const redirectPath = redirectUrl.startsWith('/') ? redirectUrl : '/' + redirectUrl;
     const redirectWithToken = getAbsoluteUrl(`${redirectPath}?token=${token}&provider=google`, baseUrl);
-    
+
     return NextResponse.redirect(redirectWithToken);
   } catch (error) {
     console.error('Google OAuth callback error:', error);
-    
+
     // Obter URL base da requisição para erro
     let baseUrl = 'http://localhost:3000';
     try {
@@ -191,7 +193,7 @@ export async function GET(request) {
     } catch (e) {
       // Fallback se não conseguir obter URL
     }
-    
+
     // Log de erro
     try {
       const { db } = await connectToDatabase();
@@ -208,7 +210,7 @@ export async function GET(request) {
     } catch (logError) {
       console.error('Failed to log auth error:', logError);
     }
-    
+
     return NextResponse.redirect(getAbsoluteUrl('/?error=oauth_failed', baseUrl));
   }
 }
