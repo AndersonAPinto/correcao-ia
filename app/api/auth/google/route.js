@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { OAuth2Client } from 'google-auth-library';
 import { randomBytes } from 'crypto';
 
+export const dynamic = 'force-dynamic';
+
 const client = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
@@ -13,14 +15,14 @@ export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const redirectUrl = searchParams.get('redirect') || '/';
-    
+
     // Gerar state aleatório para proteção CSRF
-    const state = Buffer.from(JSON.stringify({ 
+    const state = Buffer.from(JSON.stringify({
       redirect: redirectUrl,
       nonce: randomBytes(16).toString('hex'),
       timestamp: Date.now()
     })).toString('base64');
-    
+
     // Gerar URL de autorização
     const authUrl = client.generateAuthUrl({
       access_type: 'offline',
