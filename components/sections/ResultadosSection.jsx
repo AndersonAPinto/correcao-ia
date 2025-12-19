@@ -24,7 +24,7 @@ export default function ResultadosSection({ view }) {
     if (view === 'concluidas') {
       loadTurmas();
     }
-    
+
     // Auto-refresh every 10 seconds if viewing pendentes
     if (view === 'pendentes') {
       const interval = setInterval(loadAvaliacoes, 10000);
@@ -38,7 +38,7 @@ export default function ResultadosSection({ view }) {
       const response = await fetch('/api/turmas', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setTurmas(data.turmas || []);
@@ -51,24 +51,24 @@ export default function ResultadosSection({ view }) {
   const loadAvaliacoes = async () => {
     setLoading(true);
     const token = localStorage.getItem('token');
-    const endpoint = view === 'pendentes' 
-      ? '/api/avaliacoes/pendentes' 
+    const endpoint = view === 'pendentes'
+      ? '/api/avaliacoes/pendentes'
       : '/api/avaliacoes/concluidas';
 
     try {
       const response = await fetch(endpoint, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         let avaliacoes = data.avaliacoes || [];
-        
+
         // Aplicar filtro de turma se selecionado
         if (view === 'concluidas' && selectedTurma) {
           avaliacoes = avaliacoes.filter(av => av.turmaId === selectedTurma);
         }
-        
+
         setAvaliacoes(avaliacoes);
       }
     } catch (error) {
@@ -95,11 +95,11 @@ export default function ResultadosSection({ view }) {
 
     setExporting(true);
     const token = localStorage.getItem('token');
-    
+
     try {
       const params = new URLSearchParams();
       if (selectedTurma) params.append('turmaId', selectedTurma);
-      
+
       const response = await fetch(`/api/export/${format}?${params.toString()}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -122,12 +122,12 @@ export default function ResultadosSection({ view }) {
     } catch (error) {
       toast.error('Erro ao exportar dados');
     }
-    
+
     setExporting(false);
   };
 
-  const title = view === 'pendentes' 
-    ? 'Aguardando Validação' 
+  const title = view === 'pendentes'
+    ? 'Aguardando Validação'
     : 'Avaliações Concluídas';
 
   const description = view === 'pendentes'
@@ -186,7 +186,7 @@ export default function ResultadosSection({ view }) {
               )}
             </div>
             <CardDescription>
-              {view === 'pendentes' 
+              {view === 'pendentes'
                 ? 'Clique para visualizar e validar cada avaliação'
                 : 'Avaliações já validadas e finalizadas'}
             </CardDescription>
@@ -199,7 +199,7 @@ export default function ResultadosSection({ view }) {
               </div>
             ) : avaliacoes.length === 0 ? (
               <p className="text-center text-gray-500 py-8">
-                {view === 'pendentes' 
+                {view === 'pendentes'
                   ? 'Nenhuma avaliação aguardando validação'
                   : 'Nenhuma avaliação concluída ainda'}
               </p>
@@ -208,13 +208,12 @@ export default function ResultadosSection({ view }) {
                 {avaliacoes.map((av) => {
                   const isProcessing = av.status === 'pending';
                   const isCompleted = av.status === 'completed';
-                  
+
                   return (
-                    <div 
-                      key={av.id} 
-                      className={`p-4 border rounded-lg transition-colors ${
-                        isCompleted ? 'hover:bg-gray-50 cursor-pointer' : 'bg-blue-50/50'
-                      }`}
+                    <div
+                      key={av.id}
+                      className={`p-4 border rounded-lg transition-colors ${isCompleted ? 'hover:bg-gray-50 cursor-pointer' : 'bg-blue-50/50'
+                        }`}
                       onClick={() => isCompleted && handleView(av)}
                     >
                       <div className="flex items-start justify-between">
@@ -242,7 +241,7 @@ export default function ResultadosSection({ view }) {
                           <div className="mt-3">
                             {isProcessing ? (
                               <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                                🔄 Processando no N8N...
+                                🔄 Processando com IA...
                               </Badge>
                             ) : view === 'pendentes' ? (
                               <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
