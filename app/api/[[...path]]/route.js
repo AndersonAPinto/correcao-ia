@@ -296,14 +296,11 @@ async function handleGerarPerfil(request) {
 
     const { db } = await connectToDatabase();
 
-    // Get Gemini API key from admin settings
-    const adminSettings = await db.collection('settings').findOne({
-      userId: { $exists: true }
-    });
-
-    if (!adminSettings || !adminSettings.geminiApiKey) {
+    // Verificar configuração do Vertex AI
+    const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
+    if (!projectId) {
       return NextResponse.json({
-        error: 'Gemini API key not configured by admin'
+        error: 'Vertex AI not configured. Set GOOGLE_CLOUD_PROJECT_ID in .env'
       }, { status: 400 });
     }
 
@@ -320,7 +317,7 @@ Crie um perfil de avaliação que inclua:
 
 Formato: Texto estruturado, claro e objetivo.`;
 
-    const resultado = await callGeminiAPI(adminSettings.geminiApiKey, prompt);
+    const resultado = await callGeminiAPI(null, prompt); // apiKey não é mais usado, mantido para compatibilidade
 
     return NextResponse.json({ perfilGerado: resultado });
   } catch (error) {

@@ -36,15 +36,11 @@ async function handleDissertativaUpload(file, gabarito, turmaId, alunoId, period
         const imageUrl = `/uploads/${filename}`;
         const fullImageUrl = `${process.env.NEXT_PUBLIC_BASE_URL}${imageUrl}`;
 
-        // Obter API key do Gemini
-        const user = await db.collection('users').findOne({ id: userId });
-        let settings = await db.collection('settings').findOne({
-            userId: user.isAdmin ? userId : { $exists: true }
-        });
-
-        if (!settings || !settings.geminiApiKey) {
+        // Verificar configuração do Vertex AI
+        const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
+        if (!projectId) {
             return NextResponse.json({
-                error: 'Gemini API key not configured.'
+                error: 'Vertex AI not configured. Set GOOGLE_CLOUD_PROJECT_ID in .env'
             }, { status: 400 });
         }
 
@@ -176,8 +172,8 @@ IMPORTANTE:
 
         let responseText;
         try {
-            // Chamar Gemini para OCR + Correção (usando Pro para melhor qualidade)
-            const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${settings.geminiApiKey}`;
+            // Chamar Vertex AI para OCR + Correção (usando Pro para melhor qualidade)
+            const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=dummy`; // Mantido para compatibilidade com callGeminiAPIWithRetry
             const geminiBody = {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -416,15 +412,11 @@ async function handleMultiplaEscolhaUpload(file, gabarito, turmaId, alunoId, per
         const imageUrl = `/uploads/${filename}`;
         const fullImageUrl = `${process.env.NEXT_PUBLIC_BASE_URL}${imageUrl}`;
 
-        // Obter API key do Gemini
-        const user = await db.collection('users').findOne({ id: userId });
-        let settings = await db.collection('settings').findOne({
-            userId: user.isAdmin ? userId : { $exists: true }
-        });
-
-        if (!settings || !settings.geminiApiKey) {
+        // Verificar configuração do Vertex AI
+        const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
+        if (!projectId) {
             return NextResponse.json({
-                error: 'Gemini API key not configured.'
+                error: 'Vertex AI not configured. Set GOOGLE_CLOUD_PROJECT_ID in .env'
             }, { status: 400 });
         }
 
@@ -485,8 +477,8 @@ IMPORTANTE: Retorne apenas o JSON, sem texto adicional.`;
 
         let ocrText;
         try {
-            // Chamar Gemini para OCR (usando flash para ser mais rápido e econômico)
-            const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${settings.geminiApiKey}`;
+            // Chamar Vertex AI para OCR (usando flash para ser mais rápido e econômico)
+            const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=dummy`; // Mantido para compatibilidade com callGeminiAPIWithRetry
             const geminiBody = {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
