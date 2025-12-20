@@ -49,7 +49,7 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
     const novasQuestoes = [...questoesEditadas];
     novasQuestoes[index][field] = field === 'nota' ? parseFloat(value) || 0 : value;
     setQuestoesEditadas(novasQuestoes);
-    
+
     // Recalcular nota final
     const totalPontos = novasQuestoes.reduce((sum, q) => sum + (q.notaMaxima || 1), 0);
     const pontosObtidos = novasQuestoes.reduce((sum, q) => sum + (q.nota || 0), 0);
@@ -73,7 +73,7 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
 
       const response = await fetch(`/api/avaliacoes/${avaliacao.id}/validar`, {
         method: 'PUT',
-        headers: { 
+        headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
@@ -98,8 +98,8 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
 
   if (!avaliacao) return null;
 
-  const temAjustes = questoesEditadas.some(q => 
-    q.nota !== q.notaOriginal || 
+  const temAjustes = questoesEditadas.some(q =>
+    q.nota !== q.notaOriginal ||
     q.feedback !== (avaliacao.exercicios?.find(ex => ex.numero === q.numero)?.feedback || '')
   ) || notaFinal !== (avaliacao.nota || 0);
 
@@ -145,11 +145,58 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
             </CardHeader>
             <CardContent className="flex-1 overflow-hidden">
               <ScrollArea className="h-full w-full rounded border">
-                <img 
-                  src={avaliacao.imageUrl} 
-                  alt="Prova do aluno"
-                  className="w-full h-auto"
-                />
+                {avaliacao.imageUrl ? (
+                  <img
+                    src={(() => {
+                      const url = avaliacao.imageUrl;
+
+                      // Se já é URL da API (/api/images/...), usar diretamente
+                      if (url.startsWith('/api/images/')) {
+                        return url;
+                      }
+
+                      // Se é URL absoluta (http/https)
+                      if (url.startsWith('http://') || url.startsWith('https://')) {
+                        // Se contém /api/images/, usar diretamente
+                        if (url.includes('/api/images/')) {
+                          return url;
+                        }
+                        // Se contém /uploads/, extrair apenas o path para usar URL relativa
+                        const uploadsIndex = url.indexOf('/uploads/');
+                        if (uploadsIndex !== -1) {
+                          return url.substring(uploadsIndex);
+                        }
+                        // Caso contrário, usar URL absoluta como está
+                        return url;
+                      }
+
+                      // Se começa com /, usar diretamente (URL relativa)
+                      if (url.startsWith('/')) {
+                        return url;
+                      }
+
+                      // Caso contrário, adicionar / no início
+                      return `/${url}`;
+                    })()}
+                    alt="Prova do aluno"
+                    className="w-full h-auto"
+                    onError={(e) => {
+                      console.error('Erro ao carregar imagem:', avaliacao.imageUrl);
+                      const errorDiv = document.createElement('div');
+                      errorDiv.className = 'p-4 text-center text-gray-500 bg-red-50 border border-red-200 rounded';
+                      errorDiv.innerHTML = `
+                        <p class="font-semibold text-red-600">Imagem não encontrada</p>
+                        <p class="text-xs text-gray-500 mt-1 break-all">URL: ${avaliacao.imageUrl}</p>
+                        <p class="text-xs text-gray-400 mt-1">A imagem pode ter sido deletada ou não existe mais.</p>
+                      `;
+                      e.target.parentElement.replaceChild(errorDiv, e.target);
+                    }}
+                  />
+                ) : (
+                  <div className="p-4 text-center text-gray-500">
+                    Imagem não disponível
+                  </div>
+                )}
               </ScrollArea>
             </CardContent>
           </Card>
@@ -223,19 +270,18 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
                       <div className="space-y-3">
                         {questoesEditadas.map((questao, idx) => {
                           const questaoOriginal = avaliacao.exercicios?.find(ex => ex.numero === questao.numero);
-                          const foiAjustada = questao.nota !== questao.notaOriginal || 
+                          const foiAjustada = questao.nota !== questao.notaOriginal ||
                             questao.feedback !== (questaoOriginal?.feedback || '');
 
                           return (
-                            <div 
-                              key={idx} 
-                              className={`border rounded-lg p-3 ${
-                                editing 
-                                  ? 'bg-white border-2 border-blue-200' 
-                                  : foiAjustada 
-                                    ? 'bg-orange-50 border-orange-200' 
-                                    : 'bg-gray-50'
-                              }`}
+                            <div
+                              key={idx}
+                              className={`border rounded-lg p-3 ${editing
+                                ? 'bg-white border-2 border-blue-200'
+                                : foiAjustada
+                                  ? 'bg-orange-50 border-orange-200'
+                                  : 'bg-gray-50'
+                                }`}
                             >
                               <div className="flex items-center justify-between mb-2">
                                 <span className="font-semibold text-sm">
@@ -341,8 +387,8 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
                       ⚠️ Você fez ajustes nas notas. A nota final será recalculada ao validar.
                     </div>
                   )}
-                  <Button 
-                    onClick={handleValidate} 
+                  <Button
+                    onClick={handleValidate}
                     className="w-full gap-2"
                     disabled={validating}
                   >

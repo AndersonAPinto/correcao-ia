@@ -31,7 +31,7 @@ export default function PerfisSection() {
       const response = await fetch('/api/perfis', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setPerfis(data.perfis || []);
@@ -115,7 +115,7 @@ export default function PerfisSection() {
     if (formData.arquivo) {
       data.append('arquivo', formData.arquivo);
     }
-    
+
     // Filtrar critérios válidos antes de enviar
     const criteriosValidos = criteriosRigor.filter(c => c.criterio.trim() !== '');
     if (criteriosValidos.length > 0) {
@@ -236,7 +236,7 @@ export default function PerfisSection() {
               <p className="text-xs text-gray-500">
                 Defina níveis de rigor para diferentes critérios de avaliação (ex: Ortografia, Criatividade, Raciocínio)
               </p>
-              
+
               {criteriosRigor.length > 0 && (
                 <div className="space-y-3 mt-3 p-3 border rounded-lg bg-gray-50">
                   {criteriosRigor.map((criterio, index) => (
@@ -249,11 +249,11 @@ export default function PerfisSection() {
                         />
                         <div className="flex gap-2">
                           <Select
-                            value={criterio.nivelRigor}
+                            value={criterio.nivelRigor || ''}
                             onValueChange={(value) => handleCriterioChange(index, 'nivelRigor', value)}
                           >
                             <SelectTrigger className="w-[140px]">
-                              <SelectValue />
+                              <SelectValue placeholder="Selecione o nível" />
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="rigoroso">Rigoroso</SelectItem>
@@ -318,7 +318,7 @@ export default function PerfisSection() {
                       <div className="space-y-1">
                         {perfil.criteriosRigor.map((c, idx) => (
                           <div key={idx} className="text-xs text-blue-800">
-                            <span className="font-medium">{c.criterio}</span>: 
+                            <span className="font-medium">{c.criterio}</span>:
                             <span className="ml-1 capitalize">{c.nivelRigor}</span>
                             {c.descricao && <span className="ml-1 text-blue-600">- {c.descricao}</span>}
                           </div>
@@ -328,9 +328,9 @@ export default function PerfisSection() {
                   )}
                   {perfil.arquivoUrl && (
                     <div className="mt-2">
-                      <a 
-                        href={perfil.arquivoUrl} 
-                        target="_blank" 
+                      <a
+                        href={perfil.arquivoUrl}
+                        target="_blank"
                         rel="noopener noreferrer"
                         className="text-sm text-blue-600 hover:underline flex items-center gap-1"
                       >

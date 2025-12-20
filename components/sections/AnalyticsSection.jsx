@@ -115,7 +115,7 @@ export default function AnalyticsSection() {
         <CardContent>
           <div className="space-y-2">
             <Label>Turma</Label>
-            <Select value={selectedTurma} onValueChange={setSelectedTurma}>
+            <Select value={selectedTurma || ''} onValueChange={setSelectedTurma}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione uma turma" />
               </SelectTrigger>
@@ -414,8 +414,8 @@ export default function AnalyticsSection() {
                                 </td>
                                 <td className="px-4 py-2 text-center text-sm">
                                   <span className={`px-2 py-1 rounded text-xs ${corr.tipo === 'positiva'
-                                      ? 'bg-green-100 text-green-700'
-                                      : 'bg-red-100 text-red-700'
+                                    ? 'bg-green-100 text-green-700'
+                                    : 'bg-red-100 text-red-700'
                                     }`}>
                                     {corr.tipo === 'positiva' ? 'Positiva' : 'Negativa'}
                                   </span>
@@ -469,9 +469,9 @@ export default function AnalyticsSection() {
                       >
                         <div className="flex items-center gap-3">
                           <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${index === 0 ? 'bg-yellow-100 text-yellow-700' :
-                              index === 1 ? 'bg-gray-100 text-gray-700' :
-                                index === 2 ? 'bg-orange-100 text-orange-700' :
-                                  'bg-blue-50 text-blue-700'
+                            index === 1 ? 'bg-gray-100 text-gray-700' :
+                              index === 2 ? 'bg-orange-100 text-orange-700' :
+                                'bg-blue-50 text-blue-700'
                             }`}>
                             {index + 1}º
                           </div>
