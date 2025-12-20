@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
+import { saveImageToMongoDB } from '@/lib/fileStorage';
 
 // ==================== AUTH HANDLERS ====================
 
@@ -400,44 +401,88 @@ async function handleGetGabaritos(request) {
 // Handler para questões dissertativas - OCR + correção com Vertex AI
 async function handleDissertativaUpload(file, gabarito, turmaId, alunoId, periodo, userId, db) {
   try {
+    console.log('📝 [DISSERTATIVA] Iniciando processamento...');
+
     // Verificar turma e aluno
     const turma = await db.collection('turmas').findOne({ id: turmaId, userId });
     if (!turma) {
+      console.error('❌ [DISSERTATIVA] Turma não encontrada:', turmaId);
       return NextResponse.json({ error: 'Turma not found' }, { status: 404 });
     }
 
     const aluno = await db.collection('alunos').findOne({ id: alunoId, turmaId });
     if (!aluno) {
+      console.error('❌ [DISSERTATIVA] Aluno não encontrado:', alunoId);
       return NextResponse.json({ error: 'Aluno not found' }, { status: 404 });
     }
 
-    // Salvar arquivo
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    console.log('✅ [DISSERTATIVA] Turma e aluno verificados');
 
-    const uploadDir = join(process.cwd(), 'public', 'uploads');
-    if (!existsSync(uploadDir)) {
-      await mkdir(uploadDir, { recursive: true });
+    // Salvar arquivo
+    console.log('💾 [DISSERTATIVA] Lendo arquivo...');
+    console.log('📄 [DISSERTATIVA] File info:', {
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      lastModified: file.lastModified
+    });
+
+    let bytes;
+    try {
+      bytes = await file.arrayBuffer();
+      console.log('✅ [DISSERTATIVA] Arquivo lido. Tamanho do buffer:', bytes.byteLength, 'bytes');
+    } catch (error) {
+      console.error('❌ [DISSERTATIVA] Erro ao ler arrayBuffer:', error);
+      throw new Error(`Erro ao ler arquivo: ${error.message}`);
     }
 
-    const filename = `${uuidv4()}-${file.name}`;
-    const filepath = join(uploadDir, filename);
-    await writeFile(filepath, buffer);
+    if (!bytes || bytes.byteLength === 0) {
+      console.error('❌ [DISSERTATIVA] Buffer vazio ou inválido');
+      throw new Error('Arquivo vazio ou inválido');
+    }
 
-    const imageUrl = `/uploads/${filename}`;
-    const fullImageUrl = `${process.env.NEXT_PUBLIC_BASE_URL}${imageUrl}`;
+    const buffer = Buffer.from(bytes);
+    console.log('✅ [DISSERTATIVA] Buffer criado. Tamanho:', buffer.length, 'bytes');
+
+    // Salvar imagem no MongoDB GridFS
+    const filename = `${uuidv4()}-${file.name}`;
+    const mimeType = file.type || 'image/jpeg';
+
+    let imageId;
+    try {
+      imageId = await saveImageToMongoDB(buffer, filename, mimeType);
+      console.log('✅ [DISSERTATIVA] Imagem salva no MongoDB. ID:', imageId);
+    } catch (error) {
+      console.error('❌ [DISSERTATIVA] Erro ao salvar imagem no MongoDB:', error);
+      throw new Error(`Erro ao salvar imagem: ${error.message}`);
+    }
+
+    // URL para acessar a imagem via API
+    const imageUrl = `/api/images/${imageId}`;
 
     // Verificar configuração do Vertex AI
     const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
     if (!projectId) {
+      console.error('❌ [DISSERTATIVA] Project ID não configurado');
       return NextResponse.json({
         error: 'Vertex AI not configured. Set GOOGLE_CLOUD_PROJECT_ID in .env'
       }, { status: 400 });
     }
 
     // Converter imagem para base64
+    console.log('🔄 [DISSERTATIVA] Convertendo imagem para base64...');
     const base64Image = buffer.toString('base64');
-    const mimeType = file.type || 'image/jpeg';
+
+    console.log('✅ [DISSERTATIVA] Base64 criado:', {
+      base64Length: base64Image.length,
+      mimeType: mimeType,
+      estimatedSizeMB: (base64Image.length * 3 / 4 / 1024 / 1024).toFixed(2)
+    });
+
+    if (!base64Image || base64Image.length === 0) {
+      console.error('❌ [DISSERTATIVA] Base64 vazio ou inválido');
+      throw new Error('Erro ao converter imagem para base64');
+    }
 
     // Buscar perfil de avaliação se existir
     let perfilConteudo = '';
@@ -590,8 +635,18 @@ IMPORTANTE:
       };
 
       responseText = await callGeminiAPIWithRetry(geminiUrl, geminiBody);
+      console.log('✅ [DISSERTATIVA] Resposta recebida do Vertex AI. Tamanho:', responseText?.length || 0);
     } catch (error) {
+      console.error('❌ [DISSERTATIVA] Erro ao chamar Vertex AI:', error);
+      console.error('❌ [DISSERTATIVA] Erro detalhado:', {
+        message: error.message,
+        code: error.code,
+        status: error.status,
+        stack: error.stack
+      });
+
       // Rollback: restaurar créditos em caso de erro
+      console.log('🔄 [DISSERTATIVA] Restaurando créditos...');
       await db.collection('creditos').updateOne(
         { userId },
         { $inc: { saldoAtual: 3 } }
@@ -601,9 +656,14 @@ IMPORTANTE:
         { $set: { descricao: 'Correção de prova (dissertativa) - ERRO: créditos restaurados' } }
       );
 
-      console.error('Vertex AI error:', error);
+      // Mensagem de erro mais amigável
+      let errorMessage = error.message;
+      if (error.message && error.message.includes('404')) {
+        errorMessage = 'Modelos Gemini não estão disponíveis no seu projeto Google Cloud. É necessário habilitar as APIs do Vertex AI no Google Cloud Console.';
+      }
+
       return NextResponse.json({
-        error: 'Failed to process image with Vertex AI. Credits have been restored. Please try again.'
+        error: `Failed to process image with Vertex AI. Credits have been restored. ${errorMessage}`
       }, { status: 500 });
     }
 
@@ -721,7 +781,8 @@ IMPORTANTE:
       turmaId,
       alunoId,
       periodo,
-      imageUrl: fullImageUrl,
+      imageUrl: imageUrl,
+      imageId: imageId, // Salvar ID para poder deletar depois
       textoOcr: textoOcr,
       nota: notaFinal,
       feedback: feedbackGeral,
@@ -759,7 +820,8 @@ IMPORTANTE:
     });
 
   } catch (error) {
-    console.error('Dissertativa upload error:', error);
+    console.error('❌ [DISSERTATIVA] Erro geral:', error);
+    console.error('❌ [DISSERTATIVA] Stack trace:', error.stack);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -782,17 +844,21 @@ async function handleMultiplaEscolhaUpload(file, gabarito, turmaId, alunoId, per
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    const uploadDir = join(process.cwd(), 'public', 'uploads');
-    if (!existsSync(uploadDir)) {
-      await mkdir(uploadDir, { recursive: true });
+    // Salvar imagem no MongoDB GridFS
+    const filename = `${uuidv4()}-${file.name}`;
+    const mimeType = file.type || 'image/jpeg';
+
+    let imageId;
+    try {
+      imageId = await saveImageToMongoDB(buffer, filename, mimeType);
+      console.log('✅ [MULTIPLA ESCOLHA] Imagem salva no MongoDB. ID:', imageId);
+    } catch (error) {
+      console.error('❌ [MULTIPLA ESCOLHA] Erro ao salvar imagem no MongoDB:', error);
+      throw new Error(`Erro ao salvar imagem: ${error.message}`);
     }
 
-    const filename = `${uuidv4()}-${file.name}`;
-    const filepath = join(uploadDir, filename);
-    await writeFile(filepath, buffer);
-
-    const imageUrl = `/uploads/${filename}`;
-    const fullImageUrl = `${process.env.NEXT_PUBLIC_BASE_URL}${imageUrl}`;
+    // URL para acessar a imagem via API
+    const imageUrl = `/api/images/${imageId}`;
 
     // Verificar configuração do Vertex AI
     const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
@@ -811,7 +877,6 @@ async function handleMultiplaEscolhaUpload(file, gabarito, turmaId, alunoId, per
 
     // Converter imagem para base64
     const base64Image = buffer.toString('base64');
-    const mimeType = file.type || 'image/jpeg';
 
     // Criar prompt para OCR de múltipla escolha
     const questoesInfo = gabarito.questoes.map(q =>
@@ -992,7 +1057,8 @@ IMPORTANTE: Retorne apenas o JSON, sem texto adicional.`;
       turmaId,
       alunoId,
       periodo,
-      imageUrl: fullImageUrl,
+      imageUrl: imageUrl,
+      imageId: imageId, // Salvar ID para poder deletar depois
       textoOcr: ocrText,
       nota: notaFinal,
       feedback: feedbackGeral,
@@ -1031,11 +1097,13 @@ IMPORTANTE: Retorne apenas o JSON, sem texto adicional.`;
 
 async function handleUpload(request) {
   try {
+    console.log('📤 [UPLOAD] Iniciando processo de upload...');
     const userId = await requireAuth(request);
     const { db } = await connectToDatabase();
 
     // Check credits
     const credits = await db.collection('creditos').findOne({ userId });
+    console.log('💰 [UPLOAD] Créditos do usuário:', credits?.saldoAtual || 0);
     if (!credits || credits.saldoAtual < 3) {
       return NextResponse.json({
         error: 'Insufficient credits. Need at least 3 credits.'
@@ -1044,6 +1112,7 @@ async function handleUpload(request) {
 
     // Verificar Vertex AI configurado
     const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
+    console.log('🔧 [UPLOAD] Project ID configurado:', projectId ? 'Sim' : 'Não');
     if (!projectId) {
       return NextResponse.json({
         error: 'Vertex AI not configured. Set GOOGLE_CLOUD_PROJECT_ID in .env'
@@ -1057,7 +1126,25 @@ async function handleUpload(request) {
     const alunoId = formData.get('alunoId');
     const periodo = formData.get('periodo');
 
+    console.log('📋 [UPLOAD] Dados recebidos:', {
+      hasFile: !!file,
+      fileName: file?.name,
+      fileSize: file?.size,
+      fileType: file?.type,
+      gabaritoId,
+      turmaId,
+      alunoId,
+      periodo
+    });
+
     if (!file || !gabaritoId || !turmaId || !alunoId || !periodo) {
+      console.error('❌ [UPLOAD] Campos obrigatórios faltando:', {
+        file: !!file,
+        gabaritoId: !!gabaritoId,
+        turmaId: !!turmaId,
+        alunoId: !!alunoId,
+        periodo: !!periodo
+      });
       return NextResponse.json({
         error: 'Missing required fields'
       }, { status: 400 });
@@ -1066,18 +1153,24 @@ async function handleUpload(request) {
     // Verify gabarito, turma, aluno
     const gabarito = await db.collection('gabaritos').findOne({ id: gabaritoId, userId });
     if (!gabarito) {
+      console.error('❌ [UPLOAD] Gabarito não encontrado:', gabaritoId);
       return NextResponse.json({ error: 'Gabarito not found' }, { status: 404 });
     }
+
+    console.log('✅ [UPLOAD] Gabarito encontrado. Tipo:', gabarito.tipo);
 
     // Processar diretamente com Vertex AI baseado no tipo de gabarito
     // Reutilizar a lógica de app/api/correcoes/route.js
     if (gabarito.tipo === 'multipla_escolha') {
+      console.log('🔄 [UPLOAD] Processando como múltipla escolha...');
       return await handleMultiplaEscolhaUpload(file, gabarito, turmaId, alunoId, periodo, userId, db);
     } else {
+      console.log('🔄 [UPLOAD] Processando como dissertativa...');
       return await handleDissertativaUpload(file, gabarito, turmaId, alunoId, periodo, userId, db);
     }
   } catch (error) {
-    console.error('Upload error:', error);
+    console.error('❌ [UPLOAD] Erro geral:', error);
+    console.error('❌ [UPLOAD] Stack trace:', error.stack);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -1308,6 +1401,75 @@ async function handleUpdateSettings(request) {
   }
 }
 
+// ==================== PLANO STATUS HANDLER ====================
+
+async function handleGetPlanoStatus(request) {
+  try {
+    const userId = await requireAuth(request);
+    const { db } = await connectToDatabase();
+
+    const user = await db.collection('users').findOne({ id: userId });
+    const plano = user?.assinatura || 'free';
+    const limites = {
+      free: {
+        nome: 'Gratuito',
+        provasPorMes: 20,
+        correcaoIlimitada: false,
+        analyticsAvancado: false,
+        assistenteDiscursivo: false
+      },
+      premium: {
+        nome: 'Premium',
+        provasPorMes: -1,
+        correcaoIlimitada: true,
+        analyticsAvancado: true,
+        assistenteDiscursivo: true
+      }
+    };
+
+    const limitesPlano = limites[plano] || limites['free'];
+
+    // Count usage
+    const turmasCount = await db.collection('turmas').countDocuments({ userId });
+    const alunosCount = await db.collection('alunos').aggregate([
+      {
+        $lookup: {
+          from: 'turmas',
+          localField: 'turmaId',
+          foreignField: 'id',
+          as: 'turma'
+        }
+      },
+      { $match: { 'turma.userId': userId } },
+      { $count: 'count' }
+    ]).toArray();
+
+    const totalAlunos = alunosCount.length > 0 ? alunosCount[0].count : 0;
+
+    // Get current month corrections
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const correcoesCount = await db.collection('avaliacoes_corrigidas').countDocuments({
+      userId,
+      createdAt: { $gte: startOfMonth }
+    });
+
+    return NextResponse.json({
+      plano,
+      limites: limitesPlano,
+      uso: {
+        turmas: turmasCount,
+        alunos: totalAlunos,
+        correcoesMes: correcoesCount
+      }
+    });
+  } catch (error) {
+    return NextResponse.json({ error: error.message }, { status: 401 });
+  }
+}
+
 // ==================== ADMIN HANDLERS ====================
 
 async function handleAddAdmin(request) {
@@ -1367,6 +1529,7 @@ export async function GET(request) {
   if (pathname === '/api/avaliacoes/pendentes') return handleGetAvaliacoesPendentes(request);
   if (pathname === '/api/avaliacoes/concluidas') return handleGetAvaliacoesConcluidas(request);
   if (pathname === '/api/notificacoes') return handleGetNotificacoes(request);
+  if (pathname === '/api/plano/status') return handleGetPlanoStatus(request);
 
   // Handle dynamic routes with IDs
   if (pathname.startsWith('/api/alunos/')) {

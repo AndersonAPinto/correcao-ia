@@ -122,7 +122,7 @@ export default function ConfiguracoesSection({ user, credits }) {
           <div className="space-y-2">
             <Label>Tema</Label>
             {mounted && (
-              <Select value={theme} onValueChange={setTheme}>
+              <Select value={theme || 'system'} onValueChange={setTheme}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o tema" />
                 </SelectTrigger>

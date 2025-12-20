@@ -153,11 +153,11 @@ export default function GabaritosSection() {
     data.append('conteudo', formData.conteudo);
     data.append('perfilAvaliacaoId', formData.perfilAvaliacaoId);
     data.append('tipo', tipoGabarito);
-    
+
     if (tipoGabarito === 'multipla_escolha') {
       data.append('questoes', JSON.stringify(questoes));
     }
-    
+
     if (formData.arquivo) {
       data.append('arquivo', formData.arquivo);
     }
@@ -228,7 +228,7 @@ export default function GabaritosSection() {
                 </SelectContent>
               </Select>
               <p className="text-xs text-gray-500">
-                {tipoGabarito === 'multipla_escolha' 
+                {tipoGabarito === 'multipla_escolha'
                   ? 'Correção automática instantânea. Defina questões com alternativas A, B, C, D.'
                   : 'Correção assistida por IA. Defina critérios de avaliação.'}
               </p>
@@ -238,9 +238,9 @@ export default function GabaritosSection() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <Label>Questões de Múltipla Escolha</Label>
-                  <Button 
-                    type="button" 
-                    variant="outline" 
+                  <Button
+                    type="button"
+                    variant="outline"
                     size="sm"
                     onClick={handleAddQuestao}
                   >
@@ -273,7 +273,7 @@ export default function GabaritosSection() {
                             <div>
                               <Label>Resposta Correta *</Label>
                               <Select
-                                value={questao.respostaCorreta}
+                                value={questao.respostaCorreta || ''}
                                 onValueChange={(value) => handleQuestaoChange(index, 'respostaCorreta', value)}
                               >
                                 <SelectTrigger>
@@ -313,7 +313,7 @@ export default function GabaritosSection() {
                               </Button>
                             </div>
                             <Select
-                              value={questao.habilidadeId}
+                              value={questao.habilidadeId || ''}
                               onValueChange={(value) => handleQuestaoChange(index, 'habilidadeId', value)}
                             >
                               <SelectTrigger>
@@ -338,9 +338,9 @@ export default function GabaritosSection() {
               <>
                 <div className="space-y-2">
                   <Label htmlFor="perfil">Perfil de Avaliação</Label>
-                  <Select 
-                    value={formData.perfilAvaliacaoId || undefined} 
-                    onValueChange={(value) => setFormData({ ...formData, perfilAvaliacaoId: value })}
+                  <Select
+                    value={formData.perfilAvaliacaoId || ''}
+                    onValueChange={(value) => setFormData({ ...formData, perfilAvaliacaoId: value || '' })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione um perfil (opcional)" />
@@ -480,9 +480,9 @@ export default function GabaritosSection() {
                       )}
                       {gab.arquivoUrl && (
                         <div className="mt-2">
-                          <a 
-                            href={gab.arquivoUrl} 
-                            target="_blank" 
+                          <a
+                            href={gab.arquivoUrl}
+                            target="_blank"
                             rel="noopener noreferrer"
                             className="text-sm text-blue-600 hover:underline flex items-center gap-1"
                           >

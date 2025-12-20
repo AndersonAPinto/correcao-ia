@@ -16,7 +16,7 @@ export default function ResultadosSection({ view }) {
   const [modalOpen, setModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [turmas, setTurmas] = useState([]);
-  const [selectedTurma, setSelectedTurma] = useState('');
+  const [selectedTurma, setSelectedTurma] = useState('all');
   const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
@@ -64,8 +64,8 @@ export default function ResultadosSection({ view }) {
         const data = await response.json();
         let avaliacoes = data.avaliacoes || [];
 
-        // Aplicar filtro de turma se selecionado
-        if (view === 'concluidas' && selectedTurma) {
+        // Aplicar filtro de turma se selecionado (ignorar se for "all")
+        if (view === 'concluidas' && selectedTurma && selectedTurma !== 'all') {
           avaliacoes = avaliacoes.filter(av => av.turmaId === selectedTurma);
         }
 
@@ -151,12 +151,12 @@ export default function ResultadosSection({ view }) {
               </CardTitle>
               {view === 'concluidas' && avaliacoes.length > 0 && (
                 <div className="flex items-center gap-2">
-                  <Select value={selectedTurma} onValueChange={setSelectedTurma}>
+                  <Select value={selectedTurma || 'all'} onValueChange={setSelectedTurma}>
                     <SelectTrigger className="w-48">
                       <SelectValue placeholder="Filtrar por turma" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Todas as turmas</SelectItem>
+                      <SelectItem value="all">Todas as turmas</SelectItem>
                       {turmas.map((turma) => (
                         <SelectItem key={turma.id} value={turma.id}>
                           {turma.nome}
