@@ -43,7 +43,7 @@ export default function ConfiguracoesSection({ user, credits }) {
       const response = await fetch('/api/plano/status', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setPlanoStatus(data);
@@ -59,7 +59,7 @@ export default function ConfiguracoesSection({ user, credits }) {
       const response = await fetch('/api/settings', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setFormData(prev => ({
@@ -214,7 +214,7 @@ export default function ConfiguracoesSection({ user, credits }) {
               Plano Atual: {planoStatus.plano === 'free' ? 'Gratuito' : 'Premium'}
             </CardTitle>
             <CardDescription>
-              {planoStatus.plano === 'free' 
+              {planoStatus.plano === 'free'
                 ? `Você usou ${planoStatus.usado} de ${planoStatus.limites.provasPorMes} provas este mês`
                 : 'Correção ilimitada ativada'}
             </CardDescription>
@@ -229,7 +229,7 @@ export default function ConfiguracoesSection({ user, credits }) {
                   </span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div 
+                  <div
                     className="bg-blue-600 h-2 rounded-full transition-all"
                     style={{ width: `${(planoStatus.usado / planoStatus.limites.provasPorMes) * 100}%` }}
                   />
@@ -245,8 +245,8 @@ export default function ConfiguracoesSection({ user, credits }) {
                 )}
               </div>
             )}
-            <Button 
-              className="w-full" 
+            <Button
+              className="w-full"
               onClick={() => setPaywallOpen(true)}
               variant={planoStatus.plano === 'premium' ? 'outline' : 'default'}
             >
@@ -296,7 +296,7 @@ export default function ConfiguracoesSection({ user, credits }) {
                     Obtenha em: <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Google AI Studio</a>
                   </p>
                   <p className="text-xs text-gray-500 mt-2">
-                    A correção agora é feita diretamente via Gemini API, sem necessidade de N8N.
+                    A correção é feita diretamente via Vertex AI (Gemini), processamento automático e instantâneo.
                   </p>
                 </div>
 
