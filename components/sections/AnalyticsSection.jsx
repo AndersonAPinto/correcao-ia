@@ -1,12 +1,25 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, Area, AreaChart, LabelList } from 'recharts';
 import { TrendingUp, Users, Award, Target } from 'lucide-react';
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from '@/components/ui/chart';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import AlunoDetailModal from '@/components/AlunoDetailModal';
 
 export default function AnalyticsSection() {
@@ -26,10 +39,17 @@ export default function AnalyticsSection() {
 
   useEffect(() => {
     if (selectedTurma) {
-      loadAnalytics();
+      // Debounce para evitar múltiplas chamadas rápidas
+      const timeoutId = setTimeout(() => {
+        loadAnalytics();
+      }, 300); // Aguarda 300ms antes de fazer a requisição
+
+      return () => clearTimeout(timeoutId);
     } else {
       setTurmaMetrics(null);
       setHabilidadesReport([]);
+      setHabilidadesEvolucao([]);
+      setHabilidadesCorrelacao([]);
     }
   }, [selectedTurma]);
 
@@ -55,54 +75,89 @@ export default function AnalyticsSection() {
     setLoading(true);
     const token = localStorage.getItem('token');
 
+    // AbortController para cancelar requisições se necessário
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // Timeout de 30s
+
     try {
+      const fetchOptions = {
+        headers: { 'Authorization': `Bearer ${token}` },
+        signal: controller.signal,
+      };
+
       const [metricsRes, habilidadesRes, evolucaoRes, correlacaoRes] = await Promise.all([
-        fetch(`/api/analytics/turma/${selectedTurma}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
+        fetch(`/api/analytics/turma/${selectedTurma}`, fetchOptions).catch(err => {
+          if (err.name !== 'AbortError') console.error('Erro ao buscar métricas:', err);
+          return null;
         }),
-        fetch(`/api/analytics/habilidades/${selectedTurma}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
+        fetch(`/api/analytics/habilidades/${selectedTurma}`, fetchOptions).catch(err => {
+          if (err.name !== 'AbortError') console.error('Erro ao buscar habilidades:', err);
+          return null;
         }),
-        fetch(`/api/analytics/habilidades/${selectedTurma}/evolucao`, {
-          headers: { 'Authorization': `Bearer ${token}` }
+        fetch(`/api/analytics/habilidades/${selectedTurma}/evolucao`, fetchOptions).catch(err => {
+          if (err.name !== 'AbortError') console.error('Erro ao buscar evolução:', err);
+          return null;
         }),
-        fetch(`/api/analytics/habilidades/${selectedTurma}/correlacao`, {
-          headers: { 'Authorization': `Bearer ${token}` }
+        fetch(`/api/analytics/habilidades/${selectedTurma}/correlacao`, fetchOptions).catch(err => {
+          if (err.name !== 'AbortError') console.error('Erro ao buscar correlações:', err);
+          return null;
         })
       ]);
 
-      if (metricsRes.ok) {
-        const data = await metricsRes.json();
-        setTurmaMetrics(data);
-      } else {
-        console.error('Erro ao carregar métricas:', metricsRes.status, await metricsRes.text());
+      clearTimeout(timeoutId);
+
+      // Processar respostas com tratamento de erro individual
+      if (metricsRes && metricsRes.ok) {
+        try {
+          const data = await metricsRes.json();
+          setTurmaMetrics(data);
+        } catch (err) {
+          console.error('Erro ao processar métricas:', err);
+        }
+      } else if (metricsRes) {
+        console.error('Erro ao carregar métricas:', metricsRes.status);
       }
 
-      if (habilidadesRes.ok) {
-        const data = await habilidadesRes.json();
-        setHabilidadesReport(data.habilidades || []);
-      } else {
-        console.error('Erro ao carregar habilidades:', habilidadesRes.status);
+      if (habilidadesRes && habilidadesRes.ok) {
+        try {
+          const data = await habilidadesRes.json();
+          setHabilidadesReport(data.habilidades || []);
+        } catch (err) {
+          console.error('Erro ao processar habilidades:', err);
+        }
+      } else if (habilidadesRes) {
+        console.error('Erro ao carregar habilidades:', habilidadesRes?.status || 'Network error');
       }
 
-      if (evolucaoRes.ok) {
-        const data = await evolucaoRes.json();
-        setHabilidadesEvolucao(data.habilidades || []);
-      } else {
-        console.error('Erro ao carregar evolução:', evolucaoRes.status);
+      if (evolucaoRes && evolucaoRes.ok) {
+        try {
+          const data = await evolucaoRes.json();
+          setHabilidadesEvolucao(data.habilidades || []);
+        } catch (err) {
+          console.error('Erro ao processar evolução:', err);
+        }
+      } else if (evolucaoRes) {
+        console.error('Erro ao carregar evolução:', evolucaoRes?.status || 'Network error');
       }
 
-      if (correlacaoRes.ok) {
-        const data = await correlacaoRes.json();
-        setHabilidadesCorrelacao(data.correlacoes || []);
-      } else {
-        console.error('Erro ao carregar correlações:', correlacaoRes.status);
+      if (correlacaoRes && correlacaoRes.ok) {
+        try {
+          const data = await correlacaoRes.json();
+          setHabilidadesCorrelacao(data.correlacoes || []);
+        } catch (err) {
+          console.error('Erro ao processar correlações:', err);
+        }
+      } else if (correlacaoRes) {
+        console.error('Erro ao carregar correlações:', correlacaoRes?.status || 'Network error');
       }
     } catch (error) {
-      console.error('Failed to load analytics:', error);
+      if (error.name !== 'AbortError') {
+        console.error('Failed to load analytics:', error);
+      }
+    } finally {
+      clearTimeout(timeoutId);
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return (
@@ -218,22 +273,71 @@ export default function AnalyticsSection() {
               </CardHeader>
               <CardContent>
                 {turmaMetrics.distribuicaoNotas && turmaMetrics.distribuicaoNotas.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={turmaMetrics.distribuicaoNotas}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="range" />
-                      <YAxis />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="count" fill="#3b82f6" name="Quantidade" />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  <ChartContainer
+                    config={{
+                      count: {
+                        label: "Quantidade",
+                        color: "#ffffff",
+                      },
+                    }}
+                    className="h-[300px] w-full"
+                  >
+                    <AreaChart
+                      accessibilityLayer
+                      data={turmaMetrics.distribuicaoNotas}
+                      margin={{
+                        left: -20,
+                        right: 12,
+                      }}
+                    >
+                      <CartesianGrid vertical={false} />
+                      <XAxis
+                        dataKey="range"
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                      />
+                      <YAxis
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        tickCount={5}
+                      />
+                      <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+                      <Area
+                        dataKey="count"
+                        type="natural"
+                        fill="var(--color-count)"
+                        fillOpacity={0.4}
+                        stroke="var(--color-count)"
+                        strokeWidth={2}
+                      />
+                    </AreaChart>
+                  </ChartContainer>
                 ) : (
                   <p className="text-center text-gray-500 py-8">
                     Sem dados de distribuição de notas
                   </p>
                 )}
               </CardContent>
+              <CardFooter>
+                <div className="flex w-full items-start gap-2 text-sm">
+                  <div className="grid gap-2">
+                    <div className="flex items-center gap-2 leading-none font-medium">
+                      Média da turma: {turmaMetrics.mediaTurma.toFixed(2)}/10
+                      {turmaMetrics.mediaTurma >= 7 ? (
+                        <TrendingUp className="h-4 w-4 text-green-600" />
+                      ) : turmaMetrics.mediaTurma >= 5 ? (
+                        <TrendingUp className="h-4 w-4 text-yellow-600" />
+                      ) : null}
+                    </div>
+                    <div className="text-muted-foreground flex items-center gap-2 leading-none">
+                      {turmaMetrics.totalAvaliacoes} avaliações validadas •
+                      Taxa de aprovação: {turmaMetrics.taxaAprovacao.toFixed(1)}%
+                    </div>
+                  </div>
+                </div>
+              </CardFooter>
             </Card>
           </TabsContent>
 
@@ -248,51 +352,95 @@ export default function AnalyticsSection() {
               <CardContent>
                 {habilidadesReport.length > 0 ? (
                   <div className="space-y-4">
-                    <ResponsiveContainer width="100%" height={400}>
+                    <ChartContainer
+                      config={{
+                        taxaAcerto: {
+                          label: "Taxa de Acerto",
+                          color: "var(--chart-2)",
+                        },
+                        label: {
+                          color: "var(--background)",
+                        },
+                      }}
+                      className="h-[400px] w-full"
+                    >
                       <BarChart
+                        accessibilityLayer
                         data={habilidadesReport.slice(0, 10)}
                         layout="vertical"
-                        margin={{ top: 5, right: 30, left: 100, bottom: 5 }}
+                        margin={{ right: 16 }}
                       >
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis type="number" domain={[0, 100]} />
-                        <YAxis dataKey="nome" type="category" width={90} />
-                        <Tooltip formatter={(value) => `${value}%`} />
-                        <Legend />
-                        <Bar dataKey="taxaAcerto" fill="#10b981" name="Taxa de Acerto (%)" />
+                        <CartesianGrid horizontal={false} />
+                        <YAxis
+                          dataKey="nome"
+                          type="category"
+                          tickLine={false}
+                          tickMargin={10}
+                          axisLine={false}
+                          tickFormatter={(value) => value.length > 30 ? value.slice(0, 30) + '...' : value}
+                          hide
+                        />
+                        <XAxis
+                          dataKey="taxaAcerto"
+                          type="number"
+                          domain={[0, 100]}
+                          hide
+                        />
+                        <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" />} />
+                        <Bar
+                          dataKey="taxaAcerto"
+                          layout="vertical"
+                          fill="var(--color-taxaAcerto)"
+                          radius={4}
+                        >
+                          <LabelList
+                            dataKey="nome"
+                            position="insideLeft"
+                            offset={8}
+                            style={{ fill: 'var(--color-label)' }}
+                            fontSize={12}
+                          />
+                          <LabelList
+                            dataKey="taxaAcerto"
+                            position="right"
+                            offset={8}
+                            style={{ fill: 'hsl(var(--foreground))' }}
+                            fontSize={12}
+                            formatter={(value) => `${value}%`}
+                          />
+                        </Bar>
                       </BarChart>
-                    </ResponsiveContainer>
+                    </ChartContainer>
 
                     {/* Tabela de Habilidades */}
                     <div className="mt-6">
                       <h3 className="text-lg font-semibold mb-3">Detalhamento</h3>
                       <div className="border rounded-lg overflow-hidden">
-                        <table className="w-full">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th className="px-4 py-2 text-left text-sm font-semibold">Habilidade</th>
-                              <th className="px-4 py-2 text-center text-sm font-semibold">Acertos</th>
-                              <th className="px-4 py-2 text-center text-sm font-semibold">Erros</th>
-                              <th className="px-4 py-2 text-center text-sm font-semibold">Total</th>
-                              <th className="px-4 py-2 text-center text-sm font-semibold">Taxa de Acerto</th>
-                              <th className="px-4 py-2 text-center text-sm font-semibold">Média Pontuação</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {habilidadesReport.map((hab, idx) => {
-                              const taxaErro = hab.total > 0 ? ((hab.erros / hab.total) * 100).toFixed(1) : 0;
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-[250px]">Habilidade</TableHead>
+                              <TableHead className="text-center">Acertos</TableHead>
+                              <TableHead className="text-center">Erros</TableHead>
+                              <TableHead className="text-center">Total</TableHead>
+                              <TableHead className="text-center">Taxa de Acerto</TableHead>
+                              <TableHead className="text-center">Média Pontuação</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {habilidadesReport.map((hab) => {
                               return (
-                                <tr key={hab.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                                  <td className="px-4 py-2 text-sm">{hab.nome}</td>
-                                  <td className="px-4 py-2 text-center text-sm text-green-600">{hab.acertos}</td>
-                                  <td className="px-4 py-2 text-center text-sm text-red-600">{hab.erros}</td>
-                                  <td className="px-4 py-2 text-center text-sm">{hab.total}</td>
-                                  <td className="px-4 py-2 text-center text-sm">
+                                <TableRow key={hab.id}>
+                                  <TableCell className="font-medium">{hab.nome}</TableCell>
+                                  <TableCell className="text-center text-green-600">{hab.acertos}</TableCell>
+                                  <TableCell className="text-center text-red-600">{hab.erros}</TableCell>
+                                  <TableCell className="text-center">{hab.total}</TableCell>
+                                  <TableCell className="text-center">
                                     <span className={hab.taxaAcerto >= 70 ? 'text-green-600' : hab.taxaAcerto >= 50 ? 'text-yellow-600' : 'text-red-600'}>
                                       {hab.taxaAcerto}%
                                     </span>
-                                  </td>
-                                  <td className="px-4 py-2 text-center text-sm">
+                                  </TableCell>
+                                  <TableCell className="text-center">
                                     {hab.mediaPontuacao !== null ? (
                                       <span className={hab.mediaPontuacao >= 7 ? 'text-green-600 font-semibold' : hab.mediaPontuacao >= 5 ? 'text-yellow-600' : 'text-red-600'}>
                                         {hab.mediaPontuacao.toFixed(2)}/10
@@ -300,12 +448,12 @@ export default function AnalyticsSection() {
                                     ) : (
                                       <span className="text-gray-400">N/A</span>
                                     )}
-                                  </td>
-                                </tr>
+                                  </TableCell>
+                                </TableRow>
                               );
                             })}
-                          </tbody>
-                        </table>
+                          </TableBody>
+                        </Table>
                       </div>
                     </div>
                   </div>
@@ -315,6 +463,39 @@ export default function AnalyticsSection() {
                   </p>
                 )}
               </CardContent>
+              {habilidadesReport.length > 0 && (
+                <CardFooter className="flex-col items-start gap-2 text-sm">
+                  <div className="flex gap-2 leading-none font-medium">
+                    {(() => {
+                      const mediaGeral = habilidadesReport.reduce((sum, h) => sum + h.taxaAcerto, 0) / habilidadesReport.length;
+                      const melhorHab = habilidadesReport[0];
+                      const piorHab = habilidadesReport[habilidadesReport.length - 1];
+                      return (
+                        <>
+                          Média geral: {mediaGeral.toFixed(1)}% de acerto
+                          {mediaGeral >= 70 ? (
+                            <TrendingUp className="h-4 w-4 text-green-600" />
+                          ) : mediaGeral >= 50 ? (
+                            <TrendingUp className="h-4 w-4 text-yellow-600" />
+                          ) : null}
+                        </>
+                      );
+                    })()}
+                  </div>
+                  <div className="text-muted-foreground leading-none">
+                    {(() => {
+                      const melhorHab = habilidadesReport[0];
+                      const piorHab = habilidadesReport[habilidadesReport.length - 1];
+                      return (
+                        <>
+                          Melhor desempenho: {melhorHab.nome} ({melhorHab.taxaAcerto}%) •
+                          Maior dificuldade: {piorHab.nome} ({piorHab.taxaAcerto}%)
+                        </>
+                      );
+                    })()}
+                  </div>
+                </CardFooter>
+              )}
             </Card>
           </TabsContent>
 
