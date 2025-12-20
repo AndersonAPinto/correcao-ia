@@ -74,21 +74,29 @@ export default function AnalyticsSection() {
       if (metricsRes.ok) {
         const data = await metricsRes.json();
         setTurmaMetrics(data);
+      } else {
+        console.error('Erro ao carregar métricas:', metricsRes.status, await metricsRes.text());
       }
 
       if (habilidadesRes.ok) {
         const data = await habilidadesRes.json();
         setHabilidadesReport(data.habilidades || []);
+      } else {
+        console.error('Erro ao carregar habilidades:', habilidadesRes.status);
       }
 
       if (evolucaoRes.ok) {
         const data = await evolucaoRes.json();
         setHabilidadesEvolucao(data.habilidades || []);
+      } else {
+        console.error('Erro ao carregar evolução:', evolucaoRes.status);
       }
 
       if (correlacaoRes.ok) {
         const data = await correlacaoRes.json();
         setHabilidadesCorrelacao(data.correlacoes || []);
+      } else {
+        console.error('Erro ao carregar correlações:', correlacaoRes.status);
       }
     } catch (error) {
       console.error('Failed to load analytics:', error);
