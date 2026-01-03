@@ -39,7 +39,7 @@ export default function HabilidadesSection() {
     e.preventDefault();
 
     if (!formData.nome.trim()) {
-      toast.error('Nome da habilidade é obrigatório');
+      toast.error('⚠️ O nome da habilidade é obrigatório.');
       return;
     }
 
@@ -56,21 +56,21 @@ export default function HabilidadesSection() {
       });
 
       if (response.ok) {
-        toast.success('Habilidade criada com sucesso!');
+        toast.success('✅ Habilidade criada com sucesso! Você já pode usá-la em seus gabaritos.');
         setFormData({ nome: '', descricao: '' });
         loadHabilidades();
       } else {
         const error = await response.json();
-        toast.error(error.error || 'Erro ao criar habilidade');
+        toast.error(error.error || 'Não foi possível criar a habilidade no momento.');
       }
     } catch (error) {
-      toast.error('Erro ao criar habilidade');
+      toast.error('Erro de conexão. Verifique sua rede.');
     }
     setCreating(false);
   };
 
   const handleDelete = async (habilidadeId) => {
-    if (!confirm('Tem certeza que deseja excluir esta habilidade?')) {
+    if (!confirm('Esta habilidade será removida permanentemente. Tem certeza?')) {
       return;
     }
 
@@ -82,13 +82,13 @@ export default function HabilidadesSection() {
       });
 
       if (response.ok) {
-        toast.success('Habilidade excluída!');
+        toast.success('🗑️ Habilidade excluída com sucesso.');
         loadHabilidades();
       } else {
-        toast.error('Erro ao excluir habilidade');
+        toast.error('Ocorreu um erro ao tentar excluir a habilidade.');
       }
     } catch (error) {
-      toast.error('Erro ao excluir habilidade');
+      toast.error('Erro de conexão ao excluir habilidade.');
     }
   };
 
@@ -119,11 +119,11 @@ export default function HabilidadesSection() {
     }
 
     if (criadas > 0) {
-      toast.success(`${criadas} habilidade(s) criada(s)!`);
+      toast.success(`✨ ${criadas} habilidades padrão foram adicionadas com sucesso!`);
       loadHabilidades();
     }
     if (erros > 0) {
-      toast.warning(`${erros} habilidade(s) já existiam`);
+      toast.warning(`ℹ️ ${erros} habilidades já existiam e foram puladas.`);
     }
   };
 

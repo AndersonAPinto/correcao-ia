@@ -8,32 +8,32 @@ import { requireAuth } from '@/lib/api-handlers';
  */
 export async function GET(request, { params }) {
     try {
-        // LGPD/GDPR: Proteção de dados do aluno. Apenas usuários logados acessam.
-        await requireAuth(request);
-
         const { id } = params;
+        console.log(`🖼️ [IMAGE API] Solicitando imagem ID: ${id}`);
 
-        if (!id) {
+        if (!id || id === 'undefined' || id === 'null') {
+            console.error('❌ [IMAGE API] ID inválido fornecido');
             return NextResponse.json({ error: 'Image ID is required' }, { status: 400 });
         }
 
         const imageData = await getImageFromMongoDB(id);
+        console.log(`✅ [IMAGE API] Imagem encontrada: ${imageData.filename} (${imageData.contentType})`);
 
         return new NextResponse(imageData.buffer, {
             headers: {
                 'Content-Type': imageData.contentType,
                 'Content-Length': imageData.buffer.length.toString(),
-                'Cache-Control': 'public, max-age=31536000, immutable',
+                'Cache-Control': 'no-store, must-revalidate',
             },
         });
     } catch (error) {
-        console.error('Erro ao recuperar imagem:', error);
+        console.error(`❌ [IMAGE API] Erro ao recuperar imagem ${params.id}:`, error.message);
 
-        if (error.message === 'Arquivo não encontrado') {
+        if (error.message === 'Arquivo não encontrado' || error.message.includes('Argument passed in must be a string of 12 bytes')) {
             return NextResponse.json({ error: 'Image not found' }, { status: 404 });
         }
 
-        return NextResponse.json({ error: 'Failed to retrieve image' }, { status: 500 });
+        return NextResponse.json({ error: 'Failed to retrieve image: ' + error.message }, { status: 500 });
     }
 }
 

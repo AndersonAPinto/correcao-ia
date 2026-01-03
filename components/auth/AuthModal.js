@@ -37,14 +37,14 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'login', onAut
             const data = await response.json();
 
             if (response.ok) {
-                toast.success(activeTab === 'login' ? 'Login realizado com sucesso!' : 'Conta criada com sucesso!');
+                toast.success(activeTab === 'login' ? '👋 Bem-vindo de volta! Login realizado.' : '🎉 Conta criada com sucesso! Bem-vindo ao CorregIA.');
                 onAuthSuccess(data);
                 onClose();
             } else {
-                toast.error(data.error || 'Erro na autenticação');
+                toast.error(data.error || 'Erro na autenticação. Verifique seus dados.');
             }
         } catch (error) {
-            toast.error('Erro de conexão. Tente novamente.');
+            toast.error('🌐 Erro de conexão. Verifique sua internet e tente novamente.');
         } finally {
             setIsLoading(false);
         }
@@ -69,14 +69,14 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'login', onAut
             const data = await response.json();
 
             if (response.ok) {
-                toast.success('Se o email existir, você receberá um link de recuperação');
+                toast.success('📧 Se o e-mail estiver cadastrado, você receberá um link de recuperação em instantes.');
                 setShowForgotPassword(false);
                 setForgotPasswordEmail('');
             } else {
-                toast.error(data.error || 'Erro ao solicitar recuperação');
+                toast.error(data.error || 'Ocorreu um erro ao processar a recuperação de senha.');
             }
         } catch (error) {
-            toast.error('Erro de conexão. Tente novamente.');
+            toast.error('🌐 Erro de conexão ao solicitar recuperação.');
         } finally {
             setForgotPasswordLoading(false);
         }

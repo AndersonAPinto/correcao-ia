@@ -7,7 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
-import { saveImageToMongoDB } from '@/lib/fileStorage';
+import { saveImageToMongoDB, getImageFromMongoDB } from '@/lib/fileStorage';
 
 // ==================== AUTH HANDLERS ====================
 
@@ -16,14 +16,14 @@ async function handleRegister(request) {
     const { email, password, name } = await request.json();
 
     if (!email || !password || !name) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+      return NextResponse.json({ error: '⚠️ Preencha todos os campos obrigatórios (nome, email e senha).' }, { status: 400 });
     }
 
     // Rate limiting para registros (prevenir bots)
     const rateLimit = await checkRateLimit(request, email, 'register', 3, 60);
     if (rateLimit.blocked) {
       return NextResponse.json({
-        error: `Muitas tentativas de registro. Tente novamente em ${rateLimit.remainingMinutes} minutos.`
+        error: `🛑 Muitas tentativas de registro. Por segurança, tente novamente em ${rateLimit.remainingMinutes} minutos.`
       }, { status: 429 });
     }
 
@@ -32,7 +32,7 @@ async function handleRegister(request) {
     const existingUser = await db.collection('users').findOne({ email });
     if (existingUser) {
       await registerAttempt(request, email, 'register');
-      return NextResponse.json({ error: 'Email already registered' }, { status: 400 });
+      return NextResponse.json({ error: '📧 Este e-mail já está cadastrado no sistema.' }, { status: 400 });
     }
 
     const userId = uuidv4();
@@ -81,14 +81,14 @@ async function handleLogin(request) {
     const { email, password } = await request.json();
 
     if (!email || !password) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+      return NextResponse.json({ error: '⚠️ Por favor, informe seu e-mail e senha.' }, { status: 400 });
     }
 
     // Rate limiting Anti-Brute Force
     const rateLimit = await checkRateLimit(request, email, 'login', 5, 15);
     if (rateLimit.blocked) {
       return NextResponse.json({
-        error: `Conta bloqueada temporariamente por excesso de tentativas. Tente novamente em ${rateLimit.remainingMinutes} minutos.`
+        error: `🛑 Conta bloqueada temporariamente por excesso de tentativas. Tente novamente em ${rateLimit.remainingMinutes} minutos.`
       }, { status: 429 });
     }
 
@@ -100,7 +100,7 @@ async function handleLogin(request) {
       await registerAttempt(request, email, 'login');
       await logAudit(request, 'anonymous', 'login_failed', { email });
 
-      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+      return NextResponse.json({ error: '❌ E-mail ou senha incorretos.' }, { status: 401 });
     }
 
     // Auditoria de Login Sucesso
@@ -149,7 +149,7 @@ async function handleCreateTurma(request) {
     const { nome } = await request.json();
 
     if (!nome) {
-      return NextResponse.json({ error: 'Missing turma name' }, { status: 400 });
+      return NextResponse.json({ error: '⚠️ O nome da turma é obrigatório.' }, { status: 400 });
     }
 
     const { db } = await connectToDatabase();
@@ -191,7 +191,7 @@ async function handleCreateAluno(request) {
     const { turmaId, nome } = await request.json();
 
     if (!turmaId || !nome) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+      return NextResponse.json({ error: '⚠️ Nome do aluno e ID da turma são obrigatórios.' }, { status: 400 });
     }
 
     const { db } = await connectToDatabase();
@@ -199,7 +199,7 @@ async function handleCreateAluno(request) {
     // Verify turma belongs to user
     const turma = await db.collection('turmas').findOne({ id: turmaId, userId });
     if (!turma) {
-      return NextResponse.json({ error: 'Turma not found' }, { status: 404 });
+      return NextResponse.json({ error: '❌ Turma não encontrada ou você não tem permissão.' }, { status: 404 });
     }
 
     const aluno = {
@@ -250,7 +250,7 @@ async function handleCreatePerfil(request) {
     const arquivo = formData.get('arquivo');
 
     if (!nome) {
-      return NextResponse.json({ error: 'Missing perfil name' }, { status: 400 });
+      return NextResponse.json({ error: '⚠️ O nome do perfil é obrigatório.' }, { status: 400 });
     }
 
     const { db } = await connectToDatabase();
@@ -311,7 +311,7 @@ async function handleGerarPerfil(request) {
     const { conteudo } = await request.json();
 
     if (!conteudo) {
-      return NextResponse.json({ error: 'Missing content' }, { status: 400 });
+      return NextResponse.json({ error: '⚠️ Por favor, forneça o conteúdo base para gerar o perfil.' }, { status: 400 });
     }
 
     const { db } = await connectToDatabase();
@@ -359,7 +359,7 @@ async function handleCreateGabarito(request) {
     const arquivo = formData.get('arquivo');
 
     if (!titulo) {
-      return NextResponse.json({ error: 'Missing title' }, { status: 400 });
+      return NextResponse.json({ error: '⚠️ O título do gabarito é obrigatório.' }, { status: 400 });
     }
 
     const { db } = await connectToDatabase();
@@ -627,8 +627,8 @@ IMPORTANTE:
 
     let responseText;
     try {
-      // Chamar Vertex AI para OCR + Correção (usando Pro para melhor qualidade)
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=dummy`;
+      // Chamar Vertex AI para OCR + Correção (priorizando Gemini 2.0 Flash)
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=dummy`;
       const geminiBody = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -675,14 +675,8 @@ IMPORTANTE:
         { $set: { descricao: 'Correção de prova (dissertativa) - ERRO: créditos restaurados' } }
       );
 
-      // Mensagem de erro mais amigável
-      let errorMessage = error.message;
-      if (error.message && error.message.includes('404')) {
-        errorMessage = 'Modelos Gemini não estão disponíveis no seu projeto Google Cloud. É necessário habilitar as APIs do Vertex AI no Google Cloud Console.';
-      }
-
       return NextResponse.json({
-        error: `Failed to process image with Vertex AI. Credits have been restored. ${errorMessage}`
+        error: `Failed to process image with Vertex AI. Credits have been restored. ${error.message}`
       }, { status: 500 });
     }
 
@@ -943,8 +937,8 @@ IMPORTANTE: Retorne apenas o JSON, sem texto adicional.`;
 
     let ocrText;
     try {
-      // Chamar Vertex AI para OCR (usando flash para ser mais rápido e econômico)
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=dummy`;
+      // Chamar Vertex AI para OCR (priorizando Gemini 2.0 Flash)
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=dummy`;
       const geminiBody = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -977,7 +971,7 @@ IMPORTANTE: Retorne apenas o JSON, sem texto adicional.`;
 
       console.error('Vertex AI error:', error);
       return NextResponse.json({
-        error: 'Failed to process image with Vertex AI. Credits have been restored. Please try again.'
+        error: `Failed to process image with Vertex AI. Credits have been restored. ${error.message}`
       }, { status: 500 });
     }
 
@@ -1125,7 +1119,7 @@ async function handleUpload(request) {
     console.log('💰 [UPLOAD] Créditos do usuário:', credits?.saldoAtual || 0);
     if (!credits || credits.saldoAtual < 3) {
       return NextResponse.json({
-        error: 'Insufficient credits. Need at least 3 credits.'
+        error: '⚠️ Saldo de créditos insuficiente. Você precisa de pelo menos 3 créditos para realizar uma correção.'
       }, { status: 400 });
     }
 
@@ -1134,7 +1128,7 @@ async function handleUpload(request) {
     console.log('🔧 [UPLOAD] Project ID configurado:', projectId ? 'Sim' : 'Não');
     if (!projectId) {
       return NextResponse.json({
-        error: 'Vertex AI not configured. Set GOOGLE_CLOUD_PROJECT_ID in .env'
+        error: '⚙️ O sistema de IA não está configurado corretamente (Project ID ausente). Por favor, contate o suporte.'
       }, { status: 400 });
     }
 
@@ -1165,7 +1159,7 @@ async function handleUpload(request) {
         periodo: !!periodo
       });
       return NextResponse.json({
-        error: 'Missing required fields'
+        error: '⚠️ Por favor, certifique-se de que todos os campos (arquivo, gabarito, turma, aluno e período) foram preenchidos.'
       }, { status: 400 });
     }
 
@@ -1173,7 +1167,7 @@ async function handleUpload(request) {
     const gabarito = await db.collection('gabaritos').findOne({ id: gabaritoId, userId });
     if (!gabarito) {
       console.error('❌ [UPLOAD] Gabarito não encontrado:', gabaritoId);
-      return NextResponse.json({ error: 'Gabarito not found' }, { status: 404 });
+      return NextResponse.json({ error: '❌ Gabarito não encontrado ou acesso negado.' }, { status: 404 });
     }
 
     console.log('✅ [UPLOAD] Gabarito encontrado. Tipo:', gabarito.tipo);
@@ -1542,8 +1536,31 @@ export async function POST(request) {
   return NextResponse.json({ error: 'Not found' }, { status: 404 });
 }
 
+async function handleGetImage(request, id) {
+  try {
+    console.log(`🖼️ [IMAGE HANDLER] Buscando imagem ID: ${id}`);
+    const imageData = await getImageFromMongoDB(id);
+
+    return new NextResponse(imageData.buffer, {
+      headers: {
+        'Content-Type': imageData.contentType,
+        'Content-Length': imageData.buffer.length.toString(),
+        'Cache-Control': 'no-store, must-revalidate',
+      },
+    });
+  } catch (error) {
+    console.error(`❌ [IMAGE HANDLER] Erro:`, error.message);
+    return NextResponse.json({ error: 'Image not found' }, { status: 404 });
+  }
+}
+
 export async function GET(request) {
   const pathname = new URL(request.url).pathname;
+
+  if (pathname.startsWith('/api/images/')) {
+    const id = pathname.split('/').pop();
+    return handleGetImage(request, id);
+  }
 
   if (pathname === '/api/auth/me') return handleGetMe(request);
   if (pathname === '/api/credits') return handleGetCredits(request);
