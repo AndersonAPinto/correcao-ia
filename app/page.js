@@ -21,6 +21,11 @@ import CorretorIASection from '@/components/sections/CorretorIA';
 import Header from '@/components/landing/Header';
 import Hero from '@/components/landing/Hero';
 import Features from '@/components/landing/Features';
+import StatsSection from '@/components/landing/StatsSection';
+import DashboardPreview from '@/components/landing/DashboardPreview';
+import ChecklistSection from '@/components/landing/ChecklistSection';
+import ProcessSection from '@/components/landing/ProcessSection';
+import TestimonialsSection from '@/components/landing/TestimonialsSection';
 import Pricing from '@/components/landing/Pricing';
 import Footer from '@/components/landing/Footer';
 import AuthModal from '@/components/auth/AuthModal';
@@ -204,7 +209,12 @@ export default function App() {
         <Header onLoginClick={openAuth} />
         <main>
           <Hero onCtaClick={() => openAuth('register')} />
+          <StatsSection />
           <Features />
+          <DashboardPreview />
+          <ChecklistSection />
+          <ProcessSection />
+          <TestimonialsSection />
           <Pricing onRegisterClick={() => openAuth('register')} />
         </main>
         <Footer />
