@@ -1,12 +1,16 @@
 import { NextResponse } from 'next/server';
 import { getImageFromMongoDB } from '@/lib/fileStorage';
+import { requireAuth } from '@/lib/api-handlers';
 
 /**
  * GET /api/images/[id]
- * Retorna a imagem armazenada no MongoDB GridFS
+ * Retorna a imagem armazenada no MongoDB GridFS (Apenas usuários autenticados)
  */
 export async function GET(request, { params }) {
     try {
+        // LGPD/GDPR: Proteção de dados do aluno. Apenas usuários logados acessam.
+        await requireAuth(request);
+
         const { id } = params;
 
         if (!id) {
