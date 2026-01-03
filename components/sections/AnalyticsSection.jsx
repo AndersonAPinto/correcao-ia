@@ -1,12 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, Area, AreaChart, LabelList } from 'recharts';
-import { TrendingUp, Users, Award, Target } from 'lucide-react';
+import { TrendingUp, Users, Award, Target, Clock, FileText, Download, CheckCircle, AlertCircle, Sparkles, BarChart3 } from 'lucide-react';
 import {
   ChartContainer,
   ChartTooltip,
@@ -121,7 +123,22 @@ export default function AnalyticsSection() {
       if (habilidadesRes && habilidadesRes.ok) {
         try {
           const data = await habilidadesRes.json();
-          setHabilidadesReport(data.habilidades || []);
+          // Transformar nomes numéricos em nomes intuitivos (0 -> Questão 1)
+          const transformedHabilidades = (data.habilidades || []).map(hab => {
+            const isNumeric = /^\d+$/.test(hab.nome);
+            return {
+              ...hab,
+              nome: isNumeric ? `Questão ${parseInt(hab.nome) + 1}` : hab.nome,
+              isUnnamed: isNumeric
+            };
+          }).sort((a, b) => {
+            // Priorizar habilidades nomeadas sobre as genéricas (Questão X)
+            if (a.isUnnamed && !b.isUnnamed) return 1;
+            if (!a.isUnnamed && b.isUnnamed) return -1;
+            return b.taxaAcerto - a.taxaAcerto;
+          });
+
+          setHabilidadesReport(transformedHabilidades);
         } catch (err) {
           console.error('Erro ao processar habilidades:', err);
         }
@@ -160,294 +177,471 @@ export default function AnalyticsSection() {
     }
   };
 
+  const generateInsights = () => {
+    const insights = [];
+    if (!turmaMetrics || !habilidadesReport || habilidadesReport.length === 0) return [];
+
+    // Insight 1: Habilidade com maior dificuldade
+    const piorHab = [...habilidadesReport].sort((a, b) => a.taxaAcerto - b.taxaAcerto)[0];
+    if (piorHab && piorHab.taxaAcerto < 70) {
+      insights.push({
+        icon: <AlertCircle className="h-4 w-4 text-orange-500" />,
+        text: `Habilidade "${piorHab.nome}" precisa de reforço - ${piorHab.erros} erros detectados.`
+      });
+    }
+
+    // Insight 2: Habilidade de destaque
+    const melhorHab = [...habilidadesReport].sort((a, b) => b.taxaAcerto - a.taxaAcerto)[0];
+    if (melhorHab && melhorHab.taxaAcerto > 85) {
+      insights.push({
+        icon: <CheckCircle className="h-4 w-4 text-green-500" />,
+        text: `Excelente desempenho em "${melhorHab.nome}" com ${melhorHab.taxaAcerto}% de acerto.`
+      });
+    }
+
+    // Insight 3: Alunos com excelência
+    const alunosDestaque = turmaMetrics.alunos?.filter(a => a.media >= 9.0).length || 0;
+    if (alunosDestaque > 0) {
+      insights.push({
+        icon: <Sparkles className="h-4 w-4 text-blue-500" />,
+        text: `${alunosDestaque} aluno(s) demonstraram excelência em todas as competências avaliadas.`
+      });
+    }
+
+    // Insight 4: Taxa de erro crítica em questões (simulado se não tiver dados de questões)
+    if (piorHab && piorHab.taxaAcerto < 50) {
+      insights.push({
+        icon: <AlertCircle className="h-4 w-4 text-red-500" />,
+        text: `Alta taxa de erro detectada em tópicos relacionados a "${piorHab.nome}". Considere revisar este conteúdo.`
+      });
+    }
+
+    // Insight 4: Tendência temporal (se houver dados)
+    if (habilidadesEvolucao && habilidadesEvolucao.length > 0) {
+      const temMelhora = habilidadesEvolucao.some(h => {
+        if (h.evolucao.length < 2) return false;
+        const last = h.evolucao[h.evolucao.length - 1].mediaPontuacao;
+        const prev = h.evolucao[h.evolucao.length - 2].mediaPontuacao;
+        return last > prev;
+      });
+
+      if (temMelhora) {
+        insights.push({
+          icon: <TrendingUp className="h-4 w-4 text-green-500" />,
+          text: `Tendência de melhora detectada em competências específicas nos últimos períodos.`
+        });
+      }
+    }
+
+    return insights;
+  };
+
+  const insights = generateInsights();
+
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold mb-2">Dashboard de Analytics</h2>
-        <p className="text-gray-600">Visualize métricas e insights sobre o desempenho da turma</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold flex items-center gap-2">
+            <BarChart3 className="h-6 w-6 text-blue-600" />
+            Resultados e Analytics
+          </h2>
+          <p className="text-muted-foreground">Visualize o desempenho da turma em tempo real com gráficos interativos e relatórios detalhados.</p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Select value={selectedTurma || ''} onValueChange={setSelectedTurma}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Selecione uma turma" />
+            </SelectTrigger>
+            <SelectContent>
+              {turmas.map((turma) => (
+                <SelectItem key={turma.id} value={turma.id}>
+                  {turma.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      {/* Seleção de Turma */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Selecionar Turma</CardTitle>
-          <CardDescription>
-            Escolha uma turma para visualizar as métricas e análises
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <Label>Turma</Label>
-            <Select value={selectedTurma || ''} onValueChange={setSelectedTurma}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione uma turma" />
-              </SelectTrigger>
-              <SelectContent>
-                {turmas.map((turma) => (
-                  <SelectItem key={turma.id} value={turma.id}>
-                    {turma.nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
-
       {!selectedTurma && (
-        <Card>
-          <CardContent className="py-12 text-center text-gray-500">
-            Selecione uma turma para visualizar as métricas
+        <Card className="border-dashed">
+          <CardContent className="py-20 text-center text-muted-foreground">
+            <div className="flex flex-col items-center gap-2">
+              <Users className="h-10 w-10 opacity-20" />
+              <p>Selecione uma turma para visualizar as métricas e insights</p>
+            </div>
           </CardContent>
         </Card>
       )}
 
       {selectedTurma && loading && (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Carregando métricas...</p>
+        <Card className="border-none bg-muted/30">
+          <CardContent className="py-20 text-center">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-muted-foreground font-medium">Analisando dados da turma...</p>
           </CardContent>
         </Card>
       )}
 
       {selectedTurma && !loading && turmaMetrics && (
-        <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-            <TabsTrigger value="habilidades">Habilidades</TabsTrigger>
-            <TabsTrigger value="evolucao">Evolução Temporal</TabsTrigger>
-            <TabsTrigger value="correlacao">Correlações</TabsTrigger>
-            <TabsTrigger value="alunos">Alunos</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview" className="space-y-4">
-            {/* Métricas de Alto Nível */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Média da Turma</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{turmaMetrics.mediaTurma.toFixed(2)}</div>
-                  <p className="text-xs text-muted-foreground">de 10.0 pontos</p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Taxa de Aprovação</CardTitle>
-                  <Target className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{turmaMetrics.taxaAprovacao.toFixed(1)}%</div>
-                  <p className="text-xs text-muted-foreground">
-                    {turmaMetrics.totalAvaliacoes > 0
-                      ? `${Math.round((turmaMetrics.taxaAprovacao / 100) * turmaMetrics.totalAvaliacoes)} de ${turmaMetrics.totalAvaliacoes} avaliações`
-                      : 'Sem avaliações'
-                    }
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total de Avaliações</CardTitle>
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{turmaMetrics.totalAvaliacoes}</div>
-                  <p className="text-xs text-muted-foreground">Avaliações validadas</p>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Distribuição de Notas */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Distribuição de Notas</CardTitle>
-                <CardDescription>
-                  Quantidade de avaliações por faixa de nota
-                </CardDescription>
+        <div className="space-y-6">
+          {/* Métricas de Alto Nível - Estilo Cards da Imagem */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="bg-blue-50/50 dark:bg-blue-950/20 border-blue-100 dark:border-blue-900/50">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-xs font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">Alunos</CardTitle>
+                <Users className="h-4 w-4 text-blue-600" />
               </CardHeader>
               <CardContent>
-                {turmaMetrics.distribuicaoNotas && turmaMetrics.distribuicaoNotas.length > 0 ? (
-                  <ChartContainer
-                    config={{
-                      count: {
-                        label: "Quantidade",
-                        color: "#ffffff",
-                      },
-                    }}
-                    className="h-[300px] w-full"
-                  >
-                    <AreaChart
-                      accessibilityLayer
-                      data={turmaMetrics.distribuicaoNotas}
-                      margin={{
-                        left: -20,
-                        right: 12,
-                      }}
-                    >
-                      <CartesianGrid vertical={false} />
-                      <XAxis
-                        dataKey="range"
-                        tickLine={false}
-                        axisLine={false}
-                        tickMargin={8}
-                      />
-                      <YAxis
-                        tickLine={false}
-                        axisLine={false}
-                        tickMargin={8}
-                        tickCount={5}
-                      />
-                      <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
-                      <Area
-                        dataKey="count"
-                        type="natural"
-                        fill="var(--color-count)"
-                        fillOpacity={0.4}
-                        stroke="var(--color-count)"
-                        strokeWidth={2}
-                      />
-                    </AreaChart>
-                  </ChartContainer>
-                ) : (
-                  <p className="text-center text-gray-500 py-8">
-                    Sem dados de distribuição de notas
-                  </p>
-                )}
+                <div className="text-3xl font-bold text-blue-900 dark:text-blue-100">{turmaMetrics.alunos?.length || 0}</div>
+                <p className="text-xs text-blue-600/70 mt-1">Total na turma</p>
               </CardContent>
-              <CardFooter>
-                <div className="flex w-full items-start gap-2 text-sm">
-                  <div className="grid gap-2">
-                    <div className="flex items-center gap-2 leading-none font-medium">
-                      Média da turma: {turmaMetrics.mediaTurma.toFixed(2)}/10
-                      {turmaMetrics.mediaTurma >= 7 ? (
-                        <TrendingUp className="h-4 w-4 text-green-600" />
-                      ) : turmaMetrics.mediaTurma >= 5 ? (
-                        <TrendingUp className="h-4 w-4 text-yellow-600" />
-                      ) : null}
-                    </div>
-                    <div className="text-muted-foreground flex items-center gap-2 leading-none">
-                      {turmaMetrics.totalAvaliacoes} avaliações validadas •
-                      Taxa de aprovação: {turmaMetrics.taxaAprovacao.toFixed(1)}%
-                    </div>
-                  </div>
-                </div>
-              </CardFooter>
             </Card>
-          </TabsContent>
 
-          <TabsContent value="habilidades" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Desempenho por Habilidade</CardTitle>
-                <CardDescription>
-                  Habilidades mais erradas e mais acertadas pela turma
-                </CardDescription>
+            <Card className="bg-green-50/50 dark:bg-green-950/20 border-green-100 dark:border-green-900/50">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-xs font-semibold uppercase tracking-wider text-green-600 dark:text-green-400">Média Geral</CardTitle>
+                <TrendingUp className="h-4 w-4 text-green-600" />
               </CardHeader>
               <CardContent>
-                {habilidadesReport.length > 0 ? (
-                  <div className="space-y-4">
+                <div className="text-3xl font-bold text-green-900 dark:text-green-100">{turmaMetrics.mediaTurma.toFixed(1)}</div>
+                <p className="text-xs text-green-600/70 mt-1">Pontuação média</p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-purple-50/50 dark:bg-purple-950/20 border-purple-100 dark:border-purple-900/50">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-xs font-semibold uppercase tracking-wider text-purple-600 dark:text-purple-400">Aprovados</CardTitle>
+                <Award className="h-4 w-4 text-purple-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-purple-900 dark:text-purple-100">
+                  {Math.round((turmaMetrics.taxaAprovacao / 100) * (turmaMetrics.totalAvaliacoes || 0))}
+                </div>
+                <p className="text-xs text-purple-600/70 mt-1">{turmaMetrics.taxaAprovacao.toFixed(0)}% da turma</p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-orange-50/50 dark:bg-orange-950/20 border-orange-100 dark:border-orange-900/50">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-xs font-semibold uppercase tracking-wider text-orange-600 dark:text-orange-400">Tempo Economizado</CardTitle>
+                <Clock className="h-4 w-4 text-orange-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-orange-900 dark:text-orange-100">
+                  {Math.ceil((turmaMetrics.totalAvaliacoes * 12) / 60)}h
+                </div>
+                <p className="text-xs text-orange-600/70 mt-1">Estimativa de correção</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Tabs defaultValue="habilidades" className="space-y-4">
+            <TabsList className="bg-muted/50 p-1">
+              <TabsTrigger value="habilidades" className="data-[state=active]:bg-background">Habilidades</TabsTrigger>
+              <TabsTrigger value="overview" className="data-[state=active]:bg-background">Distribuição</TabsTrigger>
+              <TabsTrigger value="evolucao" className="data-[state=active]:bg-background">Evolução</TabsTrigger>
+              <TabsTrigger value="correlacao" className="data-[state=active]:bg-background">Correlações</TabsTrigger>
+              <TabsTrigger value="alunos" className="data-[state=active]:bg-background">Ranking</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="habilidades" className="space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                {/* Desempenho por Habilidade - Estilo da Imagem */}
+                <Card className="lg:col-span-3">
+                  <CardHeader>
+                    <div className="flex items-center gap-2">
+                      <Target className="h-5 w-5 text-blue-600" />
+                      <CardTitle>Desempenho por Habilidade</CardTitle>
+                    </div>
+                    <CardDescription>Percentual de acerto em cada competência avaliada</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {habilidadesReport.length > 0 ? (
+                      <div className="space-y-6">
+                        {habilidadesReport.slice(0, 6).map((hab, index) => (
+                          <div key={hab.id} className="space-y-2">
+                            <div className="flex justify-between text-sm font-medium">
+                              <span>{hab.nome}</span>
+                              <span className="text-muted-foreground">{hab.taxaAcerto}%</span>
+                            </div>
+                            <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                              <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ width: `${hab.taxaAcerto}%` }}
+                                transition={{ duration: 1, delay: index * 0.1 }}
+                                className={`h-full rounded-full ${hab.taxaAcerto >= 80 ? 'bg-blue-600' :
+                                  hab.taxaAcerto >= 70 ? 'bg-green-500' :
+                                    hab.taxaAcerto >= 50 ? 'bg-yellow-500' :
+                                      'bg-orange-500'
+                                  }`}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="py-10 text-center text-muted-foreground">
+                        Nenhum dado de habilidades disponível
+                      </div>
+                    )}
+
+                    {habilidadesReport.some(h => h.isUnnamed) && (
+                      <div className="mt-6 p-3 bg-muted/50 rounded-lg border border-dashed border-border">
+                        <p className="text-[11px] text-muted-foreground leading-relaxed italic">
+                          * Itens identificados como <strong>"Questão X"</strong> são critérios detectados na correção que ainda não foram associados a uma competência específica na sua base de dados.
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Relatórios Disponíveis */}
+                <Card className="lg:col-span-2">
+                  <CardHeader>
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-5 w-5 text-purple-600" />
+                      <CardTitle>Relatórios Disponíveis</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <Button variant="outline" className="w-full justify-between group hover:border-blue-600 hover:text-blue-600 transition-all">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        Relatório Completo da Turma
+                      </div>
+                      <Download className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </Button>
+                    <Button variant="outline" className="w-full justify-between group hover:border-blue-600 hover:text-blue-600 transition-all">
+                      <div className="flex items-center gap-2">
+                        <BarChart3 className="h-4 w-4" />
+                        Análise por Questão
+                      </div>
+                      <Download className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </Button>
+                    <Button variant="outline" className="w-full justify-between group hover:border-blue-600 hover:text-blue-600 transition-all">
+                      <div className="flex items-center gap-2">
+                        <TrendingUp className="h-4 w-4" />
+                        Evolução Individual
+                      </div>
+                      <Download className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </Button>
+                    <Button variant="outline" className="w-full justify-between group hover:border-blue-600 hover:text-blue-600 transition-all">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4" />
+                        Perfis de Aprendizagem
+                      </div>
+                      <Download className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </Button>
+
+                    <div className="grid grid-cols-2 gap-2 pt-4">
+                      <Button size="sm" variant="secondary" className="gap-2">
+                        <Download className="h-4 w-4" /> Exportar Excel
+                      </Button>
+                      <Button size="sm" variant="secondary" className="gap-2">
+                        <Download className="h-4 w-4" /> Exportar CSV
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Insights Automáticos */}
+              <Card className="border-blue-100 dark:border-blue-900/50 bg-blue-50/20 dark:bg-blue-950/10">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-blue-600" />
+                    <CardTitle className="text-lg">Insights Automáticos</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {insights.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {insights.map((insight, idx) => (
+                        <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-background/50 border border-border/50">
+                          <div className="mt-0.5">{insight.icon}</div>
+                          <p className="text-sm font-medium">{insight.text}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      Dados insuficientes para gerar insights automáticos neste momento.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="overview" className="space-y-4">
+              {/* Distribuição de Notas */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Distribuição de Notas</CardTitle>
+                  <CardDescription>
+                    Quantidade de avaliações por faixa de nota
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {turmaMetrics.distribuicaoNotas && turmaMetrics.distribuicaoNotas.length > 0 ? (
                     <ChartContainer
                       config={{
-                        taxaAcerto: {
-                          label: "Taxa de Acerto",
-                          color: "var(--chart-2)",
-                        },
-                        label: {
-                          color: "var(--background)",
+                        count: {
+                          label: "Quantidade",
+                          color: "hsl(var(--primary))",
                         },
                       }}
-                      className="h-[400px] w-full"
+                      className="h-[350px] w-full"
                     >
-                      <BarChart
-                        accessibilityLayer
-                        data={habilidadesReport.slice(0, 10)}
-                        layout="vertical"
-                        margin={{ right: 16 }}
+                      <AreaChart
+                        data={turmaMetrics.distribuicaoNotas}
+                        margin={{ left: -20, right: 12, top: 10 }}
                       >
-                        <CartesianGrid horizontal={false} />
-                        <YAxis
-                          dataKey="nome"
-                          type="category"
-                          tickLine={false}
-                          tickMargin={10}
-                          axisLine={false}
-                          tickFormatter={(value) => value.length > 30 ? value.slice(0, 30) + '...' : value}
-                          hide
-                        />
+                        <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.3} />
                         <XAxis
-                          dataKey="taxaAcerto"
-                          type="number"
-                          domain={[0, 100]}
-                          hide
+                          dataKey="range"
+                          tickLine={false}
+                          axisLine={false}
+                          tickMargin={8}
                         />
-                        <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" />} />
-                        <Bar
-                          dataKey="taxaAcerto"
-                          layout="vertical"
-                          fill="var(--color-taxaAcerto)"
-                          radius={4}
-                        >
-                          <LabelList
-                            dataKey="nome"
-                            position="insideLeft"
-                            offset={8}
-                            style={{ fill: 'var(--color-label)' }}
-                            fontSize={12}
-                          />
-                          <LabelList
-                            dataKey="taxaAcerto"
-                            position="right"
-                            offset={8}
-                            style={{ fill: 'hsl(var(--foreground))' }}
-                            fontSize={12}
-                            formatter={(value) => `${value}%`}
-                          />
-                        </Bar>
-                      </BarChart>
+                        <YAxis
+                          tickLine={false}
+                          axisLine={false}
+                          tickMargin={8}
+                        />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Area
+                          dataKey="count"
+                          type="monotone"
+                          fill="var(--color-count)"
+                          fillOpacity={0.2}
+                          stroke="var(--color-count)"
+                          strokeWidth={3}
+                        />
+                      </AreaChart>
                     </ChartContainer>
+                  ) : (
+                    <div className="py-20 text-center text-muted-foreground">
+                      Sem dados de distribuição de notas
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-                    {/* Tabela de Habilidades */}
-                    <div className="mt-6">
-                      <h3 className="text-lg font-semibold mb-3">Detalhamento</h3>
-                      <div className="border rounded-lg overflow-hidden">
+            <TabsContent value="evolucao" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Evolução Temporal das Habilidades</CardTitle>
+                  <CardDescription>
+                    Desempenho médio por competência ao longo do tempo
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {habilidadesEvolucao.length > 0 ? (
+                    <div className="h-[400px]">
+                      {(() => {
+                        const todosPeriodos = new Set();
+                        habilidadesEvolucao.forEach(h => {
+                          h.evolucao.forEach(e => todosPeriodos.add(e.periodo));
+                        });
+                        const periodosArray = Array.from(todosPeriodos).sort();
+
+                        const dadosGrafico = periodosArray.map(periodo => {
+                          const ponto = { periodo };
+                          habilidadesEvolucao.forEach(hab => {
+                            const evolucaoPonto = hab.evolucao.find(e => e.periodo === periodo);
+                            ponto[hab.nome] = evolucaoPonto ? evolucaoPonto.mediaPontuacao : null;
+                          });
+                          return ponto;
+                        });
+
+                        const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+
+                        return (
+                          <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={dadosGrafico} margin={{ top: 20, right: 30, left: 0, bottom: 20 }}>
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
+                              <XAxis dataKey="periodo" tickMargin={10} />
+                              <YAxis domain={[0, 10]} tickMargin={10} />
+                              <Tooltip
+                                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                              />
+                              <Legend />
+                              {habilidadesEvolucao.map((hab, idx) => (
+                                <Line
+                                  key={hab.id}
+                                  type="monotone"
+                                  dataKey={hab.nome}
+                                  stroke={colors[idx % colors.length]}
+                                  strokeWidth={3}
+                                  dot={{ r: 5, strokeWidth: 2, fill: 'white' }}
+                                  activeDot={{ r: 7 }}
+                                  connectNulls
+                                />
+                              ))}
+                            </LineChart>
+                          </ResponsiveContainer>
+                        );
+                      })()}
+                    </div>
+                  ) : (
+                    <div className="py-20 text-center text-muted-foreground">
+                      Dados insuficientes para análise de evolução temporal
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="correlacao" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Correlação entre Habilidades</CardTitle>
+                  <CardDescription>
+                    Identifique quais competências estão relacionadas no desempenho dos alunos
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {habilidadesCorrelacao.length > 0 ? (
+                    <div className="space-y-4">
+                      <div className="border rounded-xl overflow-hidden">
                         <Table>
                           <TableHeader>
-                            <TableRow>
-                              <TableHead className="w-[250px]">Habilidade</TableHead>
-                              <TableHead className="text-center">Acertos</TableHead>
-                              <TableHead className="text-center">Erros</TableHead>
-                              <TableHead className="text-center">Total</TableHead>
-                              <TableHead className="text-center">Taxa de Acerto</TableHead>
-                              <TableHead className="text-center">Média Pontuação</TableHead>
+                            <TableRow className="bg-muted/50">
+                              <TableHead>Competência A</TableHead>
+                              <TableHead>Competência B</TableHead>
+                              <TableHead className="text-center">Força</TableHead>
+                              <TableHead className="text-center">Amostra</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {habilidadesReport.map((hab) => {
+                            {habilidadesCorrelacao.map((corr, idx) => {
+                              const absCorr = Math.abs(corr.correlacao);
+                              let strengthLabel = "";
+                              let strengthColor = "";
+
+                              if (absCorr > 0.8) { strengthLabel = "Muito Forte"; strengthColor = "text-blue-600"; }
+                              else if (absCorr > 0.6) { strengthLabel = "Forte"; strengthColor = "text-blue-500"; }
+                              else if (absCorr > 0.4) { strengthLabel = "Moderada"; strengthColor = "text-blue-400"; }
+                              else { strengthLabel = "Fraca"; strengthColor = "text-slate-400"; }
+
                               return (
-                                <TableRow key={hab.id}>
-                                  <TableCell className="font-medium">{hab.nome}</TableCell>
-                                  <TableCell className="text-center text-green-600">{hab.acertos}</TableCell>
-                                  <TableCell className="text-center text-red-600">{hab.erros}</TableCell>
-                                  <TableCell className="text-center">{hab.total}</TableCell>
+                                <TableRow key={idx}>
+                                  <TableCell className="font-medium">{corr.habilidade1.nome}</TableCell>
+                                  <TableCell className="font-medium">{corr.habilidade2.nome}</TableCell>
                                   <TableCell className="text-center">
-                                    <span className={hab.taxaAcerto >= 70 ? 'text-green-600' : hab.taxaAcerto >= 50 ? 'text-yellow-600' : 'text-red-600'}>
-                                      {hab.taxaAcerto}%
-                                    </span>
-                                  </TableCell>
-                                  <TableCell className="text-center">
-                                    {hab.mediaPontuacao !== null ? (
-                                      <span className={hab.mediaPontuacao >= 7 ? 'text-green-600 font-semibold' : hab.mediaPontuacao >= 5 ? 'text-yellow-600' : 'text-red-600'}>
-                                        {hab.mediaPontuacao.toFixed(2)}/10
+                                    <div className="flex flex-col items-center">
+                                      <span className={`text-sm font-bold ${strengthColor}`}>
+                                        {corr.correlacao > 0 ? '+' : ''}{corr.correlacao.toFixed(2)}
                                       </span>
-                                    ) : (
-                                      <span className="text-gray-400">N/A</span>
-                                    )}
+                                      <span className="text-[10px] uppercase font-semibold opacity-50">{strengthLabel}</span>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="text-center text-muted-foreground text-sm">
+                                    {corr.amostras} alunos
                                   </TableCell>
                                 </TableRow>
                               );
@@ -455,240 +649,77 @@ export default function AnalyticsSection() {
                           </TableBody>
                         </Table>
                       </div>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-center text-gray-500 py-8">
-                    Nenhum dado de habilidades disponível. As habilidades são registradas quando você usa gabaritos de múltipla escolha.
-                  </p>
-                )}
-              </CardContent>
-              {habilidadesReport.length > 0 && (
-                <CardFooter className="flex-col items-start gap-2 text-sm">
-                  <div className="flex gap-2 leading-none font-medium">
-                    {(() => {
-                      const mediaGeral = habilidadesReport.reduce((sum, h) => sum + h.taxaAcerto, 0) / habilidadesReport.length;
-                      const melhorHab = habilidadesReport[0];
-                      const piorHab = habilidadesReport[habilidadesReport.length - 1];
-                      return (
-                        <>
-                          Média geral: {mediaGeral.toFixed(1)}% de acerto
-                          {mediaGeral >= 70 ? (
-                            <TrendingUp className="h-4 w-4 text-green-600" />
-                          ) : mediaGeral >= 50 ? (
-                            <TrendingUp className="h-4 w-4 text-yellow-600" />
-                          ) : null}
-                        </>
-                      );
-                    })()}
-                  </div>
-                  <div className="text-muted-foreground leading-none">
-                    {(() => {
-                      const melhorHab = habilidadesReport[0];
-                      const piorHab = habilidadesReport[habilidadesReport.length - 1];
-                      return (
-                        <>
-                          Melhor desempenho: {melhorHab.nome} ({melhorHab.taxaAcerto}%) •
-                          Maior dificuldade: {piorHab.nome} ({piorHab.taxaAcerto}%)
-                        </>
-                      );
-                    })()}
-                  </div>
-                </CardFooter>
-              )}
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="evolucao" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Evolução Temporal das Habilidades</CardTitle>
-                <CardDescription>
-                  Média de pontuação por habilidade ao longo dos períodos avaliativos
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {habilidadesEvolucao.length > 0 ? (() => {
-                  // Preparar dados unificados para o gráfico
-                  const todosPeriodos = new Set();
-                  habilidadesEvolucao.forEach(h => {
-                    h.evolucao.forEach(e => todosPeriodos.add(e.periodo));
-                  });
-                  const periodosArray = Array.from(todosPeriodos).sort();
-
-                  // Criar array de dados com todas as habilidades
-                  const dadosGrafico = periodosArray.map(periodo => {
-                    const ponto = { periodo };
-                    habilidadesEvolucao.forEach(hab => {
-                      const evolucaoPonto = hab.evolucao.find(e => e.periodo === periodo);
-                      ponto[hab.nome] = evolucaoPonto ? evolucaoPonto.mediaPontuacao : null;
-                    });
-                    return ponto;
-                  });
-
-                  const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
-
-                  return (
-                    <ResponsiveContainer width="100%" height={400}>
-                      <LineChart data={dadosGrafico}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis
-                          dataKey="periodo"
-                          angle={-45}
-                          textAnchor="end"
-                          height={80}
-                        />
-                        <YAxis domain={[0, 10]} label={{ value: 'Média de Pontuação', angle: -90, position: 'insideLeft' }} />
-                        <Tooltip />
-                        <Legend />
-                        {habilidadesEvolucao.map((hab, idx) => (
-                          <Line
-                            key={hab.id}
-                            type="monotone"
-                            dataKey={hab.nome}
-                            name={hab.nome}
-                            stroke={colors[idx % colors.length]}
-                            strokeWidth={2}
-                            dot={{ r: 4 }}
-                            connectNulls
-                          />
-                        ))}
-                      </LineChart>
-                    </ResponsiveContainer>
-                  );
-                })() : (
-                  <p className="text-center text-gray-500 py-8">
-                    Nenhum dado de evolução disponível. As habilidades precisam ter pontuações registradas em múltiplos períodos.
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="correlacao" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Correlação entre Habilidades</CardTitle>
-                <CardDescription>
-                  Habilidades que tendem a ter desempenho similar (correlação positiva) ou oposto (correlação negativa)
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {habilidadesCorrelacao.length > 0 ? (
-                  <div className="space-y-4">
-                    <div className="border rounded-lg overflow-hidden">
-                      <table className="w-full">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-4 py-2 text-left text-sm font-semibold">Habilidade 1</th>
-                            <th className="px-4 py-2 text-left text-sm font-semibold">Habilidade 2</th>
-                            <th className="px-4 py-2 text-center text-sm font-semibold">Correlação</th>
-                            <th className="px-4 py-2 text-center text-sm font-semibold">Tipo</th>
-                            <th className="px-4 py-2 text-center text-sm font-semibold">Amostras</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {habilidadesCorrelacao.map((corr, idx) => {
-                            const correlacaoAbs = Math.abs(corr.correlacao);
-                            const corClass = corr.tipo === 'positiva'
-                              ? correlacaoAbs > 0.7 ? 'text-green-700 bg-green-50' : 'text-green-600'
-                              : correlacaoAbs > 0.7 ? 'text-red-700 bg-red-50' : 'text-red-600';
-
-                            return (
-                              <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                                <td className="px-4 py-2 text-sm font-medium">{corr.habilidade1.nome}</td>
-                                <td className="px-4 py-2 text-sm font-medium">{corr.habilidade2.nome}</td>
-                                <td className={`px-4 py-2 text-center text-sm font-semibold ${corClass}`}>
-                                  {corr.correlacao > 0 ? '+' : ''}{corr.correlacao.toFixed(3)}
-                                </td>
-                                <td className="px-4 py-2 text-center text-sm">
-                                  <span className={`px-2 py-1 rounded text-xs ${corr.tipo === 'positiva'
-                                    ? 'bg-green-100 text-green-700'
-                                    : 'bg-red-100 text-red-700'
-                                    }`}>
-                                    {corr.tipo === 'positiva' ? 'Positiva' : 'Negativa'}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-2 text-center text-sm text-gray-600">
-                                  {corr.amostras} alunos
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                    <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                      <p className="text-xs text-blue-800">
-                        <strong>Interpretação:</strong> Correlação positiva indica que alunos com bom desempenho em uma habilidade
-                        tendem a ter bom desempenho na outra. Correlação negativa indica o oposto.
-                        Valores próximos de ±1 indicam correlação forte.
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-center text-gray-500 py-8">
-                    Nenhuma correlação significativa encontrada. É necessário ter dados de múltiplos alunos
-                    com avaliações em diferentes habilidades.
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="alunos" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Ranking de Alunos</CardTitle>
-                <CardDescription>
-                  Média de notas por aluno (ordenado por melhor desempenho)
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {turmaMetrics.alunos && turmaMetrics.alunos.length > 0 ? (
-                  <div className="space-y-2">
-                    {turmaMetrics.alunos.map((aluno, index) => (
-                      <div
-                        key={aluno.id}
-                        className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
-                        onClick={() => {
-                          setSelectedAlunoId(aluno.id);
-                          setAlunoModalOpen(true);
-                        }}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${index === 0 ? 'bg-yellow-100 text-yellow-700' :
-                            index === 1 ? 'bg-gray-100 text-gray-700' :
-                              index === 2 ? 'bg-orange-100 text-orange-700' :
-                                'bg-blue-50 text-blue-700'
-                            }`}>
-                            {index + 1}º
-                          </div>
-                          <div>
-                            <p className="font-semibold">{aluno.nome}</p>
-                            <p className="text-xs text-gray-500">
-                              {aluno.totalAvaliacoes} avaliação(ões)
-                            </p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-lg font-bold text-blue-600">
-                            {aluno.media.toFixed(2)}
-                          </p>
-                          <p className="text-xs text-gray-500">média</p>
-                        </div>
+                      <div className="p-4 bg-muted/30 rounded-lg text-xs flex gap-3 items-start">
+                        <AlertCircle className="h-4 w-4 text-blue-500 shrink-0" />
+                        <p className="text-muted-foreground">
+                          <strong>Como ler:</strong> Valores próximos a +1 indicam que alunos que acertam a Competência A também tendem a acertar a B. Valores próximos a -1 indicam que o acerto em uma está ligado ao erro na outra.
+                        </p>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-center text-gray-500 py-8">
-                    Nenhum aluno com avaliações validadas
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+                    </div>
+                  ) : (
+                    <div className="py-20 text-center text-muted-foreground">
+                      Nenhuma correlação significativa encontrada até o momento
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="alunos" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Ranking de Desempenho</CardTitle>
+                  <CardDescription>Média geral dos alunos na turma</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {turmaMetrics.alunos && turmaMetrics.alunos.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {turmaMetrics.alunos.map((aluno, index) => (
+                        <div
+                          key={aluno.id}
+                          className="flex items-center justify-between p-4 border border-border/50 rounded-xl hover:bg-blue-50/10 dark:hover:bg-blue-900/20 hover:border-blue-200 dark:hover:border-blue-800 cursor-pointer transition-all group"
+                          onClick={() => {
+                            setSelectedAlunoId(aluno.id);
+                            setAlunoModalOpen(true);
+                          }}
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-transform group-hover:scale-110 ${index === 0 ? 'bg-yellow-100 text-yellow-700 ring-2 ring-yellow-400' :
+                              index === 1 ? 'bg-slate-100 text-slate-700 ring-2 ring-slate-300' :
+                                index === 2 ? 'bg-orange-100 text-orange-700 ring-2 ring-orange-300' :
+                                  'bg-muted text-muted-foreground'
+                              }`}>
+                              {index + 1}º
+                            </div>
+                            <div>
+                              <p className="font-bold text-foreground group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{aluno.nome}</p>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <FileText className="h-3 w-3" />
+                                {aluno.totalAvaliacoes} avaliações
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-xl font-black text-blue-600 group-hover:text-blue-700 dark:group-hover:text-blue-400 transition-colors">
+                              {aluno.media.toFixed(1)}
+                            </div>
+                            <div className="h-1.5 w-16 bg-muted rounded-full mt-1 overflow-hidden">
+                              <div className="h-full bg-blue-600 group-hover:bg-blue-500 transition-colors" style={{ width: `${aluno.media * 10}%` }} />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="py-20 text-center text-muted-foreground">
+                      Nenhum dado de aluno disponível
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
       )}
 
       {/* Modal de Detalhe do Aluno */}

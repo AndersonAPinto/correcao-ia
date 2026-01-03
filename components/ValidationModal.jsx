@@ -255,7 +255,7 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
 
                   {/* Feedback Geral */}
                   <div>
-                    <h4 className="font-semibold text-sm mb-2">Feedback Geral</h4>
+                    <h4 className="font-semibold text-sm mb-2 text-blue-600">Feedback Geral</h4>
                     <p className="text-sm text-gray-700 bg-blue-50 p-3 rounded">
                       {avaliacao.feedback || 'Sem feedback geral'}
                     </p>
@@ -264,7 +264,7 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
                   {/* Exercícios */}
                   {questoesEditadas.length > 0 ? (
                     <div>
-                      <h4 className="font-semibold text-sm mb-2">
+                      <h4 className="font-semibold text-sm mb-2 text-blue-600">
                         Feedback por Exercício {editing && '(Clique para editar)'}
                       </h4>
                       <div className="space-y-3">
@@ -284,7 +284,7 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
                                 }`}
                             >
                               <div className="flex items-center justify-between mb-2">
-                                <span className="font-semibold text-sm">
+                                <span className="font-semibold text-sm text-blue-600">
                                   Exercício {questao.numero}
                                 </span>
                                 <div className="flex items-center gap-2">
@@ -301,12 +301,12 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
                                         step="0.1"
                                         value={questao.nota}
                                         onChange={(e) => handleQuestaoChange(idx, 'nota', e.target.value)}
-                                        className="w-16 h-7 text-sm"
+                                        className="w-16 h-7 text-sm text-blue-600 font-bold"
                                       />
-                                      <span className="text-xs">/ {questao.notaMaxima}</span>
+                                      <span className="text-xs text-blue-600">/ {questao.notaMaxima}</span>
                                     </div>
                                   ) : (
-                                    <Badge variant="outline">
+                                    <Badge variant="outline" className="text-blue-600 border-blue-200 font-bold">
                                       {questao.nota.toFixed(1)}/{questao.notaMaxima}
                                     </Badge>
                                   )}
@@ -344,15 +344,15 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
                     </div>
                   ) : avaliacao.exercicios && avaliacao.exercicios.length > 0 ? (
                     <div>
-                      <h4 className="font-semibold text-sm mb-2">Feedback por Exercício</h4>
+                      <h4 className="font-semibold text-sm mb-2 text-blue-600">Feedback por Exercício</h4>
                       <div className="space-y-3">
                         {avaliacao.exercicios.map((ex, idx) => (
                           <div key={idx} className="border rounded-lg p-3 bg-gray-50">
                             <div className="flex items-center justify-between mb-2">
-                              <span className="font-semibold text-sm">
+                              <span className="font-semibold text-sm text-blue-600">
                                 Exercício {ex.numero || idx + 1}
                               </span>
-                              <Badge variant="outline">
+                              <Badge variant="outline" className="text-blue-600 border-blue-200 font-bold">
                                 {ex.nota || 0}/{ex.nota_maxima || 10}
                               </Badge>
                             </div>

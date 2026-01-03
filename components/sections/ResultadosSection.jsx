@@ -212,8 +212,8 @@ export default function ResultadosSection({ view }) {
                   return (
                     <div
                       key={av.id}
-                      className={`p-4 border rounded-lg transition-colors ${isCompleted ? 'hover:bg-gray-50 cursor-pointer' : 'bg-blue-50/50'
-                        }`}
+                      className={`p-4 border border-border/50 rounded-lg transition-all ${isCompleted ? 'hover:bg-blue-50/10 dark:hover:bg-blue-900/20 hover:border-blue-200 cursor-pointer' : 'bg-blue-50/10 border-blue-200/50'
+                        } group`}
                       onClick={() => isCompleted && handleView(av)}
                     >
                       <div className="flex items-start justify-between">
@@ -228,14 +228,14 @@ export default function ResultadosSection({ view }) {
                             ) : (
                               <CheckCircle2 className="h-4 w-4 text-green-600" />
                             )}
-                            <h3 className="font-semibold">{av.gabaritoTitulo}</h3>
+                            <h3 className="font-semibold group-hover:text-blue-600 transition-colors">{av.gabaritoTitulo}</h3>
                           </div>
-                          <div className="text-sm text-gray-600 space-y-1">
-                            <p><strong>Turma:</strong> {av.turmaNome}</p>
-                            <p><strong>Aluno:</strong> {av.alunoNome}</p>
-                            <p><strong>Período:</strong> {av.periodo}</p>
+                          <div className="text-sm text-muted-foreground space-y-1">
+                            <p><strong className="text-foreground/70">Turma:</strong> {av.turmaNome}</p>
+                            <p><strong className="text-foreground/70">Aluno:</strong> {av.alunoNome}</p>
+                            <p><strong className="text-foreground/70">Período:</strong> {av.periodo}</p>
                             {av.nota !== null && (
-                              <p><strong>Nota:</strong> <span className="text-blue-600 font-semibold">{av.nota}/10</span></p>
+                              <p><strong className="text-foreground/70">Nota:</strong> <span className="text-blue-600 font-semibold group-hover:text-blue-700 transition-colors">{av.nota}/10</span></p>
                             )}
                           </div>
                           <div className="mt-3">

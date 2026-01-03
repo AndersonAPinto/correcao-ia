@@ -461,22 +461,22 @@ export default function GabaritosSection() {
           ) : (
             <div className="space-y-3">
               {gabaritos.map((gab) => (
-                <div key={gab.id} className="p-4 border rounded-lg hover:bg-gray-50">
+                <div key={gab.id} className="p-4 border border-border/50 rounded-lg hover:bg-blue-50/10 dark:hover:bg-blue-900/20 hover:border-blue-200 transition-all group">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-lg">{gab.titulo}</h3>
-                        <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">
+                        <h3 className="font-semibold text-lg group-hover:text-blue-600 transition-colors">{gab.titulo}</h3>
+                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded-full">
                           {gab.tipo === 'multipla_escolha' ? 'Múltipla Escolha' : 'Dissertativa'}
                         </span>
                         {gab.tipo === 'multipla_escolha' && gab.totalQuestoes > 0 && (
-                          <span className="text-xs text-gray-500">
+                          <span className="text-xs text-muted-foreground">
                             ({gab.totalQuestoes} questões)
                           </span>
                         )}
                       </div>
                       {gab.conteudo && (
-                        <p className="text-sm text-gray-600 mt-1 line-clamp-2">{gab.conteudo}</p>
+                        <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{gab.conteudo}</p>
                       )}
                       {gab.arquivoUrl && (
                         <div className="mt-2">
