@@ -130,15 +130,16 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
       });
 
       if (response.ok) {
-        toast.success('Turma criada com sucesso!');
+        toast.success('✅ Turma criada com sucesso!');
         setNovaTurma('');
         setTurmaDialogOpen(false);
         loadData();
       } else {
-        toast.error('Erro ao criar turma');
+        const data = await response.json();
+        toast.error(data.error || 'Não foi possível criar a turma. Tente novamente.');
       }
     } catch (error) {
-      toast.error('Erro ao criar turma');
+      toast.error('Ocorreu um erro de conexão ao tentar criar a turma.');
     }
   };
 
@@ -160,15 +161,16 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
       });
 
       if (response.ok) {
-        toast.success('Aluno adicionado com sucesso!');
+        toast.success('✅ Aluno adicionado com sucesso!');
         setNovoAluno('');
         setAlunoDialogOpen(false);
         loadAlunos(selectedTurma);
       } else {
-        toast.error('Erro ao adicionar aluno');
+        const data = await response.json();
+        toast.error(data.error || 'Não foi possível adicionar o aluno.');
       }
     } catch (error) {
-      toast.error('Erro ao adicionar aluno');
+      toast.error('Erro de conexão ao adicionar aluno.');
     }
   };
 
@@ -345,7 +347,7 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
     e.preventDefault();
 
     if (!selectedFile || !selectedGabarito || !selectedTurma || !selectedAluno || !selectedPeriodo) {
-      toast.error('Preencha todos os campos');
+      toast.error('⚠️ Por favor, preencha todos os campos obrigatórios antes de enviar.');
       return;
     }
 
@@ -370,12 +372,12 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
       if (response.ok) {
         // Verificar se foi correção automática (múltipla escolha)
         if (data.correcaoAutomatica) {
-          toast.success(`Correção automática concluída! Nota: ${data.nota?.toFixed(2) || 'N/A'}/10`, {
+          toast.success(`🎉 Correção concluída! O aluno obteve nota ${data.nota?.toFixed(2) || 'N/A'}/10`, {
             duration: 5000
           });
           if (onUploadSuccess) onUploadSuccess();
         } else {
-          toast.success('Upload realizado! Processamento iniciado...');
+          toast.success('🚀 Upload realizado com sucesso! A IA está analisando a prova dissertativa agora.');
         }
         setSelectedFile(null);
         setSelectedTurma('');
@@ -391,10 +393,10 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
           setPlanoStatus(data.planoStatus);
           setPaywallOpen(true);
         }
-        toast.error(data.error || 'Erro no upload');
+        toast.error(data.error || 'Ocorreu um erro ao processar o upload da prova.');
       }
     } catch (error) {
-      toast.error('Erro ao fazer upload');
+      toast.error('Erro de conexão. Verifique sua internet e tente novamente.');
     }
     setUploading(false);
   };

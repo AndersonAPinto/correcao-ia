@@ -121,12 +121,13 @@ export default function AppSidebar({ activeView, setActiveView, pendingCount = 0
                         tooltip={item.description}
                         onClick={() => setResultsExpanded(!resultsExpanded)}
                         isActive={activeView === 'pendentes' || activeView === 'concluidas'}
+                        className="flex items-center"
                       >
                         <item.icon />
-                        <span>{item.label}</span>
+                        <span className="truncate flex-1">{item.label}</span>
                         <ChevronRight
                           className={cn(
-                            'ml-auto h-4 w-4 transition-transform',
+                            'h-4 w-4 transition-transform shrink-0',
                             resultsExpanded && 'rotate-90'
                           )}
                         />
@@ -138,12 +139,13 @@ export default function AppSidebar({ activeView, setActiveView, pendingCount = 0
                               <SidebarMenuSubButton
                                 onClick={() => setActiveView(child.id)}
                                 isActive={activeView === child.id}
+                                className="flex items-center gap-2 w-full"
                               >
-                                <span>{child.label}</span>
+                                <span className="truncate flex-1">{child.label}</span>
                                 {child.count !== undefined && child.count > 0 && (
                                   <Badge
                                     variant="destructive"
-                                    className="ml-auto h-5 min-w-5 px-1.5 text-xs"
+                                    className="ml-auto h-5 min-w-5 px-1.5 text-xs flex items-center justify-center shrink-0"
                                   >
                                     {child.count}
                                   </Badge>
@@ -159,9 +161,10 @@ export default function AppSidebar({ activeView, setActiveView, pendingCount = 0
                       tooltip={item.description}
                       onClick={() => setActiveView(item.id)}
                       isActive={activeView === item.id}
+                      className="flex items-center"
                     >
                       <item.icon />
-                      <span>{item.label}</span>
+                      <span className="truncate flex-1">{item.label}</span>
                     </SidebarMenuButton>
                   )}
                 </SidebarMenuItem>
@@ -178,9 +181,10 @@ export default function AppSidebar({ activeView, setActiveView, pendingCount = 0
               tooltip="Configurações"
               onClick={() => setActiveView('configuracoes')}
               isActive={activeView === 'configuracoes'}
+              className="flex items-center"
             >
               <Settings />
-              <span>Configurações</span>
+              <span className="truncate flex-1">Configurações</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

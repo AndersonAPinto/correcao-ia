@@ -84,14 +84,14 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
       });
 
       if (response.ok) {
-        toast.success('Avaliação validada com sucesso!');
+        toast.success('✅ Avaliação validada e finalizada com sucesso!');
         onValidated();
       } else {
         const error = await response.json();
-        toast.error(error.error || 'Erro ao validar avaliação');
+        toast.error(error.error || 'Não foi possível salvar a validação. Tente novamente.');
       }
     } catch (error) {
-      toast.error('Erro ao validar avaliação');
+      toast.error('Erro de conexão ao validar a avaliação.');
     }
     setValidating(false);
   };
