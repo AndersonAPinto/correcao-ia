@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import { hashPassword, verifyPassword, generateToken, getUserFromRequest } from '@/lib/auth';
-import { requireAuth, requireAdmin, createNotification, callGeminiAPI, callGeminiAPIWithRetry } from '@/lib/api-handlers';
+import { requireAuth, requireAdmin, createNotification, callGeminiAPI, callGeminiAPIWithRetry, logAudit, checkRateLimit, registerAttempt } from '@/lib/api-handlers';
 import { ADMIN_EMAIL } from '@/lib/constants';
 import { v4 as uuidv4 } from 'uuid';
 import { writeFile, mkdir } from 'fs/promises';
@@ -19,10 +19,19 @@ async function handleRegister(request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
+    // Rate limiting para registros (prevenir bots)
+    const rateLimit = await checkRateLimit(request, email, 'register', 3, 60);
+    if (rateLimit.blocked) {
+      return NextResponse.json({
+        error: `Muitas tentativas de registro. Tente novamente em ${rateLimit.remainingMinutes} minutos.`
+      }, { status: 429 });
+    }
+
     const { db } = await connectToDatabase();
 
     const existingUser = await db.collection('users').findOne({ email });
     if (existingUser) {
+      await registerAttempt(request, email, 'register');
       return NextResponse.json({ error: 'Email already registered' }, { status: 400 });
     }
 
@@ -39,6 +48,9 @@ async function handleRegister(request) {
       assinatura: 'free',
       createdAt: new Date()
     });
+
+    // Auditoria de Registro
+    await logAudit(request, userId, 'user_registered', { email, name });
 
     await db.collection('creditos').insertOne({
       id: uuidv4(),
@@ -72,12 +84,27 @@ async function handleLogin(request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
+    // Rate limiting Anti-Brute Force
+    const rateLimit = await checkRateLimit(request, email, 'login', 5, 15);
+    if (rateLimit.blocked) {
+      return NextResponse.json({
+        error: `Conta bloqueada temporariamente por excesso de tentativas. Tente novamente em ${rateLimit.remainingMinutes} minutos.`
+      }, { status: 429 });
+    }
+
     const { db } = await connectToDatabase();
     const user = await db.collection('users').findOne({ email });
 
     if (!user || !verifyPassword(password, user.password)) {
+      // Registrar tentativa falha
+      await registerAttempt(request, email, 'login');
+      await logAudit(request, 'anonymous', 'login_failed', { email });
+
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
+
+    // Auditoria de Login Sucesso
+    await logAudit(request, user.id, 'login_success', { email });
 
     const token = generateToken(user.id);
     return NextResponse.json({
@@ -1257,6 +1284,9 @@ async function handleValidarAvaliacao(request, avaliacaoId) {
       }
     );
 
+    // Auditoria de Validação
+    await logAudit(request, userId, 'assessment_validated', { assessmentId: avaliacaoId });
+
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 401 });
@@ -1385,6 +1415,9 @@ async function handleUpdateSettings(request) {
         },
         { upsert: true }
       );
+
+      // Auditoria de Alteração de Configurações
+      await logAudit(request, userId, 'settings_updated', { fields: Object.keys(updateData) });
     }
 
     return NextResponse.json({ success: true });
