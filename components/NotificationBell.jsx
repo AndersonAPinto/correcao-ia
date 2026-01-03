@@ -105,7 +105,7 @@ export default function NotificationBell() {
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="end">
+      <PopoverContent className="w-80 p-0 rounded-2xl overflow-hidden border-blue-100 shadow-xl" align="end">
         <div className="p-4 border-b flex items-center justify-between bg-blue-50/50">
           <h3 className="font-bold text-sm text-blue-900">Notificações</h3>
           {unreadCount > 0 && (
