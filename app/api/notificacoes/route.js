@@ -27,3 +27,32 @@ export async function GET(request) {
         return NextResponse.json({ error: error.message }, { status: 401 });
     }
 }
+
+export async function PUT(request) {
+    try {
+        const userId = await requireAuth(request);
+        const { db } = await connectToDatabase();
+
+        await db.collection('notificacoes').updateMany(
+            { userId, lida: false },
+            { $set: { lida: true } }
+        );
+
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        return NextResponse.json({ error: error.message }, { status: 401 });
+    }
+}
+
+export async function DELETE(request) {
+    try {
+        const userId = await requireAuth(request);
+        const { db } = await connectToDatabase();
+
+        await db.collection('notificacoes').deleteMany({ userId });
+
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        return NextResponse.json({ error: error.message }, { status: 401 });
+    }
+}
