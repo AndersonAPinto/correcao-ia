@@ -172,8 +172,8 @@ IMPORTANTE:
 
         let responseText;
         try {
-            // Chamar Vertex AI para OCR + Correção (usando Pro para melhor qualidade)
-            const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=dummy`; // Mantido para compatibilidade com callGeminiAPIWithRetry
+            // Chamar Vertex AI para OCR + Correção (priorizando Gemini 2.0 Flash)
+            const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=dummy`;
             const geminiBody = {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -211,8 +211,10 @@ IMPORTANTE:
             );
 
             console.error('Gemini API error:', error);
+
+            // Retornar a mensagem de erro detalhada da API handler se disponível
             return NextResponse.json({
-                error: 'Failed to process image with Gemini API. Credits have been restored. Please try again.'
+                error: `Failed to process image with Vertex AI. Credits have been restored. ${error.message}`
             }, { status: 500 });
         }
 
@@ -477,8 +479,8 @@ IMPORTANTE: Retorne apenas o JSON, sem texto adicional.`;
 
         let ocrText;
         try {
-            // Chamar Vertex AI para OCR (usando flash para ser mais rápido e econômico)
-            const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=dummy`; // Mantido para compatibilidade com callGeminiAPIWithRetry
+            // Chamar Vertex AI para OCR (priorizando Gemini 2.0 Flash)
+            const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=dummy`;
             const geminiBody = {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -511,7 +513,7 @@ IMPORTANTE: Retorne apenas o JSON, sem texto adicional.`;
 
             console.error('Gemini API error:', error);
             return NextResponse.json({
-                error: 'Failed to process image with Gemini API. Credits have been restored. Please try again.'
+                error: `Failed to process image with Vertex AI. Credits have been restored. ${error.message}`
             }, { status: 500 });
         }
 

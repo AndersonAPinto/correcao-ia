@@ -95,7 +95,7 @@ export default function GabaritosSection() {
 
   const handleCreateHabilidade = async () => {
     if (!novaHabilidade.trim()) {
-      toast.error('Nome da habilidade é obrigatório');
+      toast.error('⚠️ Digite o nome da habilidade.');
       return;
     }
 
@@ -111,16 +111,16 @@ export default function GabaritosSection() {
       });
 
       if (response.ok) {
-        toast.success('Habilidade criada!');
+        toast.success('✅ Nova habilidade cadastrada!');
         setNovaHabilidade('');
         setShowHabilidadeDialog(false);
         loadData();
       } else {
         const error = await response.json();
-        toast.error(error.error || 'Erro ao criar habilidade');
+        toast.error(error.error || 'Erro ao criar habilidade.');
       }
     } catch (error) {
-      toast.error('Erro ao criar habilidade');
+      toast.error('Erro de conexão.');
     }
   };
 
@@ -128,19 +128,19 @@ export default function GabaritosSection() {
     e.preventDefault();
 
     if (!formData.titulo) {
-      toast.error('Título é obrigatório');
+      toast.error('⚠️ O título do gabarito é obrigatório.');
       return;
     }
 
     // Validar questões se for múltipla escolha
     if (tipoGabarito === 'multipla_escolha') {
       if (questoes.length === 0) {
-        toast.error('Adicione pelo menos uma questão');
+        toast.error('⚠️ Adicione pelo menos uma questão ao gabarito.');
         return;
       }
       for (const q of questoes) {
         if (!q.respostaCorreta || !q.habilidadeId) {
-          toast.error('Preencha todas as questões (resposta correta e habilidade)');
+          toast.error(`⚠️ Verifique a Questão ${q.numero}: Resposta e Habilidade são obrigatórias.`);
           return;
         }
       }
@@ -170,17 +170,17 @@ export default function GabaritosSection() {
       });
 
       if (response.ok) {
-        toast.success('Gabarito criado com sucesso!');
+        toast.success('✅ Gabarito salvo com sucesso! Você já pode usá-lo para corrigir provas.');
         setFormData({ titulo: '', conteudo: '', perfilAvaliacaoId: '', arquivo: null });
         setQuestoes([]);
         setTipoGabarito('dissertativa');
         loadData();
       } else {
         const error = await response.json();
-        toast.error(error.error || 'Erro ao criar gabarito');
+        toast.error(error.error || 'Ocorreu um erro ao salvar o gabarito.');
       }
     } catch (error) {
-      toast.error('Erro ao criar gabarito');
+      toast.error('Erro de conexão ao salvar gabarito.');
     }
     setCreating(false);
   };
