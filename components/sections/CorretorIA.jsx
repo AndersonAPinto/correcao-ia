@@ -26,7 +26,7 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
   const [turmas, setTurmas] = useState([]);
   const [alunos, setAlunos] = useState([]);
   const [gabaritos, setGabaritos] = useState([]);
-  
+
   const [selectedTurma, setSelectedTurma] = useState('');
   const [selectedAluno, setSelectedAluno] = useState('');
   const [selectedPeriodo, setSelectedPeriodo] = useState('');
@@ -56,7 +56,7 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
       const response = await fetch('/api/plano/status', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setPlanoStatus(data);
@@ -105,7 +105,7 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
       const response = await fetch(`/api/alunos/${turmaId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setAlunos(data.alunos || []);
@@ -153,9 +153,9 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           turmaId: selectedTurma,
-          nome: novoAluno 
+          nome: novoAluno
         })
       });
 
@@ -226,7 +226,7 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
     const planoCheck = await fetch('/api/plano/status', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    
+
     if (planoCheck.ok) {
       const planoData = await planoCheck.json();
       if (!planoData.allowed) {
@@ -243,7 +243,7 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
       const item = pendingItems[i];
 
       // Atualizar status para uploading
-      setUploadQueue(prev => prev.map(q => 
+      setUploadQueue(prev => prev.map(q =>
         q.id === item.id ? { ...q, status: 'uploading', progress: 0 } : q
       ));
 
@@ -256,7 +256,7 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
         formData.append('periodo', selectedPeriodo);
 
         // Simular progresso
-        setUploadQueue(prev => prev.map(q => 
+        setUploadQueue(prev => prev.map(q =>
           q.id === item.id ? { ...q, progress: 30 } : q
         ));
 
@@ -266,7 +266,7 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
           body: formData
         });
 
-        setUploadQueue(prev => prev.map(q => 
+        setUploadQueue(prev => prev.map(q =>
           q.id === item.id ? { ...q, progress: 70 } : q
         ));
 
@@ -274,10 +274,10 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
 
         if (response.ok) {
           completed++;
-          setUploadQueue(prev => prev.map(q => 
-            q.id === item.id ? { 
-              ...q, 
-              status: 'completed', 
+          setUploadQueue(prev => prev.map(q =>
+            q.id === item.id ? {
+              ...q,
+              status: 'completed',
               progress: 100,
               assessmentId: data.assessmentId,
               nota: data.nota,
@@ -286,10 +286,10 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
           ));
         } else {
           errors++;
-          setUploadQueue(prev => prev.map(q => 
-            q.id === item.id ? { 
-              ...q, 
-              status: 'error', 
+          setUploadQueue(prev => prev.map(q =>
+            q.id === item.id ? {
+              ...q,
+              status: 'error',
               error: data.error || 'Erro no upload',
               progress: 0
             } : q
@@ -297,10 +297,10 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
         }
       } catch (error) {
         errors++;
-        setUploadQueue(prev => prev.map(q => 
-          q.id === item.id ? { 
-            ...q, 
-            status: 'error', 
+        setUploadQueue(prev => prev.map(q =>
+          q.id === item.id ? {
+            ...q,
+            status: 'error',
             error: error.message || 'Erro ao fazer upload',
             progress: 0
           } : q
@@ -433,7 +433,7 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
                 <div className="space-y-2">
                   <Label>Turma</Label>
                   <div className="flex gap-2">
-                    <Select value={selectedTurma} onValueChange={setSelectedTurma}>
+                    <Select value={selectedTurma || ''} onValueChange={setSelectedTurma}>
                       <SelectTrigger className="flex-1">
                         <SelectValue placeholder="Selecione a turma" />
                       </SelectTrigger>
@@ -479,8 +479,8 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
                 <div className="space-y-2">
                   <Label>Aluno</Label>
                   <div className="flex gap-2">
-                    <Select 
-                      value={selectedAluno} 
+                    <Select
+                      value={selectedAluno || ''}
                       onValueChange={setSelectedAluno}
                       disabled={!selectedTurma}
                     >
@@ -497,9 +497,9 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
                     </Select>
                     <Dialog open={alunoDialogOpen} onOpenChange={setAlunoDialogOpen}>
                       <DialogTrigger asChild>
-                        <Button 
-                          type="button" 
-                          variant="outline" 
+                        <Button
+                          type="button"
+                          variant="outline"
                           size="icon"
                           disabled={!selectedTurma}
                         >
@@ -530,7 +530,7 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
 
                 <div className="space-y-2">
                   <Label>Período Avaliativo</Label>
-                  <Select value={selectedPeriodo || undefined} onValueChange={setSelectedPeriodo}>
+                  <Select value={selectedPeriodo || ''} onValueChange={setSelectedPeriodo}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o período" />
                     </SelectTrigger>
@@ -546,7 +546,7 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
 
                 <div className="space-y-2">
                   <Label>Gabarito</Label>
-                  <Select value={selectedGabarito} onValueChange={setSelectedGabarito}>
+                  <Select value={selectedGabarito || ''} onValueChange={setSelectedGabarito}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o gabarito" />
                     </SelectTrigger>
@@ -584,20 +584,20 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
                   )}
                 </div>
 
-            <Button 
-              type="submit" 
-              className="w-full" 
-              disabled={uploading || !selectedFile || !selectedGabarito || !selectedTurma || !selectedAluno || !selectedPeriodo}
-            >
-              {uploading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Enviando...
-                </>
-              ) : (
-                'Enviar para Correção (3 créditos)'
-              )}
-            </Button>
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={uploading || !selectedFile || !selectedGabarito || !selectedTurma || !selectedAluno || !selectedPeriodo}
+                >
+                  {uploading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Enviando...
+                    </>
+                  ) : (
+                    'Enviar para Correção (3 créditos)'
+                  )}
+                </Button>
               </form>
             </TabsContent>
 
@@ -607,7 +607,7 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
                 <div className="space-y-2">
                   <Label>Turma</Label>
                   <div className="flex gap-2">
-                    <Select value={selectedTurma} onValueChange={setSelectedTurma}>
+                    <Select value={selectedTurma || ''} onValueChange={setSelectedTurma}>
                       <SelectTrigger className="flex-1">
                         <SelectValue placeholder="Selecione a turma" />
                       </SelectTrigger>
@@ -649,8 +649,8 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
 
                 <div className="space-y-2">
                   <Label>Aluno (para todas as provas)</Label>
-                  <Select 
-                    value={selectedAluno} 
+                  <Select
+                    value={selectedAluno || ''}
                     onValueChange={setSelectedAluno}
                     disabled={!selectedTurma}
                   >
@@ -672,7 +672,7 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
 
                 <div className="space-y-2">
                   <Label>Período Avaliativo</Label>
-                  <Select value={selectedPeriodo || undefined} onValueChange={setSelectedPeriodo}>
+                  <Select value={selectedPeriodo || ''} onValueChange={setSelectedPeriodo}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o período" />
                     </SelectTrigger>
@@ -688,7 +688,7 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
 
                 <div className="space-y-2">
                   <Label>Gabarito</Label>
-                  <Select value={selectedGabarito} onValueChange={setSelectedGabarito}>
+                  <Select value={selectedGabarito || ''} onValueChange={setSelectedGabarito}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o gabarito" />
                     </SelectTrigger>
@@ -797,15 +797,15 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
                   </div>
                 )}
 
-                <Button 
+                <Button
                   onClick={processUploadQueue}
-                  className="w-full" 
+                  className="w-full"
                   disabled={
-                    uploading || 
-                    selectedFiles.length === 0 || 
-                    !selectedGabarito || 
-                    !selectedTurma || 
-                    !selectedAluno || 
+                    uploading ||
+                    selectedFiles.length === 0 ||
+                    !selectedGabarito ||
+                    !selectedTurma ||
+                    !selectedAluno ||
                     !selectedPeriodo ||
                     uploadQueue.length === 0
                   }

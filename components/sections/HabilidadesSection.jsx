@@ -203,13 +203,13 @@ export default function HabilidadesSection() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {habilidades.map((hab) => (
-                <div key={hab.id} className="p-4 border rounded-lg hover:bg-gray-50 flex items-start justify-between">
+                <div key={hab.id} className="p-4 border border-border/50 rounded-lg hover:bg-blue-50/10 dark:hover:bg-blue-900/20 hover:border-blue-200 transition-all flex items-start justify-between group">
                   <div className="flex-1">
-                    <h3 className="font-semibold">{hab.nome}</h3>
+                    <h3 className="font-semibold group-hover:text-blue-600 transition-colors">{hab.nome}</h3>
                     {hab.descricao && (
-                      <p className="text-sm text-gray-600 mt-1">{hab.descricao}</p>
+                      <p className="text-sm text-muted-foreground mt-1">{hab.descricao}</p>
                     )}
-                    <p className="text-xs text-gray-400 mt-2">
+                    <p className="text-xs text-muted-foreground/50 mt-2 italic">
                       Criada em: {new Date(hab.createdAt).toLocaleDateString()}
                     </p>
                   </div>

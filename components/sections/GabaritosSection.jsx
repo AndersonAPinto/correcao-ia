@@ -153,11 +153,11 @@ export default function GabaritosSection() {
     data.append('conteudo', formData.conteudo);
     data.append('perfilAvaliacaoId', formData.perfilAvaliacaoId);
     data.append('tipo', tipoGabarito);
-    
+
     if (tipoGabarito === 'multipla_escolha') {
       data.append('questoes', JSON.stringify(questoes));
     }
-    
+
     if (formData.arquivo) {
       data.append('arquivo', formData.arquivo);
     }
@@ -228,7 +228,7 @@ export default function GabaritosSection() {
                 </SelectContent>
               </Select>
               <p className="text-xs text-gray-500">
-                {tipoGabarito === 'multipla_escolha' 
+                {tipoGabarito === 'multipla_escolha'
                   ? 'Correção automática instantânea. Defina questões com alternativas A, B, C, D.'
                   : 'Correção assistida por IA. Defina critérios de avaliação.'}
               </p>
@@ -238,9 +238,9 @@ export default function GabaritosSection() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <Label>Questões de Múltipla Escolha</Label>
-                  <Button 
-                    type="button" 
-                    variant="outline" 
+                  <Button
+                    type="button"
+                    variant="outline"
                     size="sm"
                     onClick={handleAddQuestao}
                   >
@@ -273,7 +273,7 @@ export default function GabaritosSection() {
                             <div>
                               <Label>Resposta Correta *</Label>
                               <Select
-                                value={questao.respostaCorreta}
+                                value={questao.respostaCorreta || ''}
                                 onValueChange={(value) => handleQuestaoChange(index, 'respostaCorreta', value)}
                               >
                                 <SelectTrigger>
@@ -313,7 +313,7 @@ export default function GabaritosSection() {
                               </Button>
                             </div>
                             <Select
-                              value={questao.habilidadeId}
+                              value={questao.habilidadeId || ''}
                               onValueChange={(value) => handleQuestaoChange(index, 'habilidadeId', value)}
                             >
                               <SelectTrigger>
@@ -338,9 +338,9 @@ export default function GabaritosSection() {
               <>
                 <div className="space-y-2">
                   <Label htmlFor="perfil">Perfil de Avaliação</Label>
-                  <Select 
-                    value={formData.perfilAvaliacaoId || undefined} 
-                    onValueChange={(value) => setFormData({ ...formData, perfilAvaliacaoId: value })}
+                  <Select
+                    value={formData.perfilAvaliacaoId || ''}
+                    onValueChange={(value) => setFormData({ ...formData, perfilAvaliacaoId: value || '' })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione um perfil (opcional)" />
@@ -461,28 +461,28 @@ export default function GabaritosSection() {
           ) : (
             <div className="space-y-3">
               {gabaritos.map((gab) => (
-                <div key={gab.id} className="p-4 border rounded-lg hover:bg-gray-50">
+                <div key={gab.id} className="p-4 border border-border/50 rounded-lg hover:bg-blue-50/10 dark:hover:bg-blue-900/20 hover:border-blue-200 transition-all group">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-lg">{gab.titulo}</h3>
-                        <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">
+                        <h3 className="font-semibold text-lg group-hover:text-blue-600 transition-colors">{gab.titulo}</h3>
+                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded-full">
                           {gab.tipo === 'multipla_escolha' ? 'Múltipla Escolha' : 'Dissertativa'}
                         </span>
                         {gab.tipo === 'multipla_escolha' && gab.totalQuestoes > 0 && (
-                          <span className="text-xs text-gray-500">
+                          <span className="text-xs text-muted-foreground">
                             ({gab.totalQuestoes} questões)
                           </span>
                         )}
                       </div>
                       {gab.conteudo && (
-                        <p className="text-sm text-gray-600 mt-1 line-clamp-2">{gab.conteudo}</p>
+                        <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{gab.conteudo}</p>
                       )}
                       {gab.arquivoUrl && (
                         <div className="mt-2">
-                          <a 
-                            href={gab.arquivoUrl} 
-                            target="_blank" 
+                          <a
+                            href={gab.arquivoUrl}
+                            target="_blank"
                             rel="noopener noreferrer"
                             className="text-sm text-blue-600 hover:underline flex items-center gap-1"
                           >

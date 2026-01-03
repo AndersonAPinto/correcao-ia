@@ -16,7 +16,7 @@ export default function ResultadosSection({ view }) {
   const [modalOpen, setModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [turmas, setTurmas] = useState([]);
-  const [selectedTurma, setSelectedTurma] = useState('');
+  const [selectedTurma, setSelectedTurma] = useState('all');
   const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
@@ -24,7 +24,7 @@ export default function ResultadosSection({ view }) {
     if (view === 'concluidas') {
       loadTurmas();
     }
-    
+
     // Auto-refresh every 10 seconds if viewing pendentes
     if (view === 'pendentes') {
       const interval = setInterval(loadAvaliacoes, 10000);
@@ -38,7 +38,7 @@ export default function ResultadosSection({ view }) {
       const response = await fetch('/api/turmas', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setTurmas(data.turmas || []);
@@ -51,24 +51,24 @@ export default function ResultadosSection({ view }) {
   const loadAvaliacoes = async () => {
     setLoading(true);
     const token = localStorage.getItem('token');
-    const endpoint = view === 'pendentes' 
-      ? '/api/avaliacoes/pendentes' 
+    const endpoint = view === 'pendentes'
+      ? '/api/avaliacoes/pendentes'
       : '/api/avaliacoes/concluidas';
 
     try {
       const response = await fetch(endpoint, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         let avaliacoes = data.avaliacoes || [];
-        
-        // Aplicar filtro de turma se selecionado
-        if (view === 'concluidas' && selectedTurma) {
+
+        // Aplicar filtro de turma se selecionado (ignorar se for "all")
+        if (view === 'concluidas' && selectedTurma && selectedTurma !== 'all') {
           avaliacoes = avaliacoes.filter(av => av.turmaId === selectedTurma);
         }
-        
+
         setAvaliacoes(avaliacoes);
       }
     } catch (error) {
@@ -95,11 +95,11 @@ export default function ResultadosSection({ view }) {
 
     setExporting(true);
     const token = localStorage.getItem('token');
-    
+
     try {
       const params = new URLSearchParams();
       if (selectedTurma) params.append('turmaId', selectedTurma);
-      
+
       const response = await fetch(`/api/export/${format}?${params.toString()}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -122,12 +122,12 @@ export default function ResultadosSection({ view }) {
     } catch (error) {
       toast.error('Erro ao exportar dados');
     }
-    
+
     setExporting(false);
   };
 
-  const title = view === 'pendentes' 
-    ? 'Aguardando Validação' 
+  const title = view === 'pendentes'
+    ? 'Aguardando Validação'
     : 'Avaliações Concluídas';
 
   const description = view === 'pendentes'
@@ -151,12 +151,12 @@ export default function ResultadosSection({ view }) {
               </CardTitle>
               {view === 'concluidas' && avaliacoes.length > 0 && (
                 <div className="flex items-center gap-2">
-                  <Select value={selectedTurma} onValueChange={setSelectedTurma}>
+                  <Select value={selectedTurma || 'all'} onValueChange={setSelectedTurma}>
                     <SelectTrigger className="w-48">
                       <SelectValue placeholder="Filtrar por turma" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Todas as turmas</SelectItem>
+                      <SelectItem value="all">Todas as turmas</SelectItem>
                       {turmas.map((turma) => (
                         <SelectItem key={turma.id} value={turma.id}>
                           {turma.nome}
@@ -186,7 +186,7 @@ export default function ResultadosSection({ view }) {
               )}
             </div>
             <CardDescription>
-              {view === 'pendentes' 
+              {view === 'pendentes'
                 ? 'Clique para visualizar e validar cada avaliação'
                 : 'Avaliações já validadas e finalizadas'}
             </CardDescription>
@@ -199,7 +199,7 @@ export default function ResultadosSection({ view }) {
               </div>
             ) : avaliacoes.length === 0 ? (
               <p className="text-center text-gray-500 py-8">
-                {view === 'pendentes' 
+                {view === 'pendentes'
                   ? 'Nenhuma avaliação aguardando validação'
                   : 'Nenhuma avaliação concluída ainda'}
               </p>
@@ -208,13 +208,12 @@ export default function ResultadosSection({ view }) {
                 {avaliacoes.map((av) => {
                   const isProcessing = av.status === 'pending';
                   const isCompleted = av.status === 'completed';
-                  
+
                   return (
-                    <div 
-                      key={av.id} 
-                      className={`p-4 border rounded-lg transition-colors ${
-                        isCompleted ? 'hover:bg-gray-50 cursor-pointer' : 'bg-blue-50/50'
-                      }`}
+                    <div
+                      key={av.id}
+                      className={`p-4 border border-border/50 rounded-lg transition-all ${isCompleted ? 'hover:bg-blue-50/10 dark:hover:bg-blue-900/20 hover:border-blue-200 cursor-pointer' : 'bg-blue-50/10 border-blue-200/50'
+                        } group`}
                       onClick={() => isCompleted && handleView(av)}
                     >
                       <div className="flex items-start justify-between">
@@ -229,20 +228,20 @@ export default function ResultadosSection({ view }) {
                             ) : (
                               <CheckCircle2 className="h-4 w-4 text-green-600" />
                             )}
-                            <h3 className="font-semibold">{av.gabaritoTitulo}</h3>
+                            <h3 className="font-semibold group-hover:text-blue-600 transition-colors">{av.gabaritoTitulo}</h3>
                           </div>
-                          <div className="text-sm text-gray-600 space-y-1">
-                            <p><strong>Turma:</strong> {av.turmaNome}</p>
-                            <p><strong>Aluno:</strong> {av.alunoNome}</p>
-                            <p><strong>Período:</strong> {av.periodo}</p>
+                          <div className="text-sm text-muted-foreground space-y-1">
+                            <p><strong className="text-foreground/70">Turma:</strong> {av.turmaNome}</p>
+                            <p><strong className="text-foreground/70">Aluno:</strong> {av.alunoNome}</p>
+                            <p><strong className="text-foreground/70">Período:</strong> {av.periodo}</p>
                             {av.nota !== null && (
-                              <p><strong>Nota:</strong> <span className="text-blue-600 font-semibold">{av.nota}/10</span></p>
+                              <p><strong className="text-foreground/70">Nota:</strong> <span className="text-blue-600 font-semibold group-hover:text-blue-700 transition-colors">{av.nota}/10</span></p>
                             )}
                           </div>
                           <div className="mt-3">
                             {isProcessing ? (
                               <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                                🔄 Processando no N8N...
+                                🔄 Processando com IA...
                               </Badge>
                             ) : view === 'pendentes' ? (
                               <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
