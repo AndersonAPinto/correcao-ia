@@ -88,12 +88,13 @@ export default function ConfiguracoesSection({ user, credits }) {
       });
 
       if (response.ok) {
-        toast.success('Configurações salvas com sucesso!');
+        toast.success('✅ Configurações de administrador atualizadas com sucesso!');
       } else {
-        toast.error('Erro ao salvar configurações');
+        const data = await response.json();
+        toast.error(data.error || '❌ Ocorreu um erro ao tentar salvar as configurações.');
       }
     } catch (error) {
-      toast.error('Erro ao salvar configurações');
+      toast.error('🌐 Erro de conexão ao salvar configurações.');
     }
     setSaving(false);
   };

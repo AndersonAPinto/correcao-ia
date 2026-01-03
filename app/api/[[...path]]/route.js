@@ -1497,14 +1497,14 @@ async function handleAddAdmin(request) {
     const { email } = await request.json();
 
     if (!email) {
-      return NextResponse.json({ error: 'Missing email' }, { status: 400 });
+      return NextResponse.json({ error: '⚠️ Por favor, informe o e-mail do usuário que deseja tornar admin.' }, { status: 400 });
     }
 
     const { db } = await connectToDatabase();
     const user = await db.collection('users').findOne({ email });
 
     if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      return NextResponse.json({ error: '❌ Usuário não encontrado com o e-mail fornecido.' }, { status: 404 });
     }
 
     await db.collection('users').updateOne(
@@ -1512,7 +1512,7 @@ async function handleAddAdmin(request) {
       { $set: { isAdmin: 1 } }
     );
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, message: `✅ ${user.name} agora é um administrador.` });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 403 });
   }
