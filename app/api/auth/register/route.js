@@ -10,14 +10,14 @@ export async function POST(request) {
         const { email, password, name } = await request.json();
 
         if (!email || !password || !name) {
-            return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+            return NextResponse.json({ error: '⚠️ Preencha todos os campos obrigatórios (nome, email e senha).' }, { status: 400 });
         }
 
         const { db } = await connectToDatabase();
 
         const existingUser = await db.collection('users').findOne({ email });
         if (existingUser) {
-            return NextResponse.json({ error: 'Email already registered' }, { status: 400 });
+            return NextResponse.json({ error: '📧 Este e-mail já está cadastrado no sistema.' }, { status: 400 });
         }
 
         const userId = uuidv4();
@@ -31,25 +31,13 @@ export async function POST(request) {
             name,
             isAdmin,
             assinatura: 'free',
+            trialStartedAt: new Date(), // Início do período de 7 dias
             emailVerified: false,
             createdAt: new Date()
         });
 
-        await db.collection('creditos').insertOne({
-            id: uuidv4(),
-            userId,
-            saldoAtual: 1000,
-            createdAt: new Date()
-        });
-
-        await db.collection('transacoes_creditos').insertOne({
-            id: uuidv4(),
-            userId,
-            tipo: 'credito',
-            quantidade: 1000,
-            descricao: 'Créditos iniciais de boas-vindas',
-            createdAt: new Date()
-        });
+        // O sistema de créditos foi abolido. Mantemos as coleções por enquanto para compatibilidade se necessário, 
+        // mas não adicionamos créditos iniciais obrigatórios para o fluxo de correção.
 
         // Gerar token de verificação de email
         const verificationToken = generateVerificationToken();

@@ -419,7 +419,7 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
             Enviar Prova(s) para Correção
           </CardTitle>
           <CardDescription>
-            Selecione a turma, aluno, período e gabarito antes de enviar (Custo: 3 créditos por prova)
+            Selecione a turma, aluno, período e gabarito antes de enviar
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -574,12 +574,13 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Imagem da Prova</Label>
+                  <Label>Imagem ou PDF da Prova</Label>
                   <Input
                     type="file"
-                    accept="image/*"
+                    accept="image/*,application/pdf"
                     onChange={handleFileChange}
                     disabled={uploading}
+                    className="cursor-pointer file:cursor-pointer"
                   />
                   {selectedFile && (
                     <p className="text-sm text-green-600">✓ {selectedFile.name}</p>
@@ -597,7 +598,7 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
                       Enviando...
                     </>
                   ) : (
-                    'Enviar para Correção (3 créditos)'
+                    'Enviar para Correção'
                   )}
                 </Button>
               </form>
@@ -705,16 +706,17 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Imagens das Provas (Múltiplas)</Label>
+                  <Label>Imagens ou PDFs das Provas (Múltiplas)</Label>
                   <Input
                     type="file"
-                    accept="image/*"
+                    accept="image/*,application/pdf"
                     multiple
                     onChange={handleFilesChange}
                     disabled={uploading}
+                    className="cursor-pointer file:cursor-pointer"
                   />
                   <p className="text-xs text-gray-500">
-                    Selecione múltiplas imagens para processar em lote
+                    Selecione múltiplas imagens ou arquivos PDF para processar em lote
                   </p>
                 </div>
 
@@ -820,7 +822,7 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
                   ) : (
                     <>
                       <Upload className="h-4 w-4 mr-2" />
-                      Enviar {selectedFiles.length} Prova(s) ({selectedFiles.length * 3} créditos)
+                      Enviar {selectedFiles.length} Prova(s)
                     </>
                   )}
                 </Button>
@@ -840,19 +842,18 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
       )}
 
       {/* Plano Status Banner */}
-      {planoStatus && planoStatus.plano === 'free' && (
+      {planoStatus && !planoStatus.isSubscriber && (
         <Card className="bg-blue-50 border-blue-200">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-semibold text-sm">Plano Gratuito</p>
-                <p className="text-xs text-gray-600">
-                  {planoStatus.usado} de {planoStatus.limites.provasPorMes} provas usadas este mês
-                  {planoStatus.restante > 0 && ` • ${planoStatus.restante} restantes`}
+                <p className="font-semibold text-sm text-blue-600 dark:text-blue-400">Período de Teste Gratuito</p>
+                <p className="text-xs text-gray-600 dark:text-gray-400">
+                  {planoStatus.trialRemainingDays} dias restantes de acesso total.
                 </p>
               </div>
               <Button size="sm" onClick={() => setPaywallOpen(true)}>
-                Upgrade
+                Assinar Premium
               </Button>
             </div>
           </CardContent>

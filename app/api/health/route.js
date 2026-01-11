@@ -82,23 +82,7 @@ export async function POST(request) {
                         name: userData.name,
                         isAdmin: userData.isAdmin,
                         assinatura: userData.assinatura,
-                        createdAt: new Date()
-                    });
-
-                    // Create credits
-                    await db.collection('creditos').insertOne({
-                        id: uuidv4(),
-                        userId,
-                        saldoAtual: userData.isAdmin ? 10000 : 1000,
-                        createdAt: new Date()
-                    });
-
-                    await db.collection('transacoes_creditos').insertOne({
-                        id: uuidv4(),
-                        userId,
-                        tipo: 'credito',
-                        quantidade: userData.isAdmin ? 10000 : 1000,
-                        descricao: 'Créditos iniciais de boas-vindas',
+                        trialStartedAt: new Date(),
                         createdAt: new Date()
                     });
 

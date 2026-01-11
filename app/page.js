@@ -21,6 +21,11 @@ import CorretorIASection from '@/components/sections/CorretorIA';
 import Header from '@/components/landing/Header';
 import Hero from '@/components/landing/Hero';
 import Features from '@/components/landing/Features';
+import StatsSection from '@/components/landing/StatsSection';
+import DashboardPreview from '@/components/landing/DashboardPreview';
+import ChecklistSection from '@/components/landing/ChecklistSection';
+import ProcessSection from '@/components/landing/ProcessSection';
+import TestimonialsSection from '@/components/landing/TestimonialsSection';
 import Pricing from '@/components/landing/Pricing';
 import Footer from '@/components/landing/Footer';
 import AuthModal from '@/components/auth/AuthModal';
@@ -46,16 +51,17 @@ export default function App() {
 
     if (error) {
       const errorMessages = {
-        'oauth_cancelled': 'Login cancelado',
-        'email_not_verified': 'Email não verificado. Verifique seu email no Google.',
+        'oauth_cancelado': 'Login cancelado pelo usuário.',
+        'email_nao_verificado': 'E-mail não verificado no Google.',
         'oauth_failed': 'Erro ao autenticar com Google. Tente novamente.',
-        'account_exists_email': 'Conta já existe com email/senha. Use login tradicional.',
-        'invalid_token': 'Token inválido',
-        'token_expired': 'Token expirado',
-        'audience_mismatch': 'Erro de segurança no token',
-        'invalid_state': 'Estado inválido. Tente novamente.',
-        'state_expired': 'Sessão expirada. Tente novamente.',
-        'no_id_token': 'Erro ao obter token de autenticação'
+        'account_exists_email': 'Uma conta já existe com este e-mail usando senha. Faça login normalmente.',
+        'token_invalido': 'Token de autenticação inválido.',
+        'token_expirado': 'Sessão expirada. Por favor, tente novamente.',
+        'erro_seguranca': 'Erro de segurança na autenticação.',
+        'estado_invalido': 'Estado da requisição inválido.',
+        'sessao_expirada': 'Sessão expirada. Tente novamente.',
+        'token_ausente': 'Erro ao obter dados de autenticação.',
+        'token_nao_encontrado': 'Token de verificação não encontrado ou já utilizado.'
       };
       toast.error(errorMessages[error] || 'Erro na autenticação');
       window.history.replaceState({}, document.title, window.location.pathname);
@@ -134,12 +140,6 @@ export default function App() {
     const headers = { 'Authorization': `Bearer ${token}` };
 
     try {
-      const creditsRes = await fetch('/api/credits', { headers });
-      if (creditsRes.ok) {
-        const data = await creditsRes.json();
-        setCredits(data.saldo);
-      }
-
       await loadPendingCount();
     } catch (error) {
       console.error('Failed to load data:', error);
@@ -204,7 +204,12 @@ export default function App() {
         <Header onLoginClick={openAuth} />
         <main>
           <Hero onCtaClick={() => openAuth('register')} />
+          <StatsSection />
           <Features />
+          <DashboardPreview />
+          <ChecklistSection />
+          <ProcessSection />
+          <TestimonialsSection />
           <Pricing onRegisterClick={() => openAuth('register')} />
         </main>
         <Footer />
@@ -239,10 +244,6 @@ export default function App() {
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800">
-                <Coins className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                <span className="font-semibold text-blue-900 dark:text-blue-300">{credits} créditos</span>
-              </div>
               <NotificationBell />
               <Button variant="ghost" size="sm" onClick={handleLogout}>
                 <LogOut className="h-4 w-4 mr-2" />
@@ -260,8 +261,8 @@ export default function App() {
               />
             )}
             {activeView === 'analytics' && <AnalyticsSection />}
-            {activeView === 'corretor-ia' && <CorretorIASection />}
-            {activeView === 'gabaritos' && <GabaritosSection />}
+            {activeView === 'corretor-ia' && <CorretorIASection onUploadSuccess={handleUploadSuccess} setActiveView={setActiveView} />}
+            {activeView === 'gabaritos' && <GabaritosSection setActiveView={setActiveView} />}
             {activeView === 'habilidades' && <HabilidadesSection />}
             {activeView === 'perfis' && <PerfisSection />}
             {(activeView === 'pendentes' || activeView === 'concluidas') && (

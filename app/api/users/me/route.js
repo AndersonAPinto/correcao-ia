@@ -9,7 +9,7 @@ export async function GET(request) {
         const user = await db.collection('users').findOne({ id: userId });
 
         if (!user) {
-            return NextResponse.json({ error: 'User not found' }, { status: 404 });
+            return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
         }
 
         return NextResponse.json({

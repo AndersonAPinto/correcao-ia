@@ -182,6 +182,7 @@ export default function PerfisSection() {
                 type="file"
                 accept=".pdf,.doc,.docx"
                 onChange={handleFileChange}
+                className="cursor-pointer file:cursor-pointer"
               />
               <p className="text-xs text-gray-500">
                 Envie o documento com critérios de avaliação da sua escola

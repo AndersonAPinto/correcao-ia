@@ -5,41 +5,44 @@ import Image from 'next/image';
 
 export default function Footer() {
     return (
-        <footer className="bg-gray-50 dark:bg-gray-950 border-t py-12">
-            <div className="container mx-auto px-10">
-                <div className="grid md:grid-cols-4 gap-8 mb-8">
+        <footer className="bg-slate-950 border-t border-white/5 py-20">
+            <div className="container max-w-7xl mx-auto px-6">
+                <div className="grid md:grid-cols-4 gap-12 mb-16">
                     <div className="col-span-2">
-                        <div className="flex items-center gap-2 mb-4">
-                            <div className="rounded-lg flex items-center justify-center text-white font-bold">
-                                <Image src="/imagens/corregia_logotipo_lateral_sem_fundo.png" alt="Logotipo CorregIA" width={150} height={150} />
-                            </div>
+                        <div className="flex items-center gap-2 mb-6">
+                            <Image src="/imagens/corregia_logotipo_lateral_sem_fundo.png" alt="Logotipo CorregIA" width={140} height={40} className="h-10 w-auto object-contain brightness-0 invert" />
                         </div>
-                        <p className="text-muted-foreground max-w-xs">
-                            A plataforma de correção de provas mais avançada do mercado. Economize tempo e foque no ensino.
+                        <p className="text-slate-400 text-lg leading-relaxed max-w-sm font-medium">
+                            A plataforma de correção de provas mais avançada do mercado brasileiro.
+                            Tecnologia de ponta a serviço da educação.
                         </p>
                     </div>
 
                     <div>
-                        <h4 className="font-semibold mb-4">Produto</h4>
-                        <ul className="space-y-2 text-sm text-muted-foreground">
-                            <li><a href="#features" className="hover:text-blue-600">Funcionalidades</a></li>
-                            <li><a href="#pricing" className="hover:text-blue-600">Preços</a></li>
-                            <li><a href="#" className="hover:text-blue-600">Atualizações</a></li>
+                        <h4 className="font-extrabold text-white mb-6 uppercase text-xs tracking-[0.2em]">Produto</h4>
+                        <ul className="space-y-4 text-base font-medium">
+                            <li><a href="#features" className="text-slate-500 hover:text-emerald-400 transition-colors">Funcionalidades</a></li>
+                            <li><a href="#process" className="text-slate-500 hover:text-emerald-400 transition-colors">Como Funciona</a></li>
+                            <li><a href="#pricing" className="text-slate-500 hover:text-emerald-400 transition-colors">Preços</a></li>
                         </ul>
                     </div>
 
                     <div>
-                        <h4 className="font-semibold mb-4">Legal</h4>
-                        <ul className="space-y-2 text-sm text-muted-foreground">
-                            <li><Link href="/termos" className="hover:text-blue-600">Termos de Uso</Link></li>
-                            <li><Link href="/privacidade" className="hover:text-blue-600">Privacidade</Link></li>
-                            <li><a href="mailto:contato@contato.com.br" className="hover:text-blue-600">Contato</a></li>
+                        <h4 className="font-extrabold text-white mb-6 uppercase text-xs tracking-[0.2em]">Legal</h4>
+                        <ul className="space-y-4 text-base font-medium">
+                            <li><Link href="/termos" className="text-slate-500 hover:text-emerald-400 transition-colors">Termos de Uso</Link></li>
+                            <li><Link href="/privacidade" className="text-slate-500 hover:text-emerald-400 transition-colors">Privacidade</Link></li>
+                            <li><a href="mailto:contato@corregia.com.br" className="text-slate-500 hover:text-emerald-400 transition-colors">Suporte</a></li>
                         </ul>
                     </div>
                 </div>
 
-                <div className="border-t pt-8 text-center text-sm text-muted-foreground">
-                    © {new Date().getFullYear()} CorregIA. Todos os direitos reservados.
+                <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6 text-sm font-bold text-slate-500">
+                    <p>© {new Date().getFullYear()} CorregIA. Desenvolvido com ❤️ para professores.</p>
+                    <div className="flex gap-10">
+                        <a href="#" className="hover:text-emerald-400 transition-colors">Instagram</a>
+                        <a href="#" className="hover:text-emerald-400 transition-colors">LinkedIn</a>
+                    </div>
                 </div>
             </div>
         </footer>

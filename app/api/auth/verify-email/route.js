@@ -20,13 +20,13 @@ export async function GET(request) {
         const baseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
 
         if (!token) {
-            return NextResponse.redirect(getAbsoluteUrl('/?error=invalid_token', baseUrl));
+            return NextResponse.redirect(getAbsoluteUrl('/?error=token_ausente', baseUrl));
         }
 
         // Verificar token
         const decoded = verifyVerificationToken(token);
         if (!decoded) {
-            return NextResponse.redirect(getAbsoluteUrl('/?error=invalid_token', baseUrl));
+            return NextResponse.redirect(getAbsoluteUrl('/?error=token_invalido', baseUrl));
         }
 
         const { db } = await connectToDatabase();
@@ -38,12 +38,12 @@ export async function GET(request) {
         });
 
         if (!verification) {
-            return NextResponse.redirect(getAbsoluteUrl('/?error=token_not_found', baseUrl));
+            return NextResponse.redirect(getAbsoluteUrl('/?error=token_nao_encontrado', baseUrl));
         }
 
         // Verificar se não expirou
         if (new Date() > verification.expiresAt) {
-            return NextResponse.redirect(getAbsoluteUrl('/?error=token_expired', baseUrl));
+            return NextResponse.redirect(getAbsoluteUrl('/?error=token_expirado', baseUrl));
         }
 
         // Marcar email como verificado
