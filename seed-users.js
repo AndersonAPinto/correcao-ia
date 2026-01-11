@@ -113,30 +113,11 @@ async function seedUsers() {
                     name: userData.name,
                     isAdmin: userData.isAdmin,
                     assinatura: userData.assinatura,
+                    trialStartedAt: new Date(),
                     createdAt: new Date()
                 });
 
                 console.log(`✅ Usuário ${userData.email} criado com sucesso!`);
-
-                // Criar créditos iniciais
-                await db.collection('creditos').insertOne({
-                    id: uuidv4(),
-                    userId,
-                    saldoAtual: userData.isAdmin ? 10000 : 1000,
-                    createdAt: new Date()
-                });
-
-                console.log(`✅ Créditos iniciais criados (${userData.isAdmin ? 10000 : 1000} créditos)`);
-
-                // Criar transação de créditos
-                await db.collection('transacoes_creditos').insertOne({
-                    id: uuidv4(),
-                    userId,
-                    tipo: 'credito',
-                    quantidade: userData.isAdmin ? 10000 : 1000,
-                    descricao: 'Créditos iniciais de boas-vindas',
-                    createdAt: new Date()
-                });
             }
         }
 

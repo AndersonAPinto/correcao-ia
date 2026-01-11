@@ -72,7 +72,7 @@ async function handleRegister(request) {
     return NextResponse.json({ token, user: { id: userId, email, name, isAdmin } });
   } catch (error) {
     console.error('Register error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: 'Erro interno no servidor' }, { status: 500 });
   }
 }
 
@@ -113,7 +113,7 @@ async function handleLogin(request) {
     });
   } catch (error) {
     console.error('Login error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: 'Erro interno no servidor' }, { status: 500 });
   }
 }
 
@@ -124,7 +124,7 @@ async function handleGetMe(request) {
     const user = await db.collection('users').findOne({ id: userId });
 
     if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
     }
 
     return NextResponse.json({
@@ -179,7 +179,7 @@ async function handleGetTurmas(request) {
 
     return NextResponse.json({ turmas });
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 401 });
+    return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
   }
 }
 
@@ -224,7 +224,7 @@ async function handleGetAlunos(request, turmaId) {
     // Verify turma belongs to user
     const turma = await db.collection('turmas').findOne({ id: turmaId, userId });
     if (!turma) {
-      return NextResponse.json({ error: 'Turma not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Turma não encontrada' }, { status: 404 });
     }
 
     const alunos = await db.collection('alunos')
@@ -234,7 +234,7 @@ async function handleGetAlunos(request, turmaId) {
 
     return NextResponse.json({ alunos });
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 401 });
+    return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
   }
 }
 
@@ -320,7 +320,7 @@ async function handleGerarPerfil(request) {
     const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
     if (!projectId) {
       return NextResponse.json({
-        error: 'Vertex AI not configured. Set GOOGLE_CLOUD_PROJECT_ID in .env'
+        error: 'Vertex AI não configurado. Defina GOOGLE_CLOUD_PROJECT_ID no ambiente.'
       }, { status: 400 });
     }
 
@@ -426,13 +426,13 @@ async function handleDissertativaUpload(file, gabarito, turmaId, alunoId, period
     const turma = await db.collection('turmas').findOne({ id: turmaId, userId });
     if (!turma) {
       console.error('❌ [DISSERTATIVA] Turma não encontrada:', turmaId);
-      return NextResponse.json({ error: 'Turma not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Turma não encontrada' }, { status: 404 });
     }
 
     const aluno = await db.collection('alunos').findOne({ id: alunoId, turmaId });
     if (!aluno) {
       console.error('❌ [DISSERTATIVA] Aluno não encontrado:', alunoId);
-      return NextResponse.json({ error: 'Aluno not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Aluno não encontrado' }, { status: 404 });
     }
 
     console.log('✅ [DISSERTATIVA] Turma e aluno verificados');
@@ -484,7 +484,7 @@ async function handleDissertativaUpload(file, gabarito, turmaId, alunoId, period
     if (!projectId) {
       console.error('❌ [DISSERTATIVA] Project ID não configurado');
       return NextResponse.json({
-        error: 'Vertex AI not configured. Set GOOGLE_CLOUD_PROJECT_ID in .env'
+        error: 'Vertex AI não configurado. Defina GOOGLE_CLOUD_PROJECT_ID no ambiente.'
       }, { status: 400 });
     }
 
@@ -609,21 +609,8 @@ IMPORTANTE:
 - O feedback deve ser construtivo e educativo
 - No feedback_geral, mencione explicitamente as habilidades com melhor e pior desempenho`;
 
-    // Debitar créditos ANTES de processar (será revertido em caso de erro)
-    await db.collection('creditos').updateOne(
-      { userId },
-      { $inc: { saldoAtual: -3 } }
-    );
-
+    // O sistema de créditos foi abolido. O acesso é controlado por assinatura ou trial.
     const transactionId = uuidv4();
-    await db.collection('transacoes_creditos').insertOne({
-      id: transactionId,
-      userId,
-      tipo: 'debito',
-      quantidade: -3,
-      descricao: 'Correção de prova (dissertativa)',
-      createdAt: new Date()
-    });
 
     let responseText;
     try {
@@ -664,19 +651,8 @@ IMPORTANTE:
         stack: error.stack
       });
 
-      // Rollback: restaurar créditos em caso de erro
-      console.log('🔄 [DISSERTATIVA] Restaurando créditos...');
-      await db.collection('creditos').updateOne(
-        { userId },
-        { $inc: { saldoAtual: 3 } }
-      );
-      await db.collection('transacoes_creditos').updateOne(
-        { id: transactionId },
-        { $set: { descricao: 'Correção de prova (dissertativa) - ERRO: créditos restaurados' } }
-      );
-
       return NextResponse.json({
-        error: `Failed to process image with Vertex AI. Credits have been restored. ${error.message}`
+        error: `Erro ao processar imagem com Vertex AI: ${error.message}`
       }, { status: 500 });
     }
 
@@ -702,19 +678,9 @@ IMPORTANTE:
         throw new Error('Missing or invalid exercicios array in response');
       }
     } catch (e) {
-      // Rollback: restaurar créditos em caso de erro de parsing
-      await db.collection('creditos').updateOne(
-        { userId },
-        { $inc: { saldoAtual: 3 } }
-      );
-      await db.collection('transacoes_creditos').updateOne(
-        { id: transactionId },
-        { $set: { descricao: 'Correção de prova (dissertativa) - ERRO DE PARSING: créditos restaurados' } }
-      );
-
       console.error('Failed to parse Vertex AI response:', e, responseText);
       return NextResponse.json({
-        error: 'Failed to parse correction response. Credits have been restored. Please try again.'
+        error: 'Falha ao processar a resposta da correção. Por favor, tente novamente.'
       }, { status: 500 });
     }
 
@@ -845,12 +811,12 @@ async function handleMultiplaEscolhaUpload(file, gabarito, turmaId, alunoId, per
     // Verificar turma e aluno
     const turma = await db.collection('turmas').findOne({ id: turmaId, userId });
     if (!turma) {
-      return NextResponse.json({ error: 'Turma not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Turma não encontrada' }, { status: 404 });
     }
 
     const aluno = await db.collection('alunos').findOne({ id: alunoId, turmaId });
     if (!aluno) {
-      return NextResponse.json({ error: 'Aluno not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Aluno não encontrado' }, { status: 404 });
     }
 
     // Salvar arquivo
@@ -877,7 +843,7 @@ async function handleMultiplaEscolhaUpload(file, gabarito, turmaId, alunoId, per
     const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
     if (!projectId) {
       return NextResponse.json({
-        error: 'Vertex AI not configured. Set GOOGLE_CLOUD_PROJECT_ID in .env'
+        error: 'Vertex AI não configurado. Defina GOOGLE_CLOUD_PROJECT_ID no ambiente.'
       }, { status: 400 });
     }
 
@@ -919,21 +885,8 @@ Retorne APENAS um JSON válido no formato:
 
 IMPORTANTE: Retorne apenas o JSON, sem texto adicional.`;
 
-    // Debitar créditos ANTES de processar (será revertido em caso de erro)
-    await db.collection('creditos').updateOne(
-      { userId },
-      { $inc: { saldoAtual: -3 } }
-    );
-
+    // O sistema de créditos foi abolido.
     const transactionId = uuidv4();
-    await db.collection('transacoes_creditos').insertOne({
-      id: transactionId,
-      userId,
-      tipo: 'debito',
-      quantidade: -3,
-      descricao: 'Correção de prova (múltipla escolha)',
-      createdAt: new Date()
-    });
 
     let ocrText;
     try {
@@ -959,19 +912,9 @@ IMPORTANTE: Retorne apenas o JSON, sem texto adicional.`;
 
       ocrText = await callGeminiAPIWithRetry(geminiUrl, geminiBody);
     } catch (error) {
-      // Rollback: restaurar créditos em caso de erro
-      await db.collection('creditos').updateOne(
-        { userId },
-        { $inc: { saldoAtual: 3 } }
-      );
-      await db.collection('transacoes_creditos').updateOne(
-        { id: transactionId },
-        { $set: { descricao: 'Correção de prova (múltipla escolha) - ERRO: créditos restaurados' } }
-      );
-
       console.error('Vertex AI error:', error);
       return NextResponse.json({
-        error: `Failed to process image with Vertex AI. Credits have been restored. ${error.message}`
+        error: `Erro ao processar imagem com Vertex AI: ${error.message}`
       }, { status: 500 });
     }
 
@@ -991,19 +934,9 @@ IMPORTANTE: Retorne apenas o JSON, sem texto adicional.`;
 
       respostasAluno = parsed.respostas;
     } catch (e) {
-      // Rollback: restaurar créditos em caso de erro de parsing
-      await db.collection('creditos').updateOne(
-        { userId },
-        { $inc: { saldoAtual: 3 } }
-      );
-      await db.collection('transacoes_creditos').updateOne(
-        { id: transactionId },
-        { $set: { descricao: 'Correção de prova (múltipla escolha) - ERRO DE PARSING: créditos restaurados' } }
-      );
-
       console.error('Failed to parse Vertex AI response:', e, ocrText);
       return NextResponse.json({
-        error: 'Failed to parse OCR response. Credits have been restored. Please try again.'
+        error: 'Falha ao processar OCR. Por favor, tente novamente.'
       }, { status: 500 });
     }
 
@@ -1114,13 +1047,23 @@ async function handleUpload(request) {
     const userId = await requireAuth(request);
     const { db } = await connectToDatabase();
 
-    // Check credits
-    const credits = await db.collection('creditos').findOne({ userId });
-    console.log('💰 [UPLOAD] Créditos do usuário:', credits?.saldoAtual || 0);
-    if (!credits || credits.saldoAtual < 3) {
+    const user = await db.collection('users').findOne({ id: userId });
+    
+    // Verificar se o usuário tem acesso (assinatura premium ou trial de 7 dias)
+    const trialDays = 7;
+    const trialStartedAt = user.trialStartedAt ? new Date(user.trialStartedAt) : new Date(user.createdAt);
+    const now = new Date();
+    const diffTime = Math.abs(now - trialStartedAt);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    const isSubscriber = user.assinatura === 'premium';
+    const isTrialActive = diffDays <= trialDays;
+
+    if (!isSubscriber && !isTrialActive) {
       return NextResponse.json({
-        error: '⚠️ Saldo de créditos insuficiente. Você precisa de pelo menos 3 créditos para realizar uma correção.'
-      }, { status: 400 });
+        error: '⚠️ Seu período de teste gratuito de 7 dias expirou. Por favor, assine um plano para continuar utilizando o sistema.',
+        expired: true
+      }, { status: 403 });
     }
 
     // Verificar Vertex AI configurado
@@ -1265,7 +1208,7 @@ async function handleValidarAvaliacao(request, avaliacaoId) {
     });
 
     if (!avaliacao) {
-      return NextResponse.json({ error: 'Assessment not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Avaliação não encontrada' }, { status: 404 });
     }
 
     await db.collection('avaliacoes_corrigidas').updateOne(
@@ -1327,13 +1270,10 @@ async function handleMarcarComoLida(request, notificacaoId) {
 
 async function handleGetCredits(request) {
   try {
-    const userId = await requireAuth(request);
-    const { db } = await connectToDatabase();
-
-    const credits = await db.collection('creditos').findOne({ userId });
-    return NextResponse.json({ saldoAtual: credits?.saldoAtual || 0 });
+    // O sistema de créditos foi abolido. Retornamos 0 para compatibilidade se houver algum componente antigo.
+    return NextResponse.json({ saldoAtual: 0 });
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 401 });
+    return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
   }
 }
 
@@ -1429,20 +1369,28 @@ async function handleGetPlanoStatus(request) {
 
     const user = await db.collection('users').findOne({ id: userId });
     const plano = user?.assinatura || 'free';
+    
+    // Lógica de Trial de 7 dias
+    const trialDays = 7;
+    const trialStartedAt = user?.trialStartedAt ? new Date(user.trialStartedAt) : (user?.createdAt ? new Date(user.createdAt) : new Date());
+    const now = new Date();
+    const diffTime = now - trialStartedAt;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const trialRemainingDays = Math.max(0, trialDays - diffDays);
+    const isTrialActive = diffDays <= trialDays;
+    const isSubscriber = plano === 'premium';
+
     const limites = {
       free: {
-        nome: 'Gratuito',
-        provasPorMes: 20,
-        correcaoIlimitada: false,
-        analyticsAvancado: false,
-        assistenteDiscursivo: false
+        nome: 'Gratuito (Trial)',
+        trialDays: 7,
+        trialRemainingDays,
+        isTrialActive,
+        hasAccess: isTrialActive || isSubscriber
       },
       premium: {
-        nome: 'Premium',
-        provasPorMes: -1,
-        correcaoIlimitada: true,
-        analyticsAvancado: true,
-        assistenteDiscursivo: true
+        nome: 'Assinante Premium',
+        hasAccess: true
       }
     };
 
@@ -1477,6 +1425,9 @@ async function handleGetPlanoStatus(request) {
 
     return NextResponse.json({
       plano,
+      isSubscriber,
+      isTrialActive,
+      trialRemainingDays,
       limites: limitesPlano,
       uso: {
         turmas: turmasCount,
@@ -1533,7 +1484,7 @@ export async function POST(request) {
   if (pathname === '/api/upload') return handleUpload(request);
   if (pathname === '/api/admin/add-admin') return handleAddAdmin(request);
 
-  return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  return NextResponse.json({ error: 'Recurso não encontrado' }, { status: 404 });
 }
 
 async function handleGetImage(request, id) {
@@ -1550,7 +1501,7 @@ async function handleGetImage(request, id) {
     });
   } catch (error) {
     console.error(`❌ [IMAGE HANDLER] Erro:`, error.message);
-    return NextResponse.json({ error: 'Image not found' }, { status: 404 });
+    return NextResponse.json({ error: 'Imagem não encontrada' }, { status: 404 });
   }
 }
 
@@ -1579,7 +1530,7 @@ export async function GET(request) {
     return handleGetAlunos(request, turmaId);
   }
 
-  return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  return NextResponse.json({ error: 'Recurso não encontrado' }, { status: 404 });
 }
 
 export async function PUT(request) {
@@ -1599,5 +1550,5 @@ export async function PUT(request) {
     return handleMarcarComoLida(request, notificacaoId);
   }
 
-  return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  return NextResponse.json({ error: 'Recurso não encontrado' }, { status: 404 });
 }

@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 import { FileText, Upload as UploadIcon, Plus, Trash2, X } from 'lucide-react';
 import { TIPO_GABARITO } from '@/lib/constants';
 
-export default function GabaritosSection() {
+export default function GabaritosSection({ setActiveView }) {
   const [gabaritos, setGabaritos] = useState([]);
   const [perfis, setPerfis] = useState([]);
   const [habilidades, setHabilidades] = useState([]);
@@ -337,7 +337,19 @@ export default function GabaritosSection() {
             ) : (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="perfil">Perfil de Avaliação</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="perfil">Perfil de Avaliação</Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setActiveView('perfis')}
+                      className="text-blue-600 hover:text-blue-700 h-7 px-2"
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Novo Perfil
+                    </Button>
+                  </div>
                   <Select
                     value={formData.perfilAvaliacaoId || ''}
                     onValueChange={(value) => setFormData({ ...formData, perfilAvaliacaoId: value || '' })}
@@ -365,6 +377,7 @@ export default function GabaritosSection() {
                     type="file"
                     accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
                     onChange={handleFileChange}
+                    className="cursor-pointer file:cursor-pointer"
                   />
                   <p className="text-xs text-gray-500">
                     Envie o gabarito em formato PDF, Word ou Imagem

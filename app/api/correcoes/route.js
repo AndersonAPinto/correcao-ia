@@ -12,12 +12,12 @@ async function handleDissertativaUpload(file, gabarito, turmaId, alunoId, period
         // Verificar turma e aluno
         const turma = await db.collection('turmas').findOne({ id: turmaId, userId });
         if (!turma) {
-            return NextResponse.json({ error: 'Turma not found' }, { status: 404 });
+            return NextResponse.json({ error: 'Turma não encontrada' }, { status: 404 });
         }
 
         const aluno = await db.collection('alunos').findOne({ id: alunoId, turmaId });
         if (!aluno) {
-            return NextResponse.json({ error: 'Aluno not found' }, { status: 404 });
+            return NextResponse.json({ error: 'Aluno não encontrado' }, { status: 404 });
         }
 
         // Salvar arquivo
@@ -40,7 +40,7 @@ async function handleDissertativaUpload(file, gabarito, turmaId, alunoId, period
         const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
         if (!projectId) {
             return NextResponse.json({
-                error: 'Vertex AI not configured. Set GOOGLE_CLOUD_PROJECT_ID in .env'
+                error: 'Vertex AI não configurado. Defina GOOGLE_CLOUD_PROJECT_ID no ambiente.'
             }, { status: 400 });
         }
 
@@ -154,21 +154,8 @@ IMPORTANTE:
 - O feedback deve ser construtivo e educativo
 - No feedback_geral, mencione explicitamente as habilidades com melhor e pior desempenho`;
 
-        // Debitar créditos ANTES de processar (será revertido em caso de erro)
-        await db.collection('creditos').updateOne(
-            { userId },
-            { $inc: { saldoAtual: -3 } }
-        );
-
+        // O sistema de créditos foi abolido.
         const transactionId = uuidv4();
-        await db.collection('transacoes_creditos').insertOne({
-            id: transactionId,
-            userId,
-            tipo: 'debito',
-            quantidade: -3,
-            descricao: 'Correção de prova (dissertativa)',
-            createdAt: new Date()
-        });
 
         let responseText;
         try {
@@ -200,21 +187,11 @@ IMPORTANTE:
 
             responseText = await callGeminiAPIWithRetry(geminiUrl, geminiBody);
         } catch (error) {
-            // Rollback: restaurar créditos em caso de erro
-            await db.collection('creditos').updateOne(
-                { userId },
-                { $inc: { saldoAtual: 3 } }
-            );
-            await db.collection('transacoes_creditos').updateOne(
-                { id: transactionId },
-                { $set: { descricao: 'Correção de prova (dissertativa) - ERRO: créditos restaurados' } }
-            );
-
             console.error('Gemini API error:', error);
 
             // Retornar a mensagem de erro detalhada da API handler se disponível
             return NextResponse.json({
-                error: `Failed to process image with Vertex AI. Credits have been restored. ${error.message}`
+                error: `Erro ao processar imagem com Vertex AI: ${error.message}`
             }, { status: 500 });
         }
 
@@ -241,19 +218,9 @@ IMPORTANTE:
                 throw new Error('Missing or invalid exercicios array in response');
             }
         } catch (e) {
-            // Rollback: restaurar créditos em caso de erro de parsing
-            await db.collection('creditos').updateOne(
-                { userId },
-                { $inc: { saldoAtual: 3 } }
-            );
-            await db.collection('transacoes_creditos').updateOne(
-                { id: transactionId },
-                { $set: { descricao: 'Correção de prova (dissertativa) - ERRO DE PARSING: créditos restaurados' } }
-            );
-
             console.error('Failed to parse Gemini response:', e, responseText);
             return NextResponse.json({
-                error: 'Failed to parse correction response. Credits have been restored. Please try again.'
+                error: 'Falha ao processar a resposta da correção. Por favor, tente novamente.'
             }, { status: 500 });
         }
 
@@ -390,12 +357,12 @@ async function handleMultiplaEscolhaUpload(file, gabarito, turmaId, alunoId, per
         // Verificar turma e aluno
         const turma = await db.collection('turmas').findOne({ id: turmaId, userId });
         if (!turma) {
-            return NextResponse.json({ error: 'Turma not found' }, { status: 404 });
+            return NextResponse.json({ error: 'Turma não encontrada' }, { status: 404 });
         }
 
         const aluno = await db.collection('alunos').findOne({ id: alunoId, turmaId });
         if (!aluno) {
-            return NextResponse.json({ error: 'Aluno not found' }, { status: 404 });
+            return NextResponse.json({ error: 'Aluno não encontrado' }, { status: 404 });
         }
 
         // Salvar arquivo
@@ -418,7 +385,7 @@ async function handleMultiplaEscolhaUpload(file, gabarito, turmaId, alunoId, per
         const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
         if (!projectId) {
             return NextResponse.json({
-                error: 'Vertex AI not configured. Set GOOGLE_CLOUD_PROJECT_ID in .env'
+                error: 'Vertex AI não configurado. Defina GOOGLE_CLOUD_PROJECT_ID no ambiente.'
             }, { status: 400 });
         }
 
@@ -461,21 +428,8 @@ Retorne APENAS um JSON válido no formato:
 
 IMPORTANTE: Retorne apenas o JSON, sem texto adicional.`;
 
-        // Debitar créditos ANTES de processar (será revertido em caso de erro)
-        await db.collection('creditos').updateOne(
-            { userId },
-            { $inc: { saldoAtual: -3 } }
-        );
-
+        // O sistema de créditos foi abolido.
         const transactionId = uuidv4();
-        await db.collection('transacoes_creditos').insertOne({
-            id: transactionId,
-            userId,
-            tipo: 'debito',
-            quantidade: -3,
-            descricao: 'Correção de prova (múltipla escolha)',
-            createdAt: new Date()
-        });
 
         let ocrText;
         try {
@@ -501,19 +455,9 @@ IMPORTANTE: Retorne apenas o JSON, sem texto adicional.`;
 
             ocrText = await callGeminiAPIWithRetry(geminiUrl, geminiBody);
         } catch (error) {
-            // Rollback: restaurar créditos em caso de erro
-            await db.collection('creditos').updateOne(
-                { userId },
-                { $inc: { saldoAtual: 3 } }
-            );
-            await db.collection('transacoes_creditos').updateOne(
-                { id: transactionId },
-                { $set: { descricao: 'Correção de prova (múltipla escolha) - ERRO: créditos restaurados' } }
-            );
-
             console.error('Gemini API error:', error);
             return NextResponse.json({
-                error: `Failed to process image with Vertex AI. Credits have been restored. ${error.message}`
+                error: `Erro ao processar imagem com Vertex AI: ${error.message}`
             }, { status: 500 });
         }
 
@@ -534,19 +478,9 @@ IMPORTANTE: Retorne apenas o JSON, sem texto adicional.`;
 
             respostasAluno = parsed.respostas;
         } catch (e) {
-            // Rollback: restaurar créditos em caso de erro de parsing
-            await db.collection('creditos').updateOne(
-                { userId },
-                { $inc: { saldoAtual: 3 } }
-            );
-            await db.collection('transacoes_creditos').updateOne(
-                { id: transactionId },
-                { $set: { descricao: 'Correção de prova (múltipla escolha) - ERRO DE PARSING: créditos restaurados' } }
-            );
-
             console.error('Failed to parse Gemini response:', e, ocrText);
             return NextResponse.json({
-                error: 'Failed to parse OCR response. Credits have been restored. Please try again.'
+                error: 'Falha ao processar OCR. Por favor, tente novamente.'
             }, { status: 500 });
         }
 
@@ -673,7 +607,7 @@ export async function POST(request) {
         // Fetch gabarito to know type if not provided, or verify
         const gabarito = await db.collection('gabaritos').findOne({ id: gabaritoId });
         if (!gabarito) {
-            return NextResponse.json({ error: 'Gabarito not found' }, { status: 404 });
+            return NextResponse.json({ error: 'Gabarito não encontrado' }, { status: 404 });
         }
 
         if (gabarito.tipo === 'multipla_escolha') {
@@ -683,6 +617,6 @@ export async function POST(request) {
         }
 
     } catch (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: 'Erro interno no servidor' }, { status: 500 });
     }
 }

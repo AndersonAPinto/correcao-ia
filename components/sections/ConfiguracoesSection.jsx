@@ -182,66 +182,42 @@ export default function ConfiguracoesSection({ user, credits }) {
         </CardContent>
       </Card>
 
-      {/* Credits Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CreditCard className="h-5 w-5" />
-            Créditos
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
-            <div>
-              <p className="text-sm text-gray-600">Saldo Atual</p>
-              <p className="text-3xl font-bold text-blue-600">{credits} créditos</p>
-            </div>
-            <Button variant="outline">
-              Adicionar Créditos
-            </Button>
-          </div>
-          <p className="text-xs text-gray-500">
-            Cada correção custa 3 créditos. Adicione mais créditos para continuar usando a plataforma.
-          </p>
-        </CardContent>
-      </Card>
-
       {/* Plano Status Card */}
       {!isAdmin && planoStatus && (
         <Card className="border-blue-200 bg-blue-50/50">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Crown className="h-5 w-5 text-yellow-600" />
-              Plano Atual: {planoStatus.plano === 'free' ? 'Gratuito' : 'Premium'}
+              Plano: {planoStatus.plano === 'premium' ? 'Premium' : 'Gratuito (Período de Teste)'}
             </CardTitle>
             <CardDescription>
-              {planoStatus.plano === 'free'
-                ? `Você usou ${planoStatus.usado} de ${planoStatus.limites.provasPorMes} provas este mês`
-                : 'Correção ilimitada ativada'}
+              {planoStatus.plano === 'premium'
+                ? 'Você possui acesso ilimitado a todas as funcionalidades.'
+                : `Você tem ${planoStatus.trialRemainingDays} dias restantes de uso gratuito.`}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {planoStatus.plano === 'free' && (
+            {!planoStatus.isSubscriber && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Uso mensal</span>
+                  <span className="text-sm text-gray-600">Período de teste</span>
                   <span className="text-sm font-semibold">
-                    {planoStatus.usado} / {planoStatus.limites.provasPorMes}
+                    {7 - planoStatus.trialRemainingDays} / 7 dias usados
                   </span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div
                     className="bg-blue-600 h-2 rounded-full transition-all"
-                    style={{ width: `${(planoStatus.usado / planoStatus.limites.provasPorMes) * 100}%` }}
+                    style={{ width: `${((7 - planoStatus.trialRemainingDays) / 7) * 100}%` }}
                   />
                 </div>
-                {planoStatus.restante > 0 ? (
+                {planoStatus.isTrialActive ? (
                   <p className="text-xs text-gray-600">
-                    {planoStatus.restante} provas restantes este mês
+                    Seu acesso expira em {planoStatus.trialRemainingDays} dias.
                   </p>
                 ) : (
                   <p className="text-xs text-red-600 font-semibold">
-                    Limite mensal atingido!
+                    Seu período de teste expirou!
                   </p>
                 )}
               </div>
@@ -251,7 +227,7 @@ export default function ConfiguracoesSection({ user, credits }) {
               onClick={() => setPaywallOpen(true)}
               variant={planoStatus.plano === 'premium' ? 'outline' : 'default'}
             >
-              {planoStatus.plano === 'premium' ? 'Gerenciar Assinatura' : 'Fazer Upgrade para Premium'}
+              {planoStatus.plano === 'premium' ? 'Gerenciar Assinatura' : 'Assinar Plano Premium'}
             </Button>
           </CardContent>
         </Card>

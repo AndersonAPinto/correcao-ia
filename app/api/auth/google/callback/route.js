@@ -31,7 +31,7 @@ export async function GET(request) {
     const baseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
 
     if (!code) {
-      return NextResponse.redirect(getAbsoluteUrl('/?error=oauth_cancelled', baseUrl));
+      return NextResponse.redirect(getAbsoluteUrl('/?error=oauth_cancelado', baseUrl));
     }
 
     // Decodificar e validar state (proteção CSRF)
@@ -42,12 +42,12 @@ export async function GET(request) {
         redirectUrl = decodedState.redirect || '/';
         // Validar timestamp (state não deve ser muito antigo - 10 minutos)
         if (decodedState.timestamp && Date.now() - decodedState.timestamp > 10 * 60 * 1000) {
-          return NextResponse.redirect(getAbsoluteUrl('/?error=state_expired', baseUrl));
+          return NextResponse.redirect(getAbsoluteUrl('/?error=sessao_expirada', baseUrl));
         }
       }
     } catch (e) {
       console.error('Error decoding state:', e);
-      return NextResponse.redirect(getAbsoluteUrl('/?error=invalid_state', baseUrl));
+      return NextResponse.redirect(getAbsoluteUrl('/?error=estado_invalido', baseUrl));
     }
 
     // Trocar código por tokens
@@ -56,7 +56,7 @@ export async function GET(request) {
 
     // ✅ VALIDAÇÃO CRÍTICA DE SEGURANÇA
     if (!tokens.id_token) {
-      return NextResponse.redirect(getAbsoluteUrl('/?error=no_id_token', baseUrl));
+      return NextResponse.redirect(getAbsoluteUrl('/?error=token_ausente', baseUrl));
     }
 
     // Verificar token ID do Google
@@ -69,23 +69,23 @@ export async function GET(request) {
 
     // ✅ VALIDAÇÕES DE SEGURANÇA
     if (!payload) {
-      return NextResponse.redirect(getAbsoluteUrl('/?error=invalid_token', baseUrl));
+      return NextResponse.redirect(getAbsoluteUrl('/?error=token_invalido', baseUrl));
     }
 
     // Validar audience
     if (payload.aud !== process.env.GOOGLE_CLIENT_ID) {
       console.error('Token audience mismatch:', payload.aud, 'expected:', process.env.GOOGLE_CLIENT_ID);
-      return NextResponse.redirect(getAbsoluteUrl('/?error=audience_mismatch', baseUrl));
+      return NextResponse.redirect(getAbsoluteUrl('/?error=erro_seguranca', baseUrl));
     }
 
     // Validar expiração
     if (payload.exp * 1000 < Date.now()) {
-      return NextResponse.redirect(getAbsoluteUrl('/?error=token_expired', baseUrl));
+      return NextResponse.redirect(getAbsoluteUrl('/?error=token_expirado', baseUrl));
     }
 
     // ✅ EMAIL DEVE ESTAR VERIFICADO
     if (!payload.email || !payload.email_verified) {
-      return NextResponse.redirect(getAbsoluteUrl('/?error=email_not_verified', baseUrl));
+      return NextResponse.redirect(getAbsoluteUrl('/?error=email_nao_verificado', baseUrl));
     }
 
     const { email, name, picture, sub: googleId } = payload;
@@ -119,6 +119,7 @@ export async function GET(request) {
         password: null, // Sem senha para usuários OAuth
         isAdmin,
         assinatura: 'free',
+        trialStartedAt: new Date(), // Início do período de 7 dias
         emailVerified: true,
         createdAt: new Date(),
         lastLogin: new Date()
@@ -126,22 +127,7 @@ export async function GET(request) {
 
       await db.collection('users').insertOne(user);
 
-      // Criar créditos iniciais
-      await db.collection('creditos').insertOne({
-        id: uuidv4(),
-        userId,
-        saldoAtual: 1000,
-        createdAt: new Date()
-      });
-
-      await db.collection('transacoes_creditos').insertOne({
-        id: uuidv4(),
-        userId,
-        tipo: 'credito',
-        quantidade: 1000,
-        descricao: 'Créditos iniciais de boas-vindas',
-        createdAt: new Date()
-      });
+      // O sistema de créditos foi abolido.
     } else {
       // Atualizar usuário existente
       await db.collection('users').updateOne(

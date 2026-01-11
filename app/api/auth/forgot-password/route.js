@@ -35,10 +35,21 @@ export async function POST(request) {
 
         // Enviar email
         try {
-            await EmailService.sendPasswordResetEmail(user.email, user.name, resetToken);
+            const result = await EmailService.sendPasswordResetEmail(user.email, user.name, resetToken);
+            if (!result.success) {
+                console.error('Email service returned error:', result.error);
+                // Log mas não falha a requisição (security best practice)
+            } else {
+                console.log('✅ Email de recuperação enviado com sucesso para:', user.email);
+            }
         } catch (emailError) {
-            console.error('Error sending email:', emailError);
-            // Não falhar a requisição se email falhar
+            console.error('❌ Erro ao enviar email de recuperação:', emailError);
+            console.error('Detalhes do erro:', {
+                message: emailError.message,
+                stack: emailError.stack,
+                resendConfigured: !!process.env.RESEND_API_KEY
+            });
+            // Não falhar a requisição se email falhar (security best practice)
         }
 
         return NextResponse.json({
