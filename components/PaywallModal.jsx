@@ -16,10 +16,10 @@ export default function PaywallModal({ open, onOpenChange, planoStatus }) {
   if (!planoStatus) return null;
 
   const features = [
-    { name: 'Correção Ilimitada', free: false, premium: true },
+    { name: 'Correção Ilimitada', free: true, premium: true },
     { name: 'Dashboard de Analytics', free: true, premium: true },
     { name: 'Relatórios de Habilidades', free: true, premium: true },
-    { name: 'Assistente de Correção Discursiva', free: false, premium: true },
+    { name: 'Assistente de Correção Discursiva', free: true, premium: true },
     { name: 'Exportação CSV/Excel', free: true, premium: true },
     { name: 'Upload em Lote', free: true, premium: true },
     { name: 'Suporte Prioritário', free: false, premium: true }
@@ -47,16 +47,16 @@ export default function PaywallModal({ open, onOpenChange, planoStatus }) {
             <CardContent>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-semibold">Plano {planoStatus.plano === 'free' ? 'Gratuito' : 'Premium'}</p>
-                  {planoStatus.plano === 'free' && (
+                  <p className="font-semibold">Plano {planoStatus.plano === 'premium' ? 'Premium' : 'Gratuito (Trial)'}</p>
+                  {!planoStatus.isSubscriber && (
                     <p className="text-sm text-gray-600">
-                      {planoStatus.usado} de {planoStatus.limites.provasPorMes} provas usadas este mês
+                      {planoStatus.trialRemainingDays} dias restantes de acesso gratuito
                     </p>
                   )}
                 </div>
-                {planoStatus.plano === 'free' && (
+                {!planoStatus.isSubscriber && (
                   <Badge variant="outline" className="bg-white">
-                    {planoStatus.restante} restantes
+                    {planoStatus.trialRemainingDays} dias
                   </Badge>
                 )}
               </div>
@@ -68,28 +68,24 @@ export default function PaywallModal({ open, onOpenChange, planoStatus }) {
             {/* Plano Gratuito */}
             <Card>
               <CardHeader>
-                <CardTitle>Gratuito</CardTitle>
+                <CardTitle>Gratuito (Trial)</CardTitle>
                 <CardDescription>Ideal para testar a plataforma</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
                   <p className="text-3xl font-bold">R$ 0</p>
-                  <p className="text-sm text-gray-500">por mês</p>
+                  <p className="text-sm text-gray-500">por 7 dias</p>
                 </div>
                 <ul className="space-y-2">
                   {features.map((feature, idx) => (
                     <li key={idx} className="flex items-center gap-2 text-sm">
-                      {feature.free ? (
-                        <Check className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <X className="h-4 w-4 text-gray-400" />
-                      )}
-                      <span className={feature.free ? '' : 'text-gray-400'}>{feature.name}</span>
+                      <Check className="h-4 w-4 text-green-600" />
+                      <span>{feature.name}</span>
                     </li>
                   ))}
                   <li className="flex items-center gap-2 text-sm">
                     <Check className="h-4 w-4 text-green-600" />
-                    <span>Até {planoStatus.limites.provasPorMes} provas por mês</span>
+                    <span className="font-semibold text-blue-600">Acesso total por 7 dias</span>
                   </li>
                 </ul>
               </CardContent>
@@ -133,11 +129,11 @@ export default function PaywallModal({ open, onOpenChange, planoStatus }) {
 
           {/* Nota sobre upgrade */}
           <div className="bg-gray-50 p-4 rounded-lg text-sm text-gray-600">
-            <p className="font-semibold mb-1">💡 Por que fazer upgrade?</p>
+            <p className="font-semibold mb-1">💡 Por que assinar o Premium?</p>
             <p>
-              Com o plano Premium, você tem acesso ilimitado a todas as funcionalidades, 
-              incluindo correção ilimitada de provas, assistente avançado de correção discursiva 
-              e suporte prioritário. Ideal para professores que precisam corrigir muitas provas.
+              Ao final dos 7 dias de teste, você precisará de uma assinatura ativa para continuar corrigindo provas. 
+              Com o plano Premium, você garante acesso contínuo e ilimitado a todas as funcionalidades, 
+              além de suporte prioritário para tirar suas dúvidas.
             </p>
           </div>
 

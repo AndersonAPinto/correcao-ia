@@ -8,7 +8,7 @@ export async function POST(request) {
         const { email } = await request.json();
 
         if (!email) {
-            return NextResponse.json({ error: 'Email required' }, { status: 400 });
+            return NextResponse.json({ error: '⚠️ O e-mail do usuário é obrigatório.' }, { status: 400 });
         }
 
         const { db } = await connectToDatabase();
@@ -18,10 +18,10 @@ export async function POST(request) {
         );
 
         if (result.matchedCount === 0) {
-            return NextResponse.json({ error: 'User not found' }, { status: 404 });
+            return NextResponse.json({ error: '❌ Usuário não encontrado com este e-mail.' }, { status: 404 });
         }
 
-        return NextResponse.json({ success: true });
+        return NextResponse.json({ success: true, message: '✅ Usuário promovido a administrador com sucesso!' });
     } catch (error) {
         return NextResponse.json({ error: error.message }, { status: 403 });
     }

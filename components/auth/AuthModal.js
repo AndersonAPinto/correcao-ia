@@ -18,20 +18,39 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'login', onAut
     const [formData, setFormData] = useState({
         email: '',
         password: '',
+        confirmPassword: '',
         name: ''
     });
+    const [passwordError, setPasswordError] = useState('');
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        
+        // Validar confirmação de senha apenas no registro
+        if (activeTab === 'register') {
+            if (formData.password !== formData.confirmPassword) {
+                setPasswordError('As senhas não coincidem');
+                return;
+            }
+            if (formData.password.length < 6) {
+                setPasswordError('A senha deve ter pelo menos 6 caracteres');
+                return;
+            }
+            setPasswordError('');
+        }
+        
         setIsLoading(true);
 
         const endpoint = activeTab === 'login' ? '/api/auth/login' : '/api/auth/register';
+        
+        // Remover confirmPassword antes de enviar
+        const { confirmPassword, ...dataToSend } = formData;
 
         try {
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
+                body: JSON.stringify(dataToSend)
             });
 
             const data = await response.json();
@@ -40,6 +59,9 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'login', onAut
                 toast.success(activeTab === 'login' ? '👋 Bem-vindo de volta! Login realizado.' : '🎉 Conta criada com sucesso! Bem-vindo ao CorregIA.');
                 onAuthSuccess(data);
                 onClose();
+                // Limpar formulário
+                setFormData({ email: '', password: '', confirmPassword: '', name: '' });
+                setPasswordError('');
             } else {
                 toast.error(data.error || 'Erro na autenticação. Verifique seus dados.');
             }
@@ -147,9 +169,30 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'login', onAut
                                     type="password"
                                     placeholder="••••••••"
                                     value={formData.password}
-                                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                    onChange={(e) => {
+                                        setFormData({ ...formData, password: e.target.value });
+                                        setPasswordError('');
+                                    }}
                                     required
                                 />
+                                {activeTab === 'register' && (
+                                    <>
+                                        <Input
+                                            id="confirmPassword"
+                                            type="password"
+                                            placeholder="Confirme sua senha"
+                                            value={formData.confirmPassword}
+                                            onChange={(e) => {
+                                                setFormData({ ...formData, confirmPassword: e.target.value });
+                                                setPasswordError('');
+                                            }}
+                                            required
+                                        />
+                                        {passwordError && (
+                                            <p className="text-sm text-red-600">{passwordError}</p>
+                                        )}
+                                    </>
+                                )}
                             </div>
 
                             <Button type="submit" className="w-full h-11" disabled={isLoading}>
