@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
-import { requireAuth, callGeminiAPI } from '@/lib/api-handlers';
+import { requireAuth, callGeminiAPI, isVertexAIConfigured } from '@/lib/api-handlers';
 
 export async function POST(request) {
     try {
@@ -13,11 +13,10 @@ export async function POST(request) {
 
         const { db } = await connectToDatabase();
 
-        // Verificar configuração do Vertex AI
-        const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
-        if (!projectId) {
+        // Verificar configuração do Vertex AI (verifica variável de ambiente e arquivo JSON)
+        if (!isVertexAIConfigured()) {
             return NextResponse.json({
-                error: 'Vertex AI not configured. Set GOOGLE_CLOUD_PROJECT_ID in .env'
+                error: 'Vertex AI not configured. Set GOOGLE_CLOUD_PROJECT_ID in .env or configure credentials file'
             }, { status: 400 });
         }
 

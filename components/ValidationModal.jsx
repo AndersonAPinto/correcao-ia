@@ -15,14 +15,24 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { CheckCircle2, Image as ImageIcon, Edit2, Save } from 'lucide-react';
+import { CheckCircle2, Image as ImageIcon, Edit2, Save, Award } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import HabilidadeCard from '@/components/avaliacao/HabilidadeCard';
+import AdicionarHabilidadeForm from '@/components/avaliacao/AdicionarHabilidadeForm';
 
 export default function ValidationModal({ open, onOpenChange, avaliacao, onValidated, isPending }) {
   const [validating, setValidating] = useState(false);
   const [editing, setEditing] = useState(false);
   const [notaFinal, setNotaFinal] = useState(0);
   const [questoesEditadas, setQuestoesEditadas] = useState([]);
+  const [habilidades, setHabilidades] = useState([]);
+  const [habilidadesAvaliacao, setHabilidadesAvaliacao] = useState([]);
+  const [loadingHabilidades, setLoadingHabilidades] = useState(false);
+  const [adicionandoHabilidade, setAdicionandoHabilidade] = useState(false);
+  const [habilidadeSelecionada, setHabilidadeSelecionada] = useState('');
+  const [editandoHabilidadeId, setEditandoHabilidadeId] = useState(null);
+  const [pontuacaoEditando, setPontuacaoEditando] = useState(0);
+  const [justificativaEditando, setJustificativaEditando] = useState('');
 
   useEffect(() => {
     if (avaliacao) {
@@ -42,8 +52,181 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
       } else {
         setQuestoesEditadas([]);
       }
+
+      // Carregar habilidades da avaliação
+      if (avaliacao.id) {
+        loadHabilidadesAvaliacao();
+      }
     }
   }, [avaliacao]);
+
+  useEffect(() => {
+    if (open && avaliacao) {
+      loadHabilidadesDisponiveis();
+    }
+  }, [open, avaliacao]);
+
+  const loadHabilidadesDisponiveis = async () => {
+    const token = localStorage.getItem('token');
+    try {
+      const response = await fetch('/api/habilidades', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setHabilidades(data.habilidades || []);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar habilidades:', error);
+    }
+  };
+
+  const loadHabilidadesAvaliacao = async () => {
+    if (!avaliacao?.id) return;
+
+    setLoadingHabilidades(true);
+    const token = localStorage.getItem('token');
+    try {
+      const response = await fetch(`/api/avaliacoes/${avaliacao.id}/habilidades`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setHabilidadesAvaliacao(data.habilidades || []);
+        // Atualizar também os arrays de acertadas/erradas se vierem na resposta
+        if (data.habilidadesAcertadas) {
+          avaliacao.habilidadesAcertadas = data.habilidadesAcertadas;
+        }
+        if (data.habilidadesErradas) {
+          avaliacao.habilidadesErradas = data.habilidadesErradas;
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao carregar habilidades da avaliação:', error);
+    }
+    setLoadingHabilidades(false);
+  };
+
+  const handleAdicionarHabilidade = async (descricaoFoco = '') => {
+    if (!habilidadeSelecionada) {
+      toast.error('Selecione uma habilidade');
+      return;
+    }
+
+    setAdicionandoHabilidade(true);
+    const token = localStorage.getItem('token');
+    try {
+      const response = await fetch(`/api/avaliacoes/${avaliacao.id}/habilidades`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          habilidadeId: habilidadeSelecionada,
+          usarIA: true,
+          descricaoFoco: descricaoFoco.trim() || undefined // Enviar apenas se preenchido
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        toast.success(data.message || 'Habilidade adicionada e avaliada com IA!');
+        setHabilidadeSelecionada('');
+        loadHabilidadesAvaliacao();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Erro ao adicionar habilidade');
+      }
+    } catch (error) {
+      toast.error('Erro de conexão ao adicionar habilidade');
+    }
+    setAdicionandoHabilidade(false);
+  };
+
+  const handleEditarHabilidade = (hab) => {
+    setEditandoHabilidadeId(hab.habilidadeId);
+    setPontuacaoEditando(hab.pontuacao);
+    setJustificativaEditando(hab.justificativa || '');
+  };
+
+  const handleSalvarHabilidade = async (habilidadeId) => {
+    const token = localStorage.getItem('token');
+    try {
+      const response = await fetch(`/api/avaliacoes/${avaliacao.id}/habilidades/${habilidadeId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          pontuacao: pontuacaoEditando,
+          justificativa: justificativaEditando
+        })
+      });
+
+      if (response.ok) {
+        toast.success('Habilidade atualizada com sucesso!');
+        setEditandoHabilidadeId(null);
+        loadHabilidadesAvaliacao();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Erro ao atualizar habilidade');
+      }
+    } catch (error) {
+      toast.error('Erro de conexão ao atualizar habilidade');
+    }
+  };
+
+  const handleReavaliarComIA = async (habilidadeId) => {
+    const token = localStorage.getItem('token');
+    try {
+      const response = await fetch(`/api/avaliacoes/${avaliacao.id}/habilidades/${habilidadeId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          reavaliarComIA: true
+        })
+      });
+
+      if (response.ok) {
+        toast.success('Habilidade reavaliada com IA!');
+        loadHabilidadesAvaliacao();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Erro ao reavaliar habilidade');
+      }
+    } catch (error) {
+      toast.error('Erro de conexão ao reavaliar habilidade');
+    }
+  };
+
+  const handleRemoverHabilidade = async (habilidadeId) => {
+    if (!confirm('Tem certeza que deseja remover esta habilidade?')) {
+      return;
+    }
+
+    const token = localStorage.getItem('token');
+    try {
+      const response = await fetch(`/api/avaliacoes/${avaliacao.id}/habilidades/${habilidadeId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        toast.success('Habilidade removida com sucesso!');
+        loadHabilidadesAvaliacao();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Erro ao remover habilidade');
+      }
+    } catch (error) {
+      toast.error('Erro de conexão ao remover habilidade');
+    }
+  };
 
   const handleQuestaoChange = (index, field, value) => {
     const novasQuestoes = [...questoesEditadas];
@@ -376,6 +559,64 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
                       </div>
                     </details>
                   )}
+
+                  {/* Habilidades Avaliadas */}
+                  <div className="mt-4 border-t pt-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-semibold text-sm text-blue-600 flex items-center gap-2">
+                        <Award className="h-4 w-4" />
+                        Habilidades Avaliadas
+                      </h4>
+                    </div>
+
+                    {/* Adicionar Nova Habilidade - Componente separado */}
+                    <AdicionarHabilidadeForm
+                      habilidades={habilidades}
+                      habilidadesAvaliacao={habilidadesAvaliacao}
+                      habilidadeSelecionada={habilidadeSelecionada}
+                      adicionandoHabilidade={adicionandoHabilidade}
+                      onHabilidadeChange={setHabilidadeSelecionada}
+                      onAdicionar={handleAdicionarHabilidade}
+                    />
+
+                    {/* Lista de Habilidades - Componente separado */}
+                    {loadingHabilidades ? (
+                      <p className="text-sm text-gray-500 text-center py-4">Carregando habilidades...</p>
+                    ) : habilidadesAvaliacao.length > 0 ? (
+                      <div className="space-y-2">
+                        {habilidadesAvaliacao.map((hab) => {
+                          const isAcertada = hab.pontuacao >= 7;
+                          const isEditando = editandoHabilidadeId === hab.habilidadeId;
+
+                          return (
+                            <HabilidadeCard
+                              key={hab.habilidadeId}
+                              habilidade={hab}
+                              isAcertada={isAcertada}
+                              isEditando={isEditando}
+                              pontuacaoEditando={pontuacaoEditando}
+                              justificativaEditando={justificativaEditando}
+                              onEditar={() => handleEditarHabilidade(hab)}
+                              onSalvar={() => handleSalvarHabilidade(hab.habilidadeId)}
+                              onCancelar={() => {
+                                setEditandoHabilidadeId(null);
+                                setPontuacaoEditando(0);
+                                setJustificativaEditando('');
+                              }}
+                              onReavaliarIA={() => handleReavaliarComIA(hab.habilidadeId)}
+                              onRemover={() => handleRemoverHabilidade(hab.habilidadeId)}
+                              onPontuacaoChange={setPontuacaoEditando}
+                              onJustificativaChange={setJustificativaEditando}
+                            />
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500 text-center py-4">
+                        Nenhuma habilidade avaliada ainda. Adicione habilidades acima para obter insights mais detalhados.
+                      </p>
+                    )}
+                  </div>
                 </div>
               </ScrollArea>
 

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
-import { requireAuth, createNotification, callGeminiAPIWithRetry } from '@/lib/api-handlers';
+import { requireAuth, createNotification, callGeminiAPIWithRetry, isVertexAIConfigured } from '@/lib/api-handlers';
 import { v4 as uuidv4 } from 'uuid';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
@@ -36,11 +36,10 @@ async function handleDissertativaUpload(file, gabarito, turmaId, alunoId, period
         const imageUrl = `/uploads/${filename}`;
         const fullImageUrl = `${process.env.NEXT_PUBLIC_BASE_URL}${imageUrl}`;
 
-        // Verificar configuração do Vertex AI
-        const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
-        if (!projectId) {
+        // Verificar configuração do Vertex AI (verifica variável de ambiente e arquivo JSON)
+        if (!isVertexAIConfigured()) {
             return NextResponse.json({
-                error: 'Vertex AI não configurado. Defina GOOGLE_CLOUD_PROJECT_ID no ambiente.'
+                error: 'Vertex AI não configurado. Defina GOOGLE_CLOUD_PROJECT_ID no ambiente ou configure o arquivo de credenciais.'
             }, { status: 400 });
         }
 
@@ -381,11 +380,10 @@ async function handleMultiplaEscolhaUpload(file, gabarito, turmaId, alunoId, per
         const imageUrl = `/uploads/${filename}`;
         const fullImageUrl = `${process.env.NEXT_PUBLIC_BASE_URL}${imageUrl}`;
 
-        // Verificar configuração do Vertex AI
-        const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
-        if (!projectId) {
+        // Verificar configuração do Vertex AI (verifica variável de ambiente e arquivo JSON)
+        if (!isVertexAIConfigured()) {
             return NextResponse.json({
-                error: 'Vertex AI não configurado. Defina GOOGLE_CLOUD_PROJECT_ID no ambiente.'
+                error: 'Vertex AI não configurado. Defina GOOGLE_CLOUD_PROJECT_ID no ambiente ou configure o arquivo de credenciais.'
             }, { status: 400 });
         }
 

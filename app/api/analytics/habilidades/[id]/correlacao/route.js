@@ -51,10 +51,15 @@ export async function GET(request, { params }) {
                 dadosPorAluno[av.alunoId] = {};
             }
 
-            // Processar habilidadesPontuacao
-            if (av.habilidadesPontuacao && typeof av.habilidadesPontuacao === 'object') {
-                Object.entries(av.habilidadesPontuacao).forEach(([habId, pontuacao]) => {
-                    if (typeof pontuacao !== 'number' || pontuacao < 0) return;
+            // Processar habilidadesPontuacao (é um ARRAY)
+            if (av.habilidadesPontuacao && Array.isArray(av.habilidadesPontuacao)) {
+                av.habilidadesPontuacao.forEach(habPont => {
+                    const habId = habPont.habilidadeId || habPont.habilidade_id;
+                    const pontuacao = habPont.pontuacao;
+                    
+                    if (!habId || typeof pontuacao !== 'number' || pontuacao < 0 || pontuacao > 10) {
+                        return; // Pular entradas inválidas
+                    }
 
                     if (!dadosPorAluno[av.alunoId][habId]) {
                         dadosPorAluno[av.alunoId][habId] = [];
