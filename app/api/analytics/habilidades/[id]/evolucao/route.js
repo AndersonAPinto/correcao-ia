@@ -34,10 +34,15 @@ export async function GET(request, { params }) {
                 return `${date.getMonth() + 1}/${date.getFullYear()}`;
             })();
 
-            // Processar habilidades com pontuação por período
-            if (av.habilidadesPontuacao && typeof av.habilidadesPontuacao === 'object') {
-                Object.entries(av.habilidadesPontuacao).forEach(([habId, pontuacao]) => {
-                    if (typeof pontuacao !== 'number' || pontuacao < 0) return;
+            // Processar habilidades com pontuação por período (habilidadesPontuacao é um ARRAY)
+            if (av.habilidadesPontuacao && Array.isArray(av.habilidadesPontuacao)) {
+                av.habilidadesPontuacao.forEach(habPont => {
+                    const habId = habPont.habilidadeId || habPont.habilidade_id;
+                    const pontuacao = habPont.pontuacao;
+                    
+                    if (!habId || typeof pontuacao !== 'number' || pontuacao < 0 || pontuacao > 10) {
+                        return; // Pular entradas inválidas
+                    }
 
                     if (!habilidadesEvolucao[habId]) {
                         habilidadesEvolucao[habId] = {};

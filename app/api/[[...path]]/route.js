@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import { hashPassword, verifyPassword, generateToken, getUserFromRequest } from '@/lib/auth';
-import { requireAuth, requireAdmin, createNotification, callGeminiAPI, callGeminiAPIWithRetry, logAudit, checkRateLimit, registerAttempt } from '@/lib/api-handlers';
+import { requireAuth, requireAdmin, createNotification, callGeminiAPI, callGeminiAPIWithRetry, logAudit, checkRateLimit, registerAttempt, isVertexAIConfigured } from '@/lib/api-handlers';
 import { ADMIN_EMAIL } from '@/lib/constants';
 import { v4 as uuidv4 } from 'uuid';
 import { writeFile, mkdir } from 'fs/promises';
@@ -316,11 +316,10 @@ async function handleGerarPerfil(request) {
 
     const { db } = await connectToDatabase();
 
-    // Verificar configuração do Vertex AI
-    const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
-    if (!projectId) {
+    // Verificar configuração do Vertex AI (verifica variável de ambiente e arquivo JSON)
+    if (!isVertexAIConfigured()) {
       return NextResponse.json({
-        error: 'Vertex AI não configurado. Defina GOOGLE_CLOUD_PROJECT_ID no ambiente.'
+        error: 'Vertex AI não configurado. Defina GOOGLE_CLOUD_PROJECT_ID no ambiente ou configure o arquivo de credenciais.'
       }, { status: 400 });
     }
 
@@ -479,12 +478,11 @@ async function handleDissertativaUpload(file, gabarito, turmaId, alunoId, period
     // URL para acessar a imagem via API
     const imageUrl = `/api/images/${imageId}`;
 
-    // Verificar configuração do Vertex AI
-    const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
-    if (!projectId) {
-      console.error('❌ [DISSERTATIVA] Project ID não configurado');
+    // Verificar configuração do Vertex AI (verifica variável de ambiente e arquivo JSON)
+    if (!isVertexAIConfigured()) {
+      console.error('❌ [DISSERTATIVA] Vertex AI não configurado');
       return NextResponse.json({
-        error: 'Vertex AI não configurado. Defina GOOGLE_CLOUD_PROJECT_ID no ambiente.'
+        error: 'Vertex AI não configurado. Defina GOOGLE_CLOUD_PROJECT_ID no ambiente ou configure o arquivo de credenciais.'
       }, { status: 400 });
     }
 
@@ -839,11 +837,10 @@ async function handleMultiplaEscolhaUpload(file, gabarito, turmaId, alunoId, per
     // URL para acessar a imagem via API
     const imageUrl = `/api/images/${imageId}`;
 
-    // Verificar configuração do Vertex AI
-    const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
-    if (!projectId) {
+    // Verificar configuração do Vertex AI (verifica variável de ambiente e arquivo JSON)
+    if (!isVertexAIConfigured()) {
       return NextResponse.json({
-        error: 'Vertex AI não configurado. Defina GOOGLE_CLOUD_PROJECT_ID no ambiente.'
+        error: 'Vertex AI não configurado. Defina GOOGLE_CLOUD_PROJECT_ID no ambiente ou configure o arquivo de credenciais.'
       }, { status: 400 });
     }
 
@@ -1048,14 +1045,14 @@ async function handleUpload(request) {
     const { db } = await connectToDatabase();
 
     const user = await db.collection('users').findOne({ id: userId });
-    
+
     // Verificar se o usuário tem acesso (assinatura premium ou trial de 7 dias)
     const trialDays = 7;
     const trialStartedAt = user.trialStartedAt ? new Date(user.trialStartedAt) : new Date(user.createdAt);
     const now = new Date();
     const diffTime = Math.abs(now - trialStartedAt);
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     const isSubscriber = user.assinatura === 'premium';
     const isTrialActive = diffDays <= trialDays;
 
@@ -1066,10 +1063,10 @@ async function handleUpload(request) {
       }, { status: 403 });
     }
 
-    // Verificar Vertex AI configurado
-    const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
-    console.log('🔧 [UPLOAD] Project ID configurado:', projectId ? 'Sim' : 'Não');
-    if (!projectId) {
+    // Verificar Vertex AI configurado (verifica variável de ambiente e arquivo JSON)
+    const isConfigured = isVertexAIConfigured();
+    console.log('🔧 [UPLOAD] Vertex AI configurado:', isConfigured ? 'Sim' : 'Não');
+    if (!isConfigured) {
       return NextResponse.json({
         error: '⚙️ O sistema de IA não está configurado corretamente (Project ID ausente). Por favor, contate o suporte.'
       }, { status: 400 });
@@ -1369,7 +1366,7 @@ async function handleGetPlanoStatus(request) {
 
     const user = await db.collection('users').findOne({ id: userId });
     const plano = user?.assinatura || 'free';
-    
+
     // Lógica de Trial de 7 dias
     const trialDays = 7;
     const trialStartedAt = user?.trialStartedAt ? new Date(user.trialStartedAt) : (user?.createdAt ? new Date(user.createdAt) : new Date());

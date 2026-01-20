@@ -61,9 +61,16 @@ export async function GET(request, { params }) {
                 });
             }
 
-            // Processar habilidades com pontuação (habilidadesPontuacao)
-            if (av.habilidadesPontuacao && typeof av.habilidadesPontuacao === 'object') {
-                Object.entries(av.habilidadesPontuacao).forEach(([habId, pontuacao]) => {
+            // Processar habilidades com pontuação (habilidadesPontuacao é um ARRAY)
+            if (av.habilidadesPontuacao && Array.isArray(av.habilidadesPontuacao)) {
+                av.habilidadesPontuacao.forEach(habPont => {
+                    const habId = habPont.habilidadeId || habPont.habilidade_id;
+                    const pontuacao = habPont.pontuacao;
+                    
+                    if (!habId || typeof pontuacao !== 'number' || pontuacao < 0 || pontuacao > 10) {
+                        return; // Pular entradas inválidas
+                    }
+                    
                     if (!habilidadesData[habId]) {
                         habilidadesData[habId] = {
                             id: habId,
@@ -73,8 +80,15 @@ export async function GET(request, { params }) {
                             pontuacoes: []
                         };
                     }
-                    if (typeof pontuacao === 'number' && pontuacao >= 0) {
-                        habilidadesData[habId].pontuacoes.push(pontuacao);
+                    
+                    habilidadesData[habId].pontuacoes.push(pontuacao);
+                    habilidadesData[habId].total++;
+                    
+                    // Atualizar acertos/erros baseado em pontuação >= 7
+                    if (pontuacao >= 7) {
+                        habilidadesData[habId].acertos++;
+                    } else {
+                        habilidadesData[habId].erros++;
                     }
                 });
             }
