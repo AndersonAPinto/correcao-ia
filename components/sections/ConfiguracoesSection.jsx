@@ -102,7 +102,7 @@ export default function ConfiguracoesSection({ user, credits }) {
   const isAdmin = user?.isAdmin === 1;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
       <div>
         <h2 className="text-2xl font-bold mb-2">Configurações</h2>
         <p className="text-gray-600">Gerencie seu perfil e preferências</p>
@@ -315,6 +315,11 @@ export default function ConfiguracoesSection({ user, credits }) {
           </Button>
         </CardContent>
       </Card>
+
+      {/* Version Info */}
+      <div className="flex justify-end mt-6">
+        <p className="text-xs text-muted-foreground">v0.2.4</p>
+      </div>
     </div>
   );
 }
