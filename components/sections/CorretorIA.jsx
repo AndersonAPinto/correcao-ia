@@ -346,13 +346,33 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
   const handleUpload = async (e) => {
     e.preventDefault();
 
+    console.log('🔵 [FRONTEND] Iniciando upload...', {
+      hasFile: !!selectedFile,
+      fileName: selectedFile?.name,
+      fileSize: selectedFile?.size,
+      gabaritoId: selectedGabarito,
+      turmaId: selectedTurma,
+      alunoId: selectedAluno,
+      periodo: selectedPeriodo
+    });
+
     if (!selectedFile || !selectedGabarito || !selectedTurma || !selectedAluno || !selectedPeriodo) {
+      console.error('❌ [FRONTEND] Campos obrigatórios faltando:', {
+        file: !!selectedFile,
+        gabaritoId: !!selectedGabarito,
+        turmaId: !!selectedTurma,
+        alunoId: !!selectedAluno,
+        periodo: !!selectedPeriodo
+      });
       toast.error('⚠️ Por favor, preencha todos os campos obrigatórios antes de enviar.');
       return;
     }
 
     setUploading(true);
     const token = localStorage.getItem('token');
+    
+    console.log('🔵 [FRONTEND] Token de autenticação:', token ? 'Presente' : 'Ausente');
+    
     const formData = new FormData();
     formData.append('image', selectedFile);
     formData.append('gabaritoId', selectedGabarito);
@@ -361,15 +381,43 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
     formData.append('periodo', selectedPeriodo);
 
     try {
+      console.log('🔵 [FRONTEND] Enviando requisição para /api/upload...');
+      const startTime = Date.now();
+      
       const response = await fetch('/api/upload', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
         body: formData
       });
 
-      const data = await response.json();
+      const endTime = Date.now();
+      console.log(`🔵 [FRONTEND] Resposta recebida em ${endTime - startTime}ms:`, {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      });
+
+      let data;
+      try {
+        data = await response.json();
+        console.log('🔵 [FRONTEND] Dados da resposta:', data);
+      } catch (parseError) {
+        console.error('❌ [FRONTEND] Erro ao parsear JSON da resposta:', parseError);
+        const text = await response.text();
+        console.error('❌ [FRONTEND] Resposta em texto:', text);
+        toast.error('Erro ao processar resposta do servidor.');
+        setUploading(false);
+        return;
+      }
 
       if (response.ok) {
+        console.log('✅ [FRONTEND] Upload bem-sucedido:', {
+          correcaoAutomatica: data.correcaoAutomatica,
+          nota: data.nota,
+          assessmentId: data.assessmentId
+        });
+        
         // Verificar se foi correção automática (múltipla escolha)
         if (data.correcaoAutomatica) {
           toast.success(`🎉 Correção concluída! O aluno obteve nota ${data.nota?.toFixed(2) || 'N/A'}/10`, {
@@ -388,17 +436,39 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
           onUploadSuccess();
         }
       } else {
+        console.error('❌ [FRONTEND] Erro na resposta:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: data.error,
+          data: data
+        });
+        
         // Verificar se é erro de limite de plano
         if (response.status === 403 && data.planoStatus) {
+          console.warn('⚠️ [FRONTEND] Limite de plano atingido');
           setPlanoStatus(data.planoStatus);
           setPaywallOpen(true);
         }
+        
+        // Log específico para erro de Vertex AI
+        if (response.status === 400 && data.error?.includes('IA não está configurado')) {
+          console.error('❌ [FRONTEND] ERRO DE CONFIGURAÇÃO DO VERTEX AI:', data.error);
+        }
+        
         toast.error(data.error || 'Ocorreu um erro ao processar o upload da prova.');
       }
     } catch (error) {
+      console.error('❌ [FRONTEND] Erro de rede/exceção:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+        cause: error.cause
+      });
       toast.error('Erro de conexão. Verifique sua internet e tente novamente.');
+    } finally {
+      setUploading(false);
+      console.log('🔵 [FRONTEND] Upload finalizado');
     }
-    setUploading(false);
   };
 
   const totalProgress = uploadQueue.length > 0
