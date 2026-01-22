@@ -99,3 +99,144 @@ export async function POST(request) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
+
+export async function PUT(request) {
+    try {
+        const userId = await requireAuth(request);
+        const { searchParams } = new URL(request.url);
+        const gabaritoId = searchParams.get('id');
+
+        if (!gabaritoId) {
+            return NextResponse.json({ error: 'Gabarito ID is required' }, { status: 400 });
+        }
+
+        const { db } = await connectToDatabase();
+
+        // Verificar se o gabarito pertence ao usuário
+        const gabarito = await db.collection('gabaritos').findOne({
+            id: gabaritoId,
+            userId
+        });
+
+        if (!gabarito) {
+            return NextResponse.json({ error: 'Gabarito not found' }, { status: 404 });
+        }
+
+        // Verificar se é FormData (com arquivo) ou JSON
+        const contentType = request.headers.get('content-type') || '';
+        let titulo, conteudo, perfilAvaliacaoId, tipo, questoes, arquivo, removerArquivo;
+
+        if (contentType.includes('multipart/form-data')) {
+            // FormData (pode conter arquivo)
+            const formData = await request.formData();
+            titulo = formData.get('titulo');
+            conteudo = formData.get('conteudo');
+            perfilAvaliacaoId = formData.get('perfilAvaliacaoId');
+            tipo = formData.get('tipo');
+            arquivo = formData.get('arquivo');
+            removerArquivo = formData.get('removerArquivo') === 'true';
+
+            const questoesJson = formData.get('questoes');
+            if (questoesJson) {
+                try {
+                    questoes = JSON.parse(questoesJson);
+                } catch (e) {
+                    questoes = null;
+                }
+            }
+        } else {
+            // JSON (sem arquivo)
+            const body = await request.json();
+            titulo = body.titulo;
+            conteudo = body.conteudo;
+            perfilAvaliacaoId = body.perfilAvaliacaoId;
+            tipo = body.tipo;
+            questoes = body.questoes;
+        }
+
+        if (!titulo) {
+            return NextResponse.json({ error: 'Titulo is required' }, { status: 400 });
+        }
+
+        // Preparar dados de atualização
+        const updateData = {
+            titulo,
+            conteudo: conteudo || '',
+            perfilAvaliacaoId: perfilAvaliacaoId || '',
+            updatedAt: new Date()
+        };
+
+        // Processar arquivo se fornecido
+        let arquivoUrl = gabarito.arquivoUrl || '';
+        if (removerArquivo) {
+            arquivoUrl = '';
+        } else if (arquivo && arquivo.size > 0) {
+            // Novo arquivo fornecido
+            const bytes = await arquivo.arrayBuffer();
+            const buffer = Buffer.from(bytes);
+
+            const uploadDir = join(process.cwd(), 'public', 'gabaritos');
+            if (!existsSync(uploadDir)) {
+                await mkdir(uploadDir, { recursive: true });
+            }
+
+            const filename = `${uuidv4()}-${arquivo.name}`;
+            const filepath = join(uploadDir, filename);
+            await writeFile(filepath, buffer);
+            arquivoUrl = `/gabaritos/${filename}`;
+        }
+
+        updateData.arquivoUrl = arquivoUrl;
+
+        // Atualizar questões se for múltipla escolha
+        if (tipo === 'multipla_escolha' && questoes && Array.isArray(questoes)) {
+            updateData.questoes = questoes;
+            updateData.totalQuestoes = questoes.length;
+        }
+
+        await db.collection('gabaritos').updateOne(
+            { id: gabaritoId, userId },
+            { $set: updateData }
+        );
+
+        return NextResponse.json({ success: true, gabarito: { ...gabarito, ...updateData } });
+    } catch (error) {
+        console.error('Update gabarito error:', error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}
+
+export async function DELETE(request) {
+    try {
+        const userId = await requireAuth(request);
+        const { searchParams } = new URL(request.url);
+        const gabaritoId = searchParams.get('id');
+
+        if (!gabaritoId) {
+            return NextResponse.json({ error: 'Gabarito ID is required' }, { status: 400 });
+        }
+
+        const { db } = await connectToDatabase();
+
+        // Verificar se o gabarito pertence ao usuário
+        const gabarito = await db.collection('gabaritos').findOne({
+            id: gabaritoId,
+            userId
+        });
+
+        if (!gabarito) {
+            return NextResponse.json({ error: 'Gabarito not found' }, { status: 404 });
+        }
+
+        // Excluir gabarito
+        await db.collection('gabaritos').deleteOne({
+            id: gabaritoId,
+            userId
+        });
+
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        console.error('Delete gabarito error:', error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}

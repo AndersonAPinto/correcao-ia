@@ -9,8 +9,26 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { FileText, Upload as UploadIcon, Plus, Trash2, X } from 'lucide-react';
+import { FileText, Upload as UploadIcon, Plus, Trash2, X, Edit2, Save } from 'lucide-react';
 import { TIPO_GABARITO } from '@/lib/constants';
+import EditarGabaritoForm from '@/components/gabarito/EditarGabaritoForm';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export default function GabaritosSection({ setActiveView }) {
   const [gabaritos, setGabaritos] = useState([]);
@@ -27,6 +45,19 @@ export default function GabaritosSection({ setActiveView }) {
   const [creating, setCreating] = useState(false);
   const [showHabilidadeDialog, setShowHabilidadeDialog] = useState(false);
   const [novaHabilidade, setNovaHabilidade] = useState('');
+  const [editingGabarito, setEditingGabarito] = useState(null);
+  const [editFormData, setEditFormData] = useState({
+    titulo: '',
+    conteudo: '',
+    perfilAvaliacaoId: '',
+    tipo: 'dissertativa'
+  });
+  const [editQuestoes, setEditQuestoes] = useState([]);
+  const [saving, setSaving] = useState(false);
+  const [editArquivo, setEditArquivo] = useState(null);
+  const [removerArquivo, setRemoverArquivo] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [gabaritoToDelete, setGabaritoToDelete] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -183,6 +214,102 @@ export default function GabaritosSection({ setActiveView }) {
       toast.error('Erro de conexão ao salvar gabarito.');
     }
     setCreating(false);
+  };
+
+  const handleEdit = (gabarito) => {
+    setEditingGabarito(gabarito);
+    setEditFormData({
+      titulo: gabarito.titulo,
+      conteudo: gabarito.conteudo || '',
+      perfilAvaliacaoId: gabarito.perfilAvaliacaoId || '',
+      tipo: gabarito.tipo || 'dissertativa'
+    });
+    setEditQuestoes(gabarito.questoes || []);
+    setEditArquivo(null);
+    setRemoverArquivo(false);
+  };
+
+  const handleSaveEdit = async (data) => {
+    if (!editingGabarito || !data.titulo.trim()) {
+      toast.error('Título é obrigatório');
+      return;
+    }
+
+    setSaving(true);
+    const token = localStorage.getItem('token');
+
+    try {
+      // Usar FormData para suportar upload de arquivo
+      const formDataToSend = new FormData();
+      formDataToSend.append('titulo', data.titulo);
+      formDataToSend.append('conteudo', data.conteudo || '');
+      formDataToSend.append('perfilAvaliacaoId', data.perfilAvaliacaoId || '');
+      formDataToSend.append('tipo', data.tipo);
+      
+      if (data.removerArquivo) {
+        formDataToSend.append('removerArquivo', 'true');
+      }
+      
+      if (data.novoArquivo) {
+        formDataToSend.append('arquivo', data.novoArquivo);
+      }
+
+      if (data.tipo === 'multipla_escolha' && editQuestoes.length > 0) {
+        formDataToSend.append('questoes', JSON.stringify(editQuestoes));
+      }
+
+      const response = await fetch(`/api/gabaritos?id=${editingGabarito.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formDataToSend
+      });
+
+      if (response.ok) {
+        toast.success('Gabarito atualizado com sucesso!');
+        setEditingGabarito(null);
+        setEditArquivo(null);
+        setRemoverArquivo(false);
+        loadData();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Erro ao atualizar gabarito');
+      }
+    } catch (error) {
+      toast.error('Erro ao atualizar gabarito');
+    }
+    setSaving(false);
+  };
+
+  const handleDelete = (gabaritoId) => {
+    setGabaritoToDelete(gabaritoId);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!gabaritoToDelete) return;
+
+    const token = localStorage.getItem('token');
+    try {
+      const response = await fetch(`/api/gabaritos?id=${gabaritoToDelete}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        toast.success('Gabarito excluído com sucesso!');
+        loadData();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Erro ao excluir gabarito');
+      }
+    } catch (error) {
+      toast.error('Erro de conexão ao excluir gabarito');
+    } finally {
+      setShowDeleteConfirm(false);
+      setGabaritoToDelete(null);
+    }
   };
 
   return (
@@ -508,6 +635,26 @@ export default function GabaritosSection({ setActiveView }) {
                         Criado em: {new Date(gab.createdAt).toLocaleDateString()}
                       </p>
                     </div>
+                    <div className="flex items-center gap-2 ml-4">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEdit(gab)}
+                        className="h-8 w-8 p-0"
+                        title="Editar gabarito"
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDelete(gab.id)}
+                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                        title="Excluir gabarito"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -515,6 +662,59 @@ export default function GabaritosSection({ setActiveView }) {
           )}
         </CardContent>
       </Card>
+
+      {/* Dialog de Edição */}
+      <Dialog open={!!editingGabarito} onOpenChange={(open) => !open && setEditingGabarito(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Editar Gabarito</DialogTitle>
+            <DialogDescription>
+              Atualize as informações do gabarito
+            </DialogDescription>
+          </DialogHeader>
+          <EditarGabaritoForm
+            gabarito={editingGabarito}
+            formData={editFormData}
+            onFormDataChange={setEditFormData}
+            onSave={handleSaveEdit}
+            onCancel={() => {
+              setEditingGabarito(null);
+              setEditArquivo(null);
+              setRemoverArquivo(false);
+            }}
+            saving={saving}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de confirmação para excluir gabarito */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir este gabarito permanentemente?
+            </AlertDialogDescription>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setShowDeleteConfirm(false);
+              setGabaritoToDelete(null);
+            }}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
