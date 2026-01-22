@@ -69,7 +69,7 @@ export default function AdicionarHabilidadeForm({
       <div className="space-y-2">
         <div className="flex gap-2">
           <Select value={habilidadeSelecionada} onValueChange={onHabilidadeChange}>
-            <SelectTrigger className="flex-1 h-8 text-xs">
+            <SelectTrigger className="flex-1 h-8 text-xs text-blue-700">
               <SelectValue placeholder="Selecione uma habilidade..." />
             </SelectTrigger>
             <SelectContent>
@@ -100,7 +100,7 @@ export default function AdicionarHabilidadeForm({
             )}
           </Button>
         </div>
-        
+
         {habilidadeSelecionada && (
           <div className="space-y-1">
             <Label className="text-xs font-medium text-gray-700">
@@ -110,7 +110,7 @@ export default function AdicionarHabilidadeForm({
               value={descricaoFoco}
               onChange={(e) => setDescricaoFoco(e.target.value)}
               placeholder={
-                habilidadeSelecionadaObj?.descricao 
+                habilidadeSelecionadaObj?.descricao
                   ? `Descreva o que a IA deve focar ao avaliar esta habilidade nesta prova específica...\n\nDescrição padrão da habilidade:\n${habilidadeSelecionadaObj.descricao}`
                   : 'Descreva o que a IA deve focar ao avaliar esta habilidade nesta prova específica. Ex: "Avaliar se o aluno consegue aplicar a fórmula corretamente nas questões 3, 5 e 7"'
               }

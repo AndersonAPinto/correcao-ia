@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,21 +18,10 @@ export default function ResultadosSection({ view }) {
   const [turmas, setTurmas] = useState([]);
   const [selectedTurma, setSelectedTurma] = useState('all');
   const [exporting, setExporting] = useState(false);
+  const isInitialLoad = useRef(true); // Flag para primeira carga
 
-  useEffect(() => {
-    loadAvaliacoes();
-    if (view === 'concluidas') {
-      loadTurmas();
-    }
-
-    // Auto-refresh every 10 seconds if viewing pendentes
-    if (view === 'pendentes') {
-      const interval = setInterval(loadAvaliacoes, 10000);
-      return () => clearInterval(interval);
-    }
-  }, [view, selectedTurma]);
-
-  const loadTurmas = async () => {
+  // Memoizar loadTurmas para evitar recriações
+  const loadTurmas = useCallback(async () => {
     const token = localStorage.getItem('token');
     try {
       const response = await fetch('/api/turmas', {
@@ -46,10 +35,15 @@ export default function ResultadosSection({ view }) {
     } catch (error) {
       console.error('Failed to load turmas:', error);
     }
-  };
+  }, []);
 
-  const loadAvaliacoes = async () => {
-    setLoading(true);
+  // Memoizar loadAvaliacoes para evitar recriações e permitir controle de loading
+  const loadAvaliacoes = useCallback(async (showLoading = true) => {
+    // Só mostrar loading na primeira carga ou quando explicitamente solicitado
+    if (showLoading && isInitialLoad.current) {
+      setLoading(true);
+    }
+
     const token = localStorage.getItem('token');
     const endpoint = view === 'pendentes'
       ? '/api/avaliacoes/pendentes'
@@ -73,9 +67,37 @@ export default function ResultadosSection({ view }) {
       }
     } catch (error) {
       console.error('Failed to load avaliacoes:', error);
+    } finally {
+      if (showLoading && isInitialLoad.current) {
+        setLoading(false);
+        isInitialLoad.current = false; // Marcar que primeira carga foi concluída
+      }
     }
-    setLoading(false);
-  };
+  }, [view, selectedTurma]);
+
+  // Carregamento inicial e setup de auto-refresh
+  useEffect(() => {
+    isInitialLoad.current = true; // Resetar flag quando view ou turma mudar
+    loadAvaliacoes(true); // Primeira carga com loading
+
+    if (view === 'concluidas') {
+      loadTurmas();
+    }
+
+    // Auto-refresh every 10 seconds if viewing pendentes (sem mostrar loading)
+    let interval;
+    if (view === 'pendentes') {
+      interval = setInterval(() => {
+        loadAvaliacoes(false); // Auto-refresh sem mostrar loading
+      }, 10000);
+    }
+
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [view, selectedTurma, loadAvaliacoes, loadTurmas]);
 
   const handleView = (avaliacao) => {
     setSelectedAvaliacao(avaliacao);
@@ -84,7 +106,7 @@ export default function ResultadosSection({ view }) {
 
   const handleValidated = () => {
     setModalOpen(false);
-    loadAvaliacoes();
+    loadAvaliacoes(false); // Recarregar sem mostrar loading
   };
 
   const handleExport = async (format) => {
