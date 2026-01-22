@@ -69,7 +69,7 @@ export default function AdicionarHabilidadeForm({
       <div className="space-y-2">
         <div className="flex gap-2">
           <Select value={habilidadeSelecionada} onValueChange={onHabilidadeChange}>
-            <SelectTrigger className="flex-1 h-8 text-xs text-blue-700">
+            <SelectTrigger className="flex-1 h-8 text-xs text-blue-700 border-blue-600">
               <SelectValue placeholder="Selecione uma habilidade..." />
             </SelectTrigger>
             <SelectContent>
