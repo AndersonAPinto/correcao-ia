@@ -92,3 +92,61 @@ export async function POST(request) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
+
+export async function PUT(request) {
+    try {
+        const userId = await requireAuth(request);
+        const { searchParams } = new URL(request.url);
+        const perfilId = searchParams.get('id');
+
+        if (!perfilId) {
+            return NextResponse.json({ error: 'Perfil ID is required' }, { status: 400 });
+        }
+
+        const body = await request.json();
+        const { nome, conteudo, criteriosRigor } = body;
+
+        if (!nome) {
+            return NextResponse.json({ error: 'Nome is required' }, { status: 400 });
+        }
+
+        const { db } = await connectToDatabase();
+
+        // Verificar se o perfil pertence ao usuário
+        const perfil = await db.collection('perfis_avaliacao').findOne({
+            id: perfilId,
+            userId
+        });
+
+        if (!perfil) {
+            return NextResponse.json({ error: 'Perfil not found' }, { status: 404 });
+        }
+
+        // Validar criteriosRigor se fornecido
+        let validCriteriosRigor = [];
+        if (criteriosRigor && Array.isArray(criteriosRigor)) {
+            validCriteriosRigor = criteriosRigor.filter(c =>
+                c.criterio &&
+                ['rigoroso', 'moderado', 'flexivel'].includes(c.nivelRigor)
+            );
+        }
+
+        // Atualizar perfil
+        const updateData = {
+            nome,
+            conteudo: conteudo || '',
+            criteriosRigor: validCriteriosRigor,
+            updatedAt: new Date()
+        };
+
+        await db.collection('perfis_avaliacao').updateOne(
+            { id: perfilId, userId },
+            { $set: updateData }
+        );
+
+        return NextResponse.json({ success: true, perfil: { ...perfil, ...updateData } });
+    } catch (error) {
+        console.error('Update perfil error:', error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}
