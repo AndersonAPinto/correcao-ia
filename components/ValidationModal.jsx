@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { CheckCircle2, Image as ImageIcon, Edit2, Save, Award } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import HabilidadeCard from '@/components/avaliacao/HabilidadeCard';
 import AdicionarHabilidadeForm from '@/components/avaliacao/AdicionarHabilidadeForm';
 
@@ -33,6 +33,12 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
   const [editandoHabilidadeId, setEditandoHabilidadeId] = useState(null);
   const [pontuacaoEditando, setPontuacaoEditando] = useState(0);
   const [justificativaEditando, setJustificativaEditando] = useState('');
+  const [fileType, setFileType] = useState(null); // Estado para detectar tipo de arquivo
+  const [pdfBlobUrl, setPdfBlobUrl] = useState(null); // Estado para blob URL do PDF
+  const [imageBlobUrl, setImageBlobUrl] = useState(null); // Estado para blob URL da imagem
+  const [imageError, setImageError] = useState(false); // Estado para erro de carregamento
+  const pdfBlobUrlRef = useRef(null); // Ref para limpar blob URL
+  const imageBlobUrlRef = useRef(null); // Ref para limpar blob URL da imagem
 
   useEffect(() => {
     if (avaliacao) {
@@ -65,6 +71,132 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
       loadHabilidadesDisponiveis();
     }
   }, [open, avaliacao]);
+
+  // Detectar tipo de arquivo (PDF ou imagem)
+  useEffect(() => {
+    if (avaliacao?.imageUrl && open) {
+      // Verificar se é PDF pela URL
+      const url = avaliacao.imageUrl.toLowerCase();
+      if (url.includes('.pdf') || url.endsWith('.pdf')) {
+        setFileType('application/pdf');
+        return;
+      }
+
+      // Tentar verificar pelo Content-Type via HEAD request
+      const normalizedUrl = avaliacao.imageUrl.startsWith('/')
+        ? avaliacao.imageUrl
+        : `/${avaliacao.imageUrl}`;
+
+      const token = localStorage.getItem('token');
+      fetch(normalizedUrl, {
+        method: 'HEAD',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+        .then(res => {
+          const contentType = res.headers.get('content-type');
+          setFileType(contentType || 'image');
+        })
+        .catch(() => {
+          // Se falhar, assumir que é imagem
+          setFileType('image');
+        });
+    } else {
+      setFileType(null);
+    }
+  }, [avaliacao?.imageUrl, open]);
+
+  // Carregar arquivo (PDF ou imagem) como blob com autenticação
+  useEffect(() => {
+    if (avaliacao?.imageUrl && open) {
+      const token = localStorage.getItem('token');
+      const url = avaliacao.imageUrl;
+
+      // Normalizar URL
+      let imageSrc = url;
+      if (url.startsWith('/api/images/')) {
+        imageSrc = url;
+      } else if (url.startsWith('http://') || url.startsWith('https://')) {
+        if (url.includes('/api/images/')) {
+          imageSrc = url;
+        } else if (url.includes('/uploads/')) {
+          imageSrc = url.substring(url.indexOf('/uploads/'));
+        } else {
+          imageSrc = url;
+        }
+      } else if (url.startsWith('/')) {
+        imageSrc = url;
+      } else {
+        imageSrc = `/${url}`;
+      }
+
+      // Resetar erro
+      setImageError(false);
+
+      // Buscar arquivo com autenticação e criar blob URL
+      fetch(imageSrc, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+        .then(res => {
+          if (!res.ok) {
+            throw new Error(`Failed to fetch: ${res.status}`);
+          }
+          return res.blob();
+        })
+        .then(blob => {
+          // Verificar se é PDF ou imagem
+          if (fileType === 'application/pdf' || url.toLowerCase().includes('.pdf')) {
+            // Limpar blob URL anterior se existir
+            if (pdfBlobUrlRef.current) {
+              URL.revokeObjectURL(pdfBlobUrlRef.current);
+            }
+            const blobUrl = URL.createObjectURL(blob);
+            pdfBlobUrlRef.current = blobUrl;
+            setPdfBlobUrl(blobUrl);
+            setImageBlobUrl(null); // Limpar imagem se existir
+          } else {
+            // Limpar blob URL anterior se existir
+            if (imageBlobUrlRef.current) {
+              URL.revokeObjectURL(imageBlobUrlRef.current);
+            }
+            const blobUrl = URL.createObjectURL(blob);
+            imageBlobUrlRef.current = blobUrl;
+            setImageBlobUrl(blobUrl);
+            setPdfBlobUrl(null); // Limpar PDF se existir
+          }
+        })
+        .catch(error => {
+          console.error('Erro ao carregar arquivo:', error);
+          setImageError(true);
+          setPdfBlobUrl(null);
+          setImageBlobUrl(null);
+        });
+    } else {
+      // Limpar blob URLs quando não for mais necessário
+      if (pdfBlobUrlRef.current) {
+        URL.revokeObjectURL(pdfBlobUrlRef.current);
+        pdfBlobUrlRef.current = null;
+      }
+      if (imageBlobUrlRef.current) {
+        URL.revokeObjectURL(imageBlobUrlRef.current);
+        imageBlobUrlRef.current = null;
+      }
+      setPdfBlobUrl(null);
+      setImageBlobUrl(null);
+      setImageError(false);
+    }
+
+    // Cleanup ao desmontar ou fechar modal
+    return () => {
+      if (pdfBlobUrlRef.current) {
+        URL.revokeObjectURL(pdfBlobUrlRef.current);
+        pdfBlobUrlRef.current = null;
+      }
+      if (imageBlobUrlRef.current) {
+        URL.revokeObjectURL(imageBlobUrlRef.current);
+        imageBlobUrlRef.current = null;
+      }
+    };
+  }, [avaliacao?.imageUrl, open, fileType]);
 
   const loadHabilidadesDisponiveis = async () => {
     const token = localStorage.getItem('token');
@@ -290,7 +422,7 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-7xl max-h-[90vh] overflow-hidden">
         <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
+          <DialogTitle className="flex items-center justify-between mr-4">
             <span>Correção da Avaliação</span>
             {isPending && (
               <Button
@@ -329,52 +461,84 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
             <CardContent className="flex-1 overflow-hidden">
               <ScrollArea className="h-full w-full rounded border">
                 {avaliacao.imageUrl ? (
-                  <img
-                    src={(() => {
-                      const url = avaliacao.imageUrl;
+                  (() => {
+                    const url = avaliacao.imageUrl;
+                    let imageSrc = url;
 
-                      // Se já é URL da API (/api/images/...), usar diretamente
-                      if (url.startsWith('/api/images/')) {
-                        return url;
+                    // Normalizar URL
+                    if (url.startsWith('/api/images/')) {
+                      imageSrc = url;
+                    } else if (url.startsWith('http://') || url.startsWith('https://')) {
+                      if (url.includes('/api/images/')) {
+                        imageSrc = url;
+                      } else if (url.includes('/uploads/')) {
+                        imageSrc = url.substring(url.indexOf('/uploads/'));
+                      } else {
+                        imageSrc = url;
                       }
+                    } else if (url.startsWith('/')) {
+                      imageSrc = url;
+                    } else {
+                      imageSrc = `/${url}`;
+                    }
 
-                      // Se é URL absoluta (http/https)
-                      if (url.startsWith('http://') || url.startsWith('https://')) {
-                        // Se contém /api/images/, usar diretamente
-                        if (url.includes('/api/images/')) {
-                          return url;
-                        }
-                        // Se contém /uploads/, extrair apenas o path para usar URL relativa
-                        const uploadsIndex = url.indexOf('/uploads/');
-                        if (uploadsIndex !== -1) {
-                          return url.substring(uploadsIndex);
-                        }
-                        // Caso contrário, usar URL absoluta como está
-                        return url;
+                    // Verificar se é PDF
+                    const isPdf = fileType === 'application/pdf' ||
+                      url.toLowerCase().includes('.pdf');
+
+                    // Se houver erro, mostrar mensagem de erro
+                    if (imageError) {
+                      return (
+                        <div className="p-4 text-center text-gray-500 bg-red-50 border border-red-200 rounded">
+                          <p className="font-semibold text-red-600">Arquivo não encontrado</p>
+                          <p className="text-xs text-gray-500 mt-1 break-all">URL: {imageSrc}</p>
+                          <p className="text-xs text-gray-400 mt-1">O arquivo pode ter sido deletado ou não existe mais.</p>
+                        </div>
+                      );
+                    }
+
+                    if (isPdf) {
+                      // Usar blob URL se disponível (mais seguro e permite autenticação)
+                      const pdfSrc = pdfBlobUrl;
+                      if (!pdfSrc) {
+                        return (
+                          <div className="p-4 text-center text-gray-500">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                            <p className="mt-2">Carregando PDF...</p>
+                          </div>
+                        );
                       }
+                      return (
+                        <iframe
+                          src={pdfSrc}
+                          className="w-full h-full min-h-[500px] border-0"
+                          title="Prova do aluno (PDF)"
+                        />
+                      );
+                    }
 
-                      // Se começa com /, usar diretamente (URL relativa)
-                      if (url.startsWith('/')) {
-                        return url;
-                      }
-
-                      // Caso contrário, adicionar / no início
-                      return `/${url}`;
-                    })()}
-                    alt="Prova do aluno"
-                    className="w-full h-auto"
-                    onError={(e) => {
-                      console.error('Erro ao carregar imagem:', avaliacao.imageUrl);
-                      const errorDiv = document.createElement('div');
-                      errorDiv.className = 'p-4 text-center text-gray-500 bg-red-50 border border-red-200 rounded';
-                      errorDiv.innerHTML = `
-                        <p class="font-semibold text-red-600">Imagem não encontrada</p>
-                        <p class="text-xs text-gray-500 mt-1 break-all">URL: ${avaliacao.imageUrl}</p>
-                        <p class="text-xs text-gray-400 mt-1">A imagem pode ter sido deletada ou não existe mais.</p>
-                      `;
-                      e.target.parentElement.replaceChild(errorDiv, e.target);
-                    }}
-                  />
+                    // Renderizar imagem usando blob URL se disponível
+                    const imgSrc = imageBlobUrl;
+                    if (!imgSrc) {
+                      return (
+                        <div className="p-4 text-center text-gray-500">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                          <p className="mt-2">Carregando imagem...</p>
+                        </div>
+                      );
+                    }
+                    return (
+                      <img
+                        src={imgSrc}
+                        alt="Prova do aluno"
+                        className="w-full h-auto"
+                        onError={() => {
+                          console.error('Erro ao carregar imagem:', imgSrc);
+                          setImageError(true);
+                        }}
+                      />
+                    );
+                  })()
                 ) : (
                   <div className="p-4 text-center text-gray-500">
                     Imagem não disponível
@@ -412,7 +576,7 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
                   {/* Nota Final Editável */}
                   {editing && (
                     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                      <Label className="text-sm font-semibold mb-2 block">
+                      <Label className="text-sm font-semibold mb-2 block text-blue-600">
                         Nota Final (0-10)
                       </Label>
                       <div className="flex items-center gap-2">
@@ -423,7 +587,7 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
                           step="0.1"
                           value={notaFinal}
                           onChange={(e) => setNotaFinal(parseFloat(e.target.value) || 0)}
-                          className="w-24"
+                          className="w-24 text-gray-600"
                         />
                         <span className="text-sm text-gray-600">/ 10</span>
                         <span className="text-xs text-gray-500 ml-auto">
@@ -502,7 +666,7 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
                                     onChange={(e) => handleQuestaoChange(idx, 'feedback', e.target.value)}
                                     placeholder="Digite o feedback para esta questão..."
                                     rows={3}
-                                    className="text-sm"
+                                    className="text-sm text-gray-700 border-blue-600"
                                   />
                                   {questaoOriginal && questaoOriginal.feedback && (
                                     <details className="text-xs">

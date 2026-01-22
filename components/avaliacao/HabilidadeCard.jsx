@@ -10,10 +10,10 @@ import { Award, Edit2, Trash2, Sparkles } from 'lucide-react';
 /**
  * Componente para exibir e editar uma habilidade avaliada
  */
-export default function HabilidadeCard({ 
-  habilidade, 
-  isAcertada, 
-  isEditando, 
+export default function HabilidadeCard({
+  habilidade,
+  isAcertada,
+  isEditando,
   pontuacaoEditando,
   justificativaEditando,
   onEditar,
@@ -26,24 +26,22 @@ export default function HabilidadeCard({
 }) {
   return (
     <div
-      className={`border rounded-lg p-3 ${
-        isAcertada
+      className={`border rounded-lg p-3 ${isAcertada
           ? 'bg-green-50 border-green-200'
           : 'bg-orange-50 border-orange-200'
-      }`}
+        }`}
     >
       <div className="flex items-start justify-between mb-2">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
             <Award className={`h-4 w-4 ${isAcertada ? 'text-green-600' : 'text-orange-600'}`} />
-            <span className="font-semibold text-sm">{habilidade.nome || 'Habilidade'}</span>
+            <span className="font-semibold text-sm text-blue-700">{habilidade.nome || 'Habilidade'}</span>
             <Badge
               variant="outline"
-              className={`text-xs ${
-                isAcertada
+              className={`text-xs ${isAcertada
                   ? 'border-green-300 text-green-700 bg-green-100'
                   : 'border-orange-300 text-orange-700 bg-orange-100'
-              }`}
+                }`}
             >
               {isAcertada ? 'Demonstrada' : 'Precisa reforço'}
             </Badge>
