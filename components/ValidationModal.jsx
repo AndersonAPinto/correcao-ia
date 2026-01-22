@@ -8,6 +8,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -37,6 +47,8 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
   const [pdfBlobUrl, setPdfBlobUrl] = useState(null); // Estado para blob URL do PDF
   const [imageBlobUrl, setImageBlobUrl] = useState(null); // Estado para blob URL da imagem
   const [imageError, setImageError] = useState(false); // Estado para erro de carregamento
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // Estado para dialog de confirmação
+  const [habilidadeToDelete, setHabilidadeToDelete] = useState(null); // ID da habilidade a ser removida
   const pdfBlobUrlRef = useRef(null); // Ref para limpar blob URL
   const imageBlobUrlRef = useRef(null); // Ref para limpar blob URL da imagem
 
@@ -336,14 +348,17 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
     }
   };
 
-  const handleRemoverHabilidade = async (habilidadeId) => {
-    if (!confirm('Tem certeza que deseja remover esta habilidade?')) {
-      return;
-    }
+  const handleRemoverHabilidade = (habilidadeId) => {
+    setHabilidadeToDelete(habilidadeId);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmRemoverHabilidade = async () => {
+    if (!habilidadeToDelete) return;
 
     const token = localStorage.getItem('token');
     try {
-      const response = await fetch(`/api/avaliacoes/${avaliacao.id}/habilidades/${habilidadeId}`, {
+      const response = await fetch(`/api/avaliacoes/${avaliacao.id}/habilidades/${habilidadeToDelete}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -357,6 +372,9 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
       }
     } catch (error) {
       toast.error('Erro de conexão ao remover habilidade');
+    } finally {
+      setShowDeleteConfirm(false);
+      setHabilidadeToDelete(null);
     }
   };
 
@@ -587,7 +605,7 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
                           step="0.1"
                           value={notaFinal}
                           onChange={(e) => setNotaFinal(parseFloat(e.target.value) || 0)}
-                          className="w-24 text-gray-600"
+                          className="w-24 text-gray-600 border-blue-600"
                         />
                         <span className="text-sm text-gray-600">/ 10</span>
                         <span className="text-xs text-gray-500 ml-auto">
@@ -648,12 +666,12 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
                                         step="0.1"
                                         value={questao.nota}
                                         onChange={(e) => handleQuestaoChange(idx, 'nota', e.target.value)}
-                                        className="w-16 h-7 text-sm text-blue-600 font-bold"
+                                        className="w-16 h-7 text-sm text-blue-600 font-bold border-blue-600"
                                       />
-                                      <span className="text-xs text-blue-600">/ {questao.notaMaxima}</span>
+                                      <span className="text-xs text-blue-600 border-blue-600">/ {questao.notaMaxima}</span>
                                     </div>
                                   ) : (
-                                    <Badge variant="outline" className="text-blue-600 border-blue-200 font-bold">
+                                    <Badge variant="outline" className="text-blue-600 border-blue-600 font-bold">
                                       {questao.nota.toFixed(1)}/{questao.notaMaxima}
                                     </Badge>
                                   )}
@@ -809,6 +827,35 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
           </Card>
         </div>
       </DialogContent>
+
+      {/* Dialog de confirmação para remover habilidade */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Remoção</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja remover esta habilidade da avaliação?
+            </AlertDialogDescription>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setShowDeleteConfirm(false);
+              setHabilidadeToDelete(null);
+            }}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmRemoverHabilidade}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Remover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }

@@ -318,7 +318,7 @@ export default function ConfiguracoesSection({ user, credits }) {
 
       {/* Version Info */}
       <div className="flex justify-end mt-6">
-        <p className="text-xs text-muted-foreground">v0.2.6</p>
+        <p className="text-xs text-muted-foreground">v0.2.7</p>
       </div>
     </div>
   );
