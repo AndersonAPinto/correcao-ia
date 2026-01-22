@@ -8,6 +8,9 @@ import { requireAuth } from '@/lib/api-handlers';
  */
 export async function GET(request, { params }) {
     try {
+        // Adicionar autenticação para segurança
+        await requireAuth(request);
+
         const { id } = params;
         console.log(`🖼️ [IMAGE API] Solicitando imagem ID: ${id}`);
 
@@ -19,12 +22,22 @@ export async function GET(request, { params }) {
         const imageData = await getImageFromMongoDB(id);
         console.log(`✅ [IMAGE API] Imagem encontrada: ${imageData.filename} (${imageData.contentType})`);
 
+        // Headers para PDFs (permitir exibição em iframe)
+        const isPdf = imageData.contentType === 'application/pdf';
+        const headers = {
+            'Content-Type': imageData.contentType,
+            'Content-Length': imageData.buffer.length.toString(),
+            'Cache-Control': 'no-store, must-revalidate',
+        };
+
+        // Adicionar headers específicos para PDFs
+        if (isPdf) {
+            headers['Content-Disposition'] = `inline; filename="${imageData.filename}"`;
+            headers['X-Content-Type-Options'] = 'nosniff';
+        }
+
         return new NextResponse(imageData.buffer, {
-            headers: {
-                'Content-Type': imageData.contentType,
-                'Content-Length': imageData.buffer.length.toString(),
-                'Cache-Control': 'no-store, must-revalidate',
-            },
+            headers,
         });
     } catch (error) {
         console.error(`❌ [IMAGE API] Erro ao recuperar imagem ${params.id}:`, error.message);
