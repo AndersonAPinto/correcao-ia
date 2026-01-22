@@ -6,6 +6,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { Award, Plus, Trash2 } from 'lucide-react';
 import { HABILIDADES_PADRAO } from '@/lib/constants';
@@ -14,6 +24,8 @@ export default function HabilidadesSection() {
   const [habilidades, setHabilidades] = useState([]);
   const [formData, setFormData] = useState({ nome: '', descricao: '' });
   const [creating, setCreating] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [habilidadeToDelete, setHabilidadeToDelete] = useState(null);
 
   useEffect(() => {
     loadHabilidades();
@@ -69,14 +81,17 @@ export default function HabilidadesSection() {
     setCreating(false);
   };
 
-  const handleDelete = async (habilidadeId) => {
-    if (!confirm('Esta habilidade será removida permanentemente. Tem certeza?')) {
-      return;
-    }
+  const handleDelete = (habilidadeId) => {
+    setHabilidadeToDelete(habilidadeId);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!habilidadeToDelete) return;
 
     const token = localStorage.getItem('token');
     try {
-      const response = await fetch(`/api/habilidades/${habilidadeId}`, {
+      const response = await fetch(`/api/habilidades/${habilidadeToDelete}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -89,6 +104,9 @@ export default function HabilidadesSection() {
       }
     } catch (error) {
       toast.error('Erro de conexão ao excluir habilidade.');
+    } finally {
+      setShowDeleteConfirm(false);
+      setHabilidadeToDelete(null);
     }
   };
 
@@ -227,6 +245,35 @@ export default function HabilidadesSection() {
           )}
         </CardContent>
       </Card>
+
+      {/* Dialog de confirmação para remover habilidade */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir esta habilidade permanentemente?
+            </AlertDialogDescription>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setShowDeleteConfirm(false);
+              setHabilidadeToDelete(null);
+            }}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
