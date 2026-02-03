@@ -490,6 +490,8 @@ async function handleDissertativaUpload(file, gabarito, turmaId, alunoId, period
     console.log('🔄 [DISSERTATIVA] Convertendo imagem para base64...');
     const base64Image = buffer.toString('base64');
 
+    const analisePedagogica = correcaoData.analise_pedagogica || {};
+
     console.log('✅ [DISSERTATIVA] Base64 criado:', {
       base64Length: base64Image.length,
       mimeType: mimeType,
@@ -594,8 +596,7 @@ IMPORTANTE:
 - Se for "Flexível", foque apenas na ideia central.
 - Use os IDs de habilidades que existem na lista fornecida.
 - A 'sugestao_intervencao' deve ser prática para o professor.`;
-    // O sistema de créditos foi abolido. O acesso é controlado por assinatura ou trial.
-    const transactionId = uuidv4();
+
 
     let responseText;
     try {
@@ -750,6 +751,7 @@ IMPORTANTE:
       textoOcr: textoOcr,
       nota: notaFinal,
       feedback: feedbackGeral,
+      analisePedagogica: analisePedagogica,
       exercicios: exercicios.map(ex => ({
         numero: ex.numero,
         nota: ex.nota,
