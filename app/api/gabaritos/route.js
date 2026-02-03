@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import { requireAuth } from '@/lib/api-handlers';
+import { validateFileUpload } from '@/lib/utils';
 import { v4 as uuidv4 } from 'uuid';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
@@ -43,6 +44,16 @@ export async function POST(request) {
 
         // Handle file upload if provided
         if (arquivo && arquivo.size > 0) {
+            // Validar arquivo antes de processar
+            const validation = validateFileUpload(arquivo, {
+                maxSizeMB: 10,
+                allowedTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf']
+            });
+
+            if (!validation.valid) {
+                return NextResponse.json({ error: validation.error }, { status: 400 });
+            }
+
             const bytes = await arquivo.arrayBuffer();
             const buffer = Buffer.from(bytes);
 
@@ -171,6 +182,16 @@ export async function PUT(request) {
         if (removerArquivo) {
             arquivoUrl = '';
         } else if (arquivo && arquivo.size > 0) {
+            // Validar arquivo antes de processar
+            const validation = validateFileUpload(arquivo, {
+                maxSizeMB: 10,
+                allowedTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf']
+            });
+
+            if (!validation.valid) {
+                return NextResponse.json({ error: validation.error }, { status: 400 });
+            }
+
             // Novo arquivo fornecido
             const bytes = await arquivo.arrayBuffer();
             const buffer = Buffer.from(bytes);
