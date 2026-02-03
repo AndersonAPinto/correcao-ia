@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import { requireAuth, createNotification, callGeminiAPIWithRetry, isVertexAIConfigured } from '@/lib/api-handlers';
+import { validateFileUpload } from '@/lib/utils';
 import { v4 as uuidv4 } from 'uuid';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
@@ -602,10 +603,20 @@ export async function POST(request) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
-        // Fetch gabarito to know type if not provided, or verify
-        const gabarito = await db.collection('gabaritos').findOne({ id: gabaritoId });
+        // Validar arquivo antes de processar
+        const validation = validateFileUpload(file, {
+            maxSizeMB: 10,
+            allowedTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf']
+        });
+
+        if (!validation.valid) {
+            return NextResponse.json({ error: validation.error }, { status: 400 });
+        }
+
+        // Verificar se o gabarito pertence ao usuário
+        const gabarito = await db.collection('gabaritos').findOne({ id: gabaritoId, userId });
         if (!gabarito) {
-            return NextResponse.json({ error: 'Gabarito não encontrado' }, { status: 404 });
+            return NextResponse.json({ error: 'Gabarito não encontrado ou acesso negado' }, { status: 404 });
         }
 
         if (gabarito.tipo === 'multipla_escolha') {

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
-import { requireAuth } from '@/lib/api-handlers';
+import { requireAuth, checkRateLimit } from '@/lib/api-handlers';
+import { validateNome } from '@/lib/utils';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function GET(request) {
@@ -15,30 +16,41 @@ export async function GET(request) {
 
         return NextResponse.json({ turmas });
     } catch (error) {
-        return NextResponse.json({ error: error.message }, { status: 401 });
+        return NextResponse.json({ error: 'Erro interno no servidor' }, { status: 500 });
     }
 }
 
 export async function POST(request) {
     try {
         const userId = await requireAuth(request);
+
+        // Rate limiting
+        const rateLimit = await checkRateLimit(request, userId, 'create_turma', 20, 60);
+        if (rateLimit.blocked) {
+            return NextResponse.json({
+                error: `Muitas tentativas. Tente novamente em ${rateLimit.remainingMinutes} minutos.`
+            }, { status: 429 });
+        }
+
         const { nome } = await request.json();
 
-        if (!nome) {
-            return NextResponse.json({ error: 'Missing turma name' }, { status: 400 });
+        // Validar nome com whitelist
+        const nomeValidation = validateNome(nome, { minLength: 1, maxLength: 200 });
+        if (!nomeValidation.valid) {
+            return NextResponse.json({ error: nomeValidation.error }, { status: 400 });
         }
 
         const { db } = await connectToDatabase();
         const turma = {
             id: uuidv4(),
             userId,
-            nome,
+            nome: nomeValidation.value,
             createdAt: new Date()
         };
 
         await db.collection('turmas').insertOne(turma);
         return NextResponse.json({ turma });
     } catch (error) {
-        return NextResponse.json({ error: error.message }, { status: 401 });
+        return NextResponse.json({ error: 'Erro interno no servidor' }, { status: 500 });
     }
 }

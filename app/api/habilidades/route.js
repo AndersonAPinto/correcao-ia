@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
-import { requireAuth } from '@/lib/api-handlers';
+import { requireAuth, checkRateLimit } from '@/lib/api-handlers';
+import { validateNome, sanitizeString } from '@/lib/utils';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function GET(request) {
@@ -15,25 +16,39 @@ export async function GET(request) {
 
         return NextResponse.json({ habilidades });
     } catch (error) {
-        return NextResponse.json({ error: error.message }, { status: 401 });
+        return NextResponse.json({ error: 'Erro interno no servidor' }, { status: 500 });
     }
 }
 
 export async function POST(request) {
     try {
         const userId = await requireAuth(request);
+
+        // Rate limiting
+        const rateLimit = await checkRateLimit(request, userId, 'create_habilidade', 30, 60);
+        if (rateLimit.blocked) {
+            return NextResponse.json({
+                error: `Muitas tentativas. Tente novamente em ${rateLimit.remainingMinutes} minutos.`
+            }, { status: 429 });
+        }
+
         const { nome, descricao } = await request.json();
 
-        if (!nome) {
-            return NextResponse.json({ error: 'Missing habilidade name' }, { status: 400 });
+        // Validar nome com whitelist
+        const nomeValidation = validateNome(nome, { minLength: 1, maxLength: 200 });
+        if (!nomeValidation.valid) {
+            return NextResponse.json({ error: nomeValidation.error }, { status: 400 });
         }
+
+        // Sanitizar descrição
+        const sanitizedDescricao = descricao ? sanitizeString(descricao, { maxLength: 2000 }) : '';
 
         const { db } = await connectToDatabase();
 
         // Verificar se já existe habilidade com mesmo nome para o usuário
         const existing = await db.collection('habilidades').findOne({
             userId,
-            nome: nome.trim()
+            nome: nomeValidation.value
         });
 
         if (existing) {
@@ -43,8 +58,8 @@ export async function POST(request) {
         const habilidade = {
             id: uuidv4(),
             userId,
-            nome: nome.trim(),
-            descricao: descricao || '',
+            nome: nomeValidation.value,
+            descricao: sanitizedDescricao,
             createdAt: new Date()
         };
 
@@ -52,6 +67,6 @@ export async function POST(request) {
         return NextResponse.json({ habilidade });
     } catch (error) {
         console.error('Create habilidade error:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: 'Erro interno no servidor' }, { status: 500 });
     }
 }
