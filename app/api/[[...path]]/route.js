@@ -541,72 +541,59 @@ async function handleDissertativaUpload(file, gabarito, turmaId, alunoId, period
     }
 
     // Criar prompt para OCR + Correção de questões dissertativas
-    const prompt = `Você é um sistema especializado em OCR e correção de provas dissertativas.
+    const prompt = `Você é um Professor Especialista em Avaliação Educacional e Psicopedagogia.
+Sua tarefa é realizar OCR e uma correção analítica profunda da prova enviada.
 
-TAREFA 1 - OCR:
-Transcreva TODO o texto escrito pelo aluno na prova, mantendo a estrutura e formatação original.
+TAREFA 1 - OCR DE ALTA PRECISÃO:
+Transcreva fielmente o texto do aluno. Se houver palavras ilegíveis, use [ilegível]. Preserve a estrutura de parágrafos.
 
-TAREFA 2 - CORREÇÃO:
-Analise as respostas do aluno comparando com o gabarito fornecido e avalie cada questão.
+TAREFA 2 - CORREÇÃO CRÍTICA E INSIGHTS:
+Compare a resposta com o GABARITO e aplique o PERFIL DE AVALIAÇÃO fornecido.
 
-GABARITO/CRITÉRIOS DE CORREÇÃO:
+GABARITO:
 ${gabarito.conteudo || 'Não fornecido'}
 
-${perfilConteudo ? `PERFIL DE AVALIAÇÃO:\n${perfilConteudo}\n` : ''}${criteriosRigorTexto}
+PERFIL DE AVALIAÇÃO E RIGOR:
+${perfilConteudo}
+${criteriosRigorTexto}
 
-INSTRUÇÕES DE CORREÇÃO:
-1. Para cada questão identificada, avalie a resposta do aluno
-2. Atribua uma nota de 0 a 10 para cada questão (ou use a pontuação máxima especificada)
-3. Forneça feedback construtivo para cada questão
-4. AVALIE CADA HABILIDADE INDIVIDUALMENTE com uma pontuação de 1 a 10, onde:
-   - 1-3: Habilidade não demonstrada ou muito fraca
-   - 4-6: Habilidade parcialmente demonstrada, precisa de reforço
-   - 7-8: Habilidade demonstrada adequadamente
-   - 9-10: Habilidade demonstrada com excelência
-5. Identifique quais habilidades foram demonstradas (acertadas) e quais precisam de reforço (erradas)
-6. Calcule a nota final (0-10) considerando todas as questões
-
-HABILIDADES DISPONÍVEIS:
+HABILIDADES ALVO (Mapeie o desempenho do aluno nestes IDs):
 ${habilidades.map(h => `- ${h.nome} (ID: ${h.id})`).join('\n') || 'Nenhuma habilidade cadastrada'}
 
-Retorne APENAS um JSON válido no formato:
+Retorne ESTRITAMENTE um JSON com esta estrutura:
 {
-  "texto_ocr": "Texto completo transcrito da prova...",
-  "nota_final": 8.5,
-  "feedback_geral": "Resumo geral do desempenho. Mencione as habilidades com melhor e pior desempenho.",
+  "texto_ocr": "...",
+  "nota_final": 0.0,
+  "feedback_geral": "...",
+  "analise_pedagogica": {
+    "causa_raiz_erro": "Identifique o motivo conceitual do erro (ex: confusão entre conceitos).",
+    "ponto_forte": "O que o aluno domina bem?",
+    "sugestao_intervencao": "O que o professor deve trabalhar com este aluno amanhã?"
+  },
   "exercicios": [
     {
       "numero": 1,
-      "nota": 9.0,
-      "nota_maxima": 10.0,
-      "feedback": "Excelente resposta, demonstrou compreensão do conceito.",
-      "habilidades_acertadas": ["id_habilidade_1", "id_habilidade_2"],
+      "nota": 0.0,
+      "nota_maxima": 0.0,
+      "feedback": "...",
+      "habilidades_acertadas": [],
       "habilidades_erradas": []
     }
   ],
   "habilidades_avaliacao": [
     {
-      "habilidade_id": "id_habilidade_1",
-      "pontuacao": 8.5,
-      "justificativa": "Demonstrou boa compreensão do conceito, mas com pequenos erros de cálculo"
-    },
-    {
-      "habilidade_id": "id_habilidade_2",
-      "pontuacao": 9.0,
-      "justificativa": "Excelente domínio da habilidade, respostas precisas e bem fundamentadas"
+      "habilidade_id": "id",
+      "pontuacao": 0.0,
+      "justificativa": "..."
     }
   ]
 }
 
 IMPORTANTE: 
-- Retorne apenas o JSON válido, sem texto adicional
-- Use IDs de habilidades que existem na lista fornecida
-- Avalie TODAS as habilidades relevantes demonstradas na prova (mínimo 2-3 habilidades)
-- Pontuações de habilidades devem estar entre 1 e 10
-- Seja rigoroso mas justo na correção, aplicando os critérios de rigor quando especificados
-- O feedback deve ser construtivo e educativo
-- No feedback_geral, mencione explicitamente as habilidades com melhor e pior desempenho`;
-
+- Se o Perfil de Avaliação exigir "Rigoroso", penalize erros de gramática/sintaxe.
+- Se for "Flexível", foque apenas na ideia central.
+- Use os IDs de habilidades que existem na lista fornecida.
+- A 'sugestao_intervencao' deve ser prática para o professor.`;
     // O sistema de créditos foi abolido. O acesso é controlado por assinatura ou trial.
     const transactionId = uuidv4();
 

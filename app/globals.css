@@ -4,46 +4,44 @@
 
 @layer base {
   :root {
-    /* Base Colors - Slate based from Design System - DARK MODE BY DEFAULT */
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    /* LIGHT MODE - Default */
+    --background: 0 0% 100%;
+    --foreground: 222.2 47.4% 11.2%;
 
     /* Card & Surfaces */
-    --card: 222 47% 11%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222 47% 11%;
-    --popover-foreground: 210 40% 98%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 47.4% 11.2%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 47.4% 11.2%;
 
     /* Primary Brand Color - Emerald Green #10B981 */
     --primary: 161 68% 40%;
     --primary-foreground: 0 0% 100%;
 
-    /* Secondary - slate-50 #F8FAFC */
-    --secondary: 210 40% 98%;
+    /* Secondary */
+    --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
 
     /* Muted & Accents */
     --muted: 210 40% 96.1%;
-    /* slate-100 */
     --muted-foreground: 215.4 16.3% 46.9%;
-    /* slate-500 */
+
     --accent: 210 40% 96.1%;
     --accent-foreground: 222.2 47.4% 11.2%;
 
     /* States */
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
 
     /* Borders & Inputs */
     --border: 214.3 31.8% 91.4%;
-    /* slate-200 */
     --input: 214.3 31.8% 91.4%;
     --ring: 161 68% 40%;
 
     /* Radius */
     --radius: 0.75rem;
 
-    /* Sidebar - Professional Dark Blue Theme #1E3A8A */
+    /* Sidebar */
     --sidebar-background: 224 71% 33%;
     --sidebar-foreground: 210 40% 98%;
     --sidebar-primary: 161 68% 40%;
@@ -57,17 +55,14 @@
   .dark {
     /* Dark Mode - Deep & Sleek */
     --background: 222.2 84% 4.9%;
-    /* Very Dark Blue */
     --foreground: 210 40% 98%;
 
     --card: 222 47% 11%;
-    /* Slightly lighter than bg */
     --card-foreground: 210 40% 98%;
     --popover: 222 47% 11%;
     --popover-foreground: 210 40% 98%;
 
     --primary: 217 91% 60%;
-    /* Bright Blue for Dark Mode */
     --primary-foreground: 222.2 47.4% 11.2%;
 
     --secondary: 217.2 32.6% 17.5%;

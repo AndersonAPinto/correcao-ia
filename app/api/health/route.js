@@ -7,21 +7,26 @@ export async function GET(request) {
     try {
         const { db } = await connectToDatabase();
 
-        // List all users
-        const users = await db.collection('users').find({}, {
-            projection: { email: 1, name: 1, isAdmin: 1, _id: 0 }
-        }).toArray();
+        // Health check não deve expor dados sensíveis de usuários
+        // Apenas verificar conexão e contar registros (sem dados pessoais)
+        const userCount = await db.collection('users').countDocuments();
 
         return NextResponse.json({
             status: 'ok',
             mongodb: 'connected',
-            users: users
+            timestamp: new Date().toISOString()
+            // Removido: exposição de emails, nomes e status admin
         });
     } catch (error) {
+        // Não expor detalhes do erro em produção
+        const errorMessage = process.env.NODE_ENV === 'production'
+            ? 'Service unavailable'
+            : error.message;
+
         return NextResponse.json({
             status: 'error',
             mongodb: 'disconnected',
-            error: error.message
+            error: errorMessage
         }, { status: 500 });
     }
 }
