@@ -4,7 +4,7 @@ const nextConfig = {
   },
   experimental: {
     // Remove if not using Server Components
-    serverComponentsExternalPackages: ['mongodb'],
+    serverComponentsExternalPackages: ['mongodb', '@google-cloud/vertexai', 'google-auth-library'],
   },
   // Otimizações de compilação
   swcMinify: true,
