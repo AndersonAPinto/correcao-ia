@@ -43,9 +43,7 @@ export default function App() {
   const [authTab, setAuthTab] = useState('login');
 
   useEffect(() => {
-    // Processar token do callback OAuth
     const urlParams = new URLSearchParams(window.location.search);
-    const token = urlParams.get('token');
     const provider = urlParams.get('provider');
     const error = urlParams.get('error');
 
@@ -69,9 +67,8 @@ export default function App() {
       return;
     }
 
-    if (token && provider === 'google') {
+    if (provider === 'google') {
       window.history.replaceState({}, document.title, window.location.pathname);
-      localStorage.setItem('token', token);
       checkAuth();
       toast.success('Login com Google realizado com sucesso!');
     } else {
@@ -110,35 +107,21 @@ export default function App() {
   }, [isAuthenticated]);
 
   const checkAuth = async () => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      setLoading(false);
-      return;
-    }
-
     try {
-      const response = await fetch('/api/users/me', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await fetch('/api/users/me', { credentials: 'include' });
 
       if (response.ok) {
         const data = await response.json();
         setUser(data.user);
         setIsAuthenticated(true);
-      } else {
-        localStorage.removeItem('token');
       }
     } catch (error) {
       console.error('Auth check failed:', error);
-      localStorage.removeItem('token');
     }
     setLoading(false);
   };
 
   const loadData = async () => {
-    const token = localStorage.getItem('token');
-    const headers = { 'Authorization': `Bearer ${token}` };
-
     try {
       await loadPendingCount();
     } catch (error) {
@@ -147,11 +130,8 @@ export default function App() {
   };
 
   const loadPendingCount = async () => {
-    const token = localStorage.getItem('token');
     try {
-      const response = await fetch('/api/avaliacoes?status=pendente', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await fetch('/api/avaliacoes?status=pendente', { credentials: 'include' });
 
       if (response.ok) {
         const data = await response.json();
@@ -163,14 +143,13 @@ export default function App() {
   };
 
   const handleAuthSuccess = (data) => {
-    localStorage.setItem('token', data.token);
     setUser(data.user);
     setIsAuthenticated(true);
     setShowAuthModal(false);
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
     setIsAuthenticated(false);
     setUser(null);
     setCredits(0);

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
-import { verifyPassword, generateToken } from '@/lib/auth';
+import { verifyPassword, generateToken, setSessionCookie } from '@/lib/auth';
 import { checkRateLimit, registerAttempt } from '@/lib/api-handlers';
 
 export async function POST(request) {
@@ -29,10 +29,11 @@ export async function POST(request) {
         }
 
         const token = generateToken(user.id);
-        return NextResponse.json({
-            token,
+        const res = NextResponse.json({
             user: { id: user.id, email: user.email, name: user.name, isAdmin: user.isAdmin || 0 }
         });
+        setSessionCookie(res, token);
+        return res;
     } catch (error) {
         console.error('Login error:', error);
         return NextResponse.json({ error: 'Erro interno no servidor' }, { status: 500 });

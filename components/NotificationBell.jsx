@@ -21,13 +21,8 @@ export default function NotificationBell() {
   }, []);
 
   const loadNotifications = async () => {
-    const token = localStorage.getItem('token');
-    if (!token) return;
-
     try {
-      const response = await fetch('/api/notificacoes', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await fetch('/api/notificacoes', { credentials: 'include' });
 
       if (response.ok) {
         const data = await response.json();
@@ -40,11 +35,10 @@ export default function NotificationBell() {
   };
 
   const markAsRead = async (id) => {
-    const token = localStorage.getItem('token');
     try {
       const response = await fetch(`/api/notificacoes/${id}/lida`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
+        credentials: 'include',
       });
 
       if (response.ok) {
@@ -56,11 +50,10 @@ export default function NotificationBell() {
   };
 
   const markAllAsRead = async () => {
-    const token = localStorage.getItem('token');
     try {
       const response = await fetch('/api/notificacoes', {
         method: 'PUT',
-        headers: { 'Authorization': `Bearer ${token}` }
+        credentials: 'include',
       });
 
       if (response.ok) {
@@ -75,11 +68,10 @@ export default function NotificationBell() {
   const clearAll = async () => {
     if (!confirm('Deseja excluir todas as notificações?')) return;
 
-    const token = localStorage.getItem('token');
     try {
       const response = await fetch('/api/notificacoes', {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        credentials: 'include',
       });
 
       if (response.ok) {

@@ -51,11 +51,8 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
   }, []);
 
   const loadPlanoStatus = async () => {
-    const token = localStorage.getItem('token');
     try {
-      const response = await fetch('/api/plano/status', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await fetch('/api/plano/status', { credentials: 'include' });
 
       if (response.ok) {
         const data = await response.json();
@@ -76,13 +73,12 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
   }, [selectedTurma]);
 
   const loadData = async () => {
-    const token = localStorage.getItem('token');
-    const headers = { 'Authorization': `Bearer ${token}` };
+    const fetchOptions = { credentials: 'include' };
 
     try {
       const [turmasRes, gabaritosRes] = await Promise.all([
-        fetch('/api/turmas', { headers }),
-        fetch('/api/gabaritos', { headers })
+        fetch('/api/turmas', fetchOptions),
+        fetch('/api/gabaritos', fetchOptions)
       ]);
 
       if (turmasRes.ok) {
@@ -100,11 +96,8 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
   };
 
   const loadAlunos = async (turmaId) => {
-    const token = localStorage.getItem('token');
     try {
-      const response = await fetch(`/api/alunos/${turmaId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await fetch(`/api/alunos/${turmaId}`, { credentials: 'include' });
 
       if (response.ok) {
         const data = await response.json();
@@ -118,14 +111,11 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
   const handleCreateTurma = async () => {
     if (!novaTurma.trim()) return;
 
-    const token = localStorage.getItem('token');
     try {
       const response = await fetch('/api/turmas', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ nome: novaTurma })
       });
 
@@ -146,14 +136,11 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
   const handleCreateAluno = async () => {
     if (!novoAluno.trim() || !selectedTurma) return;
 
-    const token = localStorage.getItem('token');
     try {
       const response = await fetch('/api/alunos', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           turmaId: selectedTurma,
           nome: novoAluno
@@ -220,14 +207,10 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
     }
 
     setUploading(true);
-    const token = localStorage.getItem('token');
     let completed = 0;
     let errors = 0;
 
-    // Verificar limite antes de processar
-    const planoCheck = await fetch('/api/plano/status', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
+    const planoCheck = await fetch('/api/plano/status', { credentials: 'include' });
 
     if (planoCheck.ok) {
       const planoData = await planoCheck.json();
@@ -264,7 +247,7 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
 
         const response = await fetch('/api/upload', {
           method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}` },
+          credentials: 'include',
           body: formData
         });
 
@@ -369,10 +352,6 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
     }
 
     setUploading(true);
-    const token = localStorage.getItem('token');
-    
-    console.log('🔵 [FRONTEND] Token de autenticação:', token ? 'Presente' : 'Ausente');
-    
     const formData = new FormData();
     formData.append('image', selectedFile);
     formData.append('gabaritoId', selectedGabarito);
@@ -386,7 +365,7 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
       
       const response = await fetch('/api/upload', {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
+        credentials: 'include',
         body: formData
       });
 

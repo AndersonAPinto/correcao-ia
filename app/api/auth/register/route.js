@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
-import { hashPassword, generateToken, generateVerificationToken } from '@/lib/auth';
+import { hashPassword, generateToken, generateVerificationToken, setSessionCookie } from '@/lib/auth';
 import { v4 as uuidv4 } from 'uuid';
 import EmailService from '@/lib/services/EmailService';
 
@@ -69,11 +69,12 @@ export async function POST(request) {
         }
 
         const token = generateToken(userId);
-        return NextResponse.json({
-            token,
+        const res = NextResponse.json({
             user: { id: userId, email, name, isAdmin, emailVerified: false },
             message: 'Conta criada com sucesso! Verifique seu email para ativar sua conta.'
         });
+        setSessionCookie(res, token);
+        return res;
     } catch (error) {
         console.error('Register error:', error);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

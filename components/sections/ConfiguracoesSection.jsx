@@ -38,11 +38,8 @@ export default function ConfiguracoesSection({ user, credits }) {
   }, [user]);
 
   const loadPlanoStatus = async () => {
-    const token = localStorage.getItem('token');
     try {
-      const response = await fetch('/api/plano/status', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await fetch('/api/plano/status', { credentials: 'include' });
 
       if (response.ok) {
         const data = await response.json();
@@ -54,11 +51,8 @@ export default function ConfiguracoesSection({ user, credits }) {
   };
 
   const loadAdminSettings = async () => {
-    const token = localStorage.getItem('token');
     try {
-      const response = await fetch('/api/settings', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await fetch('/api/settings', { credentials: 'include' });
 
       if (response.ok) {
         const data = await response.json();
@@ -75,15 +69,12 @@ export default function ConfiguracoesSection({ user, credits }) {
   const handleSave = async (e) => {
     e.preventDefault();
     setSaving(true);
-    const token = localStorage.getItem('token');
 
     try {
       const response = await fetch('/api/settings', {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(formData)
       });
 

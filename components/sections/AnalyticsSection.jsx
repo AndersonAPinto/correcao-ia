@@ -57,11 +57,8 @@ export default function AnalyticsSection() {
   }, [selectedTurma]);
 
   const loadTurmas = async () => {
-    const token = localStorage.getItem('token');
     try {
-      const response = await fetch('/api/turmas', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await fetch('/api/turmas', { credentials: 'include' });
 
       if (response.ok) {
         const data = await response.json();
@@ -76,15 +73,13 @@ export default function AnalyticsSection() {
     if (!selectedTurma) return;
 
     setLoading(true);
-    const token = localStorage.getItem('token');
 
-    // AbortController para cancelar requisições se necessário
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // Timeout de 30s
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
 
     try {
       const fetchOptions = {
-        headers: { 'Authorization': `Bearer ${token}` },
+        credentials: 'include',
         signal: controller.signal,
       };
 
