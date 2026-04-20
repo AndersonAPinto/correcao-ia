@@ -422,18 +422,16 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
           data: data
         });
         
-        // Verificar se é erro de limite de plano
         if (response.status === 403 && data.planoStatus) {
-          console.warn('⚠️ [FRONTEND] Limite de plano atingido');
           setPlanoStatus(data.planoStatus);
           setPaywallOpen(true);
+          return;
         }
-        
-        // Log específico para erro de Vertex AI
+
         if (response.status === 400 && data.error?.includes('IA não está configurado')) {
           console.error('❌ [FRONTEND] ERRO DE CONFIGURAÇÃO DO VERTEX AI:', data.error);
         }
-        
+
         toast.error(data.error || 'Ocorreu um erro ao processar o upload da prova.');
       }
     } catch (error) {
@@ -889,6 +887,7 @@ export default function CorretorIASection({ onUploadSuccess, setActiveView }) {
           planoStatus={planoStatus}
         />
       )}
+
 
       {/* Plano Status Banner */}
       {planoStatus && !planoStatus.isSubscriber && (

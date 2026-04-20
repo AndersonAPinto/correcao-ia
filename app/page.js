@@ -219,7 +219,7 @@ export default function App() {
                 Olá, {user?.name}
               </h1>
               <p className="text-xs text-muted-foreground">
-                {user?.isAdmin === 1 ? 'Administrador' : 'Bem-vindo à plataforma'}
+                {user?.isAdmin ? 'Administrador' : 'Bem-vindo à plataforma'}
               </p>
             </div>
             <div className="flex items-center gap-3">

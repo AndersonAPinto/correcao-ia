@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
-import { requireAuth } from '@/lib/api-handlers';
+import { requireVerifiedEmail } from '@/lib/api-handlers';
 
 export async function GET(request) {
     try {
-        const userId = await requireAuth(request);
+        const userId = await requireVerifiedEmail(request);
         const { searchParams } = new URL(request.url);
         const status = searchParams.get('status'); // 'pendente' or 'concluida'
 

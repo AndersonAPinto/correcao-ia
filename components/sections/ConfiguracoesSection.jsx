@@ -90,7 +90,7 @@ export default function ConfiguracoesSection({ user, credits }) {
     setSaving(false);
   };
 
-  const isAdmin = user?.isAdmin === 1;
+  const isAdmin = !!user?.isAdmin;
 
   return (
     <div className="space-y-6 relative">
