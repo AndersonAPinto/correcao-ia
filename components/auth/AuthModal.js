@@ -57,7 +57,7 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'login', onAut
             const data = await response.json();
 
             if (response.ok) {
-                toast.success(activeTab === 'login' ? '👋 Bem-vindo de volta! Login realizado.' : '🎉 Conta criada com sucesso! Bem-vindo ao CorregIA.');
+                toast.success(activeTab === 'login' ? '👋 Bem-vindo de volta! Login realizado.' : '🎉 Conta criada com sucesso! Bem-vindo ao CorrijaPRO.');
                 onAuthSuccess(data);
                 onClose();
                 // Limpar formulário

@@ -64,7 +64,7 @@ export default function ConfiguracoesSection({ user, credits }) {
         const data = await response.json();
         setFormData(prev => ({
           ...prev,
-          geminiApiKey: data.geminiApiKey || ''
+          geminiApiKey: data.settings?.geminiApiKey || ''
         }));
       }
     } catch (error) {
@@ -318,7 +318,7 @@ export default function ConfiguracoesSection({ user, credits }) {
 
       {/* Version Info */}
       <div className="flex justify-end mt-6">
-        <p className="text-xs text-muted-foreground">v0.3.2</p>
+        <p className="text-xs text-muted-foreground">v0.3.3</p>
       </div>
     </div>
   );

@@ -31,7 +31,7 @@ export default function Header({ onLoginClick }) {
                     className="flex items-center gap-2 cursor-pointer hover:opacity-90 transition-opacity"
                     aria-label="Voltar ao início"
                 >
-                    <Image src="/imagens/corregia_logotipo_lateral_sem_fundo.png" alt="Logotipo CorregIA" width={140} height={40} className="h-10 w-auto object-contain brightness-0 invert" />
+                    <Image src="/imagens/corrijapro_logotipo_lateral_sem_fundo.png" alt="Logotipo CorregIA" width={140} height={40} className="h-10 w-auto object-contain brightness-0 invert" />
                 </button>
 
                 {/* Desktop Nav */}

@@ -1,4 +1,4 @@
-# Documento de Erros Encontrados - CorregIA
+# Documento de Erros Encontrados - CorrijaPRO
 
 Este documento lista todos os erros identificados no código do projeto, organizados por área de atuação.
 

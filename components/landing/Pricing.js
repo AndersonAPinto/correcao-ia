@@ -159,7 +159,7 @@ export default function Pricing({ onRegisterClick }) {
                     <div className="bg-white/[0.03] border border-white/5 rounded-3xl p-12 max-w-4xl mx-auto backdrop-blur-sm">
                         <h3 className="text-3xl lg:text-4xl font-extrabold mb-4 text-white">Pronto para transformar sua rotina?</h3>
                         <p className="text-slate-400 text-lg mb-8 max-w-2xl mx-auto font-medium">
-                            Junte-se a centenas de professores que já economizam tempo e melhoram o feedback de seus alunos com o CorregIA.
+                            Junte-se a centenas de professores que já economizam tempo e melhoram o feedback de seus alunos com o CorrijaPRO.
                         </p>
                         <Button
                             size="lg"

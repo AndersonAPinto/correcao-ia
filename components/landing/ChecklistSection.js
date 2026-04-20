@@ -98,7 +98,7 @@ export default function ChecklistSection() {
 
                             <div className="mt-10 pt-10 border-t border-white/5">
                                 <p className="text-sm text-slate-400 italic leading-relaxed font-medium">
-                                    "O CorregIA me economiza horas de trabalho toda semana. Posso dar um feedback muito mais rico para meus alunos."
+                                    "O CorrijaPRO me economiza horas de trabalho toda semana. Posso dar um feedback muito mais rico para meus alunos."
                                 </p>
                                 <div className="mt-6 flex items-center gap-4">
                                     <div className="h-12 w-12 rounded-full bg-slate-800" />

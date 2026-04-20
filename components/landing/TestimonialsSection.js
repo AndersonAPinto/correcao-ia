@@ -5,7 +5,7 @@ import { Star } from 'lucide-react';
 
 const testimonials = [
     {
-        quote: "O CorregIA mudou completamente minha forma de avaliar. O que antes levava um final de semana inteiro, agora resolvo em minutos.",
+        quote: "O CorrijaPRO mudou completamente minha forma de avaliar. O que antes levava um final de semana inteiro, agora resolvo em minutos.",
         author: "Profa. Ana Costa",
         role: "Escola Estadual São Paulo",
         rating: 5,

@@ -1,10 +1,10 @@
-# Design Document - CorregIA
+# Design Document - CorrijaPRO
 
 ## 1. Visão Geral do Projeto
 
 ### Problema que o Sistema Resolve
 
-O CorregIA é uma plataforma web que automatiza a correção de provas escolares utilizando Inteligência Artificial. O sistema resolve o problema de tempo excessivo gasto por professores na correção manual de avaliações, oferecendo:
+O CorrijaPRO é uma plataforma web que automatiza a correção de provas escolares utilizando Inteligência Artificial. O sistema resolve o problema de tempo excessivo gasto por professores na correção manual de avaliações, oferecendo:
 
 - Correção automática de provas dissertativas e de múltipla escolha
 - OCR (Reconhecimento Óptico de Caracteres) para transcrição de respostas manuscritas
@@ -142,7 +142,7 @@ O sistema segue uma arquitetura full-stack baseada em Next.js 14, utilizando:
    - (Opcional) Criar perfis de avaliação com critérios de rigor
 
 3. **Correção de Provas:**
-   - Acessa seção "CorregIA" ou "Painel"
+   - Acessa seção "CorrijaPRO" ou "Painel"
    - Seleciona turma, aluno, período e gabarito
    - Faz upload da imagem da prova (JPG, PNG, WEBP, PDF)
    - Sistema processa automaticamente:
@@ -738,7 +738,7 @@ correcao-ia/
 
 ## Conclusão
 
-O CorregIA é uma plataforma bem estruturada que utiliza tecnologias modernas para resolver um problema real na educação. A arquitetura baseada em Next.js permite desenvolvimento rápido e deployment simplificado, enquanto a integração com Vertex AI oferece capacidades avançadas de OCR e correção.
+O CorrijaPRO é uma plataforma bem estruturada que utiliza tecnologias modernas para resolver um problema real na educação. A arquitetura baseada em Next.js permite desenvolvimento rápido e deployment simplificado, enquanto a integração com Vertex AI oferece capacidades avançadas de OCR e correção.
 
 **Principais Descobertas da Revisão:**
 
