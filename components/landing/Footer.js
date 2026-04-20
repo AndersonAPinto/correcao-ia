@@ -40,8 +40,8 @@ export default function Footer() {
                 <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6 text-sm font-bold text-slate-500">
                     <p>© {new Date().getFullYear()} CorrijaPRO. Desenvolvido com ❤️ para professores.</p>
                     <div className="flex gap-10">
-                        <a href="#" className="hover:text-emerald-400 transition-colors">Instagram</a>
-                        <a href="#" className="hover:text-emerald-400 transition-colors">LinkedIn</a>
+                        <a href="https://instagram.com/corrijapro" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-400 transition-colors">Instagram</a>
+                        <a href="https://linkedin.com/company/corrijapro" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-400 transition-colors">LinkedIn</a>
                     </div>
                 </div>
             </div>
