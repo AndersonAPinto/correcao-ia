@@ -49,7 +49,7 @@ export async function POST(request) {
         // mas não adicionamos créditos iniciais obrigatórios para o fluxo de correção.
 
         // Gerar token de verificação de email
-        const verificationToken = generateVerificationToken();
+        const verificationToken = generateVerificationToken(userId);
 
         // Salvar token de verificação
         await db.collection('email_verifications').insertOne({
