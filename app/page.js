@@ -133,6 +133,12 @@ export default function App() {
     try {
       const response = await fetch('/api/avaliacoes?status=pendente', { credentials: 'include' });
 
+      if (response.status === 401) {
+        setIsAuthenticated(false);
+        setUser(null);
+        return;
+      }
+
       if (response.ok) {
         const data = await response.json();
         setPendingCount(data.avaliacoes?.length || 0);
