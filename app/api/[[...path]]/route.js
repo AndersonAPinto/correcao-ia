@@ -1,122 +1,11 @@
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
-import { hashPassword, verifyPassword, generateToken, getUserFromRequest } from '@/lib/auth';
-import { requireAuth, requireAdmin, createNotification, callGeminiAPI, callGeminiAPIWithRetry, logAudit, checkRateLimit, registerAttempt, isVertexAIConfigured } from '@/lib/api-handlers';
-import { ADMIN_EMAIL } from '@/lib/constants';
+import { requireAuth, requireAdmin, createNotification, callGeminiAPI, logAudit, checkRateLimit, registerAttempt, isVertexAIConfigured } from '@/lib/api-handlers';
 import { v4 as uuidv4 } from 'uuid';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
-import { existsSync } from 'fs';
-import { saveImageToMongoDB, getImageFromMongoDB } from '@/lib/fileStorage';
+import { saveImageToMongoDB } from '@/lib/fileStorage';
 import { runDissertativaPipeline, runMultiplaEscolhaPipeline } from '@/lib/services/CorrectionPipelineService';
 
 // ==================== AUTH HANDLERS ====================
-
-async function handleRegister(request) {
-  try {
-    const { email, password, name } = await request.json();
-
-    if (!email || !password || !name) {
-      return NextResponse.json({ error: '⚠️ Preencha todos os campos obrigatórios (nome, email e senha).' }, { status: 400 });
-    }
-
-    // Rate limiting para registros (prevenir bots)
-    const rateLimit = await checkRateLimit(request, email, 'register', 3, 60);
-    if (rateLimit.blocked) {
-      return NextResponse.json({
-        error: `🛑 Muitas tentativas de registro. Por segurança, tente novamente em ${rateLimit.remainingMinutes} minutos.`
-      }, { status: 429 });
-    }
-
-    const { db } = await connectToDatabase();
-
-    const existingUser = await db.collection('users').findOne({ email });
-    if (existingUser) {
-      await registerAttempt(request, email, 'register');
-      return NextResponse.json({ error: '📧 Este e-mail já está cadastrado no sistema.' }, { status: 400 });
-    }
-
-    const userId = uuidv4();
-    const hashedPassword = hashPassword(password);
-    const isAdmin = email === ADMIN_EMAIL ? 1 : 0;
-
-    await db.collection('users').insertOne({
-      id: userId,
-      email,
-      password: hashedPassword,
-      name,
-      isAdmin,
-      assinatura: 'free',
-      createdAt: new Date()
-    });
-
-    // Auditoria de Registro
-    await logAudit(request, userId, 'user_registered', { email, name });
-
-    await db.collection('creditos').insertOne({
-      id: uuidv4(),
-      userId,
-      saldoAtual: 1000,
-      createdAt: new Date()
-    });
-
-    await db.collection('transacoes_creditos').insertOne({
-      id: uuidv4(),
-      userId,
-      tipo: 'credito',
-      quantidade: 1000,
-      descricao: 'Créditos iniciais de boas-vindas',
-      createdAt: new Date()
-    });
-
-    const token = generateToken(userId);
-    return NextResponse.json({ token, user: { id: userId, email, name, isAdmin } });
-  } catch (error) {
-    console.error('Register error:', error);
-    return NextResponse.json({ error: 'Erro interno no servidor' }, { status: 500 });
-  }
-}
-
-async function handleLogin(request) {
-  try {
-    const { email, password } = await request.json();
-
-    if (!email || !password) {
-      return NextResponse.json({ error: '⚠️ Por favor, informe seu e-mail e senha.' }, { status: 400 });
-    }
-
-    // Rate limiting Anti-Brute Force
-    const rateLimit = await checkRateLimit(request, email, 'login', 5, 15);
-    if (rateLimit.blocked) {
-      return NextResponse.json({
-        error: `🛑 Conta bloqueada temporariamente por excesso de tentativas. Tente novamente em ${rateLimit.remainingMinutes} minutos.`
-      }, { status: 429 });
-    }
-
-    const { db } = await connectToDatabase();
-    const user = await db.collection('users').findOne({ email });
-
-    if (!user || !verifyPassword(password, user.password)) {
-      // Registrar tentativa falha
-      await registerAttempt(request, email, 'login');
-      await logAudit(request, 'anonymous', 'login_failed', { email });
-
-      return NextResponse.json({ error: '❌ E-mail ou senha incorretos.' }, { status: 401 });
-    }
-
-    // Auditoria de Login Sucesso
-    await logAudit(request, user.id, 'login_success', { email });
-
-    const token = generateToken(user.id);
-    return NextResponse.json({
-      token,
-      user: { id: user.id, email: user.email, name: user.name, isAdmin: user.isAdmin || 0 }
-    });
-  } catch (error) {
-    console.error('Login error:', error);
-    return NextResponse.json({ error: 'Erro interno no servidor' }, { status: 500 });
-  }
-}
 
 async function handleGetMe(request) {
   try {
@@ -241,71 +130,6 @@ async function handleGetAlunos(request, turmaId) {
 
 // ==================== PERFIS DE AVALIAÇÃO HANDLERS ====================
 
-async function handleCreatePerfil(request) {
-  try {
-    const userId = await requireAuth(request);
-    const formData = await request.formData();
-
-    const nome = formData.get('nome');
-    const conteudo = formData.get('conteudo');
-    const arquivo = formData.get('arquivo');
-
-    if (!nome) {
-      return NextResponse.json({ error: '⚠️ O nome do perfil é obrigatório.' }, { status: 400 });
-    }
-
-    const { db } = await connectToDatabase();
-    let arquivoUrl = '';
-
-    // Handle file upload if provided
-    if (arquivo && arquivo.size > 0) {
-      const bytes = await arquivo.arrayBuffer();
-      const buffer = Buffer.from(bytes);
-
-      const uploadDir = join(process.cwd(), 'public', 'perfis');
-      if (!existsSync(uploadDir)) {
-        await mkdir(uploadDir, { recursive: true });
-      }
-
-      const filename = `${uuidv4()}-${arquivo.name}`;
-      const filepath = join(uploadDir, filename);
-      await writeFile(filepath, buffer);
-      arquivoUrl = `/perfis/${filename}`;
-    }
-
-    const perfil = {
-      id: uuidv4(),
-      userId,
-      nome,
-      conteudo: conteudo || '',
-      arquivoUrl,
-      createdAt: new Date()
-    };
-
-    await db.collection('perfis_avaliacao').insertOne(perfil);
-    return NextResponse.json({ perfil });
-  } catch (error) {
-    console.error('Create perfil error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-}
-
-async function handleGetPerfis(request) {
-  try {
-    const userId = await requireAuth(request);
-    const { db } = await connectToDatabase();
-
-    const perfis = await db.collection('perfis_avaliacao')
-      .find({ userId })
-      .sort({ createdAt: -1 })
-      .toArray();
-
-    return NextResponse.json({ perfis });
-  } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 401 });
-  }
-}
-
 async function handleGerarPerfil(request) {
   try {
     const userId = await requireAuth(request);
@@ -343,75 +167,6 @@ Formato: Texto estruturado, claro e objetivo.`;
   } catch (error) {
     console.error('Generate perfil error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-}
-
-// ==================== GABARITOS HANDLERS ====================
-
-async function handleCreateGabarito(request) {
-  try {
-    const userId = await requireAuth(request);
-    const formData = await request.formData();
-
-    const titulo = formData.get('titulo');
-    const conteudo = formData.get('conteudo');
-    const perfilAvaliacaoId = formData.get('perfilAvaliacaoId');
-    const arquivo = formData.get('arquivo');
-
-    if (!titulo) {
-      return NextResponse.json({ error: '⚠️ O título do gabarito é obrigatório.' }, { status: 400 });
-    }
-
-    const { db } = await connectToDatabase();
-    let arquivoUrl = '';
-
-    // Handle file upload if provided
-    if (arquivo && arquivo.size > 0) {
-      const bytes = await arquivo.arrayBuffer();
-      const buffer = Buffer.from(bytes);
-
-      const uploadDir = join(process.cwd(), 'public', 'gabaritos');
-      if (!existsSync(uploadDir)) {
-        await mkdir(uploadDir, { recursive: true });
-      }
-
-      const filename = `${uuidv4()}-${arquivo.name}`;
-      const filepath = join(uploadDir, filename);
-      await writeFile(filepath, buffer);
-      arquivoUrl = `/gabaritos/${filename}`;
-    }
-
-    const gabarito = {
-      id: uuidv4(),
-      userId,
-      titulo,
-      conteudo: conteudo || '',
-      perfilAvaliacaoId: perfilAvaliacaoId || '',
-      arquivoUrl,
-      createdAt: new Date()
-    };
-
-    await db.collection('gabaritos').insertOne(gabarito);
-    return NextResponse.json({ gabarito });
-  } catch (error) {
-    console.error('Create gabarito error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-}
-
-async function handleGetGabaritos(request) {
-  try {
-    const userId = await requireAuth(request);
-    const { db } = await connectToDatabase();
-
-    const gabaritos = await db.collection('gabaritos')
-      .find({ userId })
-      .sort({ createdAt: -1 })
-      .toArray();
-
-    return NextResponse.json({ gabaritos });
-  } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 401 });
   }
 }
 
@@ -1207,51 +962,22 @@ async function handleAddAdmin(request) {
 export async function POST(request) {
   const pathname = new URL(request.url).pathname;
 
-  if (pathname === '/api/auth/register') return handleRegister(request);
-  if (pathname === '/api/auth/login') return handleLogin(request);
   if (pathname === '/api/turmas') return handleCreateTurma(request);
   if (pathname === '/api/alunos') return handleCreateAluno(request);
-  if (pathname === '/api/perfis') return handleCreatePerfil(request);
   if (pathname === '/api/perfis/gerar') return handleGerarPerfil(request);
-  if (pathname === '/api/gabaritos') return handleCreateGabarito(request);
   if (pathname === '/api/upload') return handleUpload(request);
   if (pathname === '/api/admin/add-admin') return handleAddAdmin(request);
 
   return NextResponse.json({ error: 'Recurso não encontrado' }, { status: 404 });
 }
 
-async function handleGetImage(request, id) {
-  try {
-    console.log(`🖼️ [IMAGE HANDLER] Buscando imagem ID: ${id}`);
-    const imageData = await getImageFromMongoDB(id);
-
-    return new NextResponse(imageData.buffer, {
-      headers: {
-        'Content-Type': imageData.contentType,
-        'Content-Length': imageData.buffer.length.toString(),
-        'Cache-Control': 'no-store, must-revalidate',
-      },
-    });
-  } catch (error) {
-    console.error(`❌ [IMAGE HANDLER] Erro:`, error.message);
-    return NextResponse.json({ error: 'Imagem não encontrada' }, { status: 404 });
-  }
-}
-
 export async function GET(request) {
   const pathname = new URL(request.url).pathname;
-
-  if (pathname.startsWith('/api/images/')) {
-    const id = pathname.split('/').pop();
-    return handleGetImage(request, id);
-  }
 
   if (pathname === '/api/auth/me') return handleGetMe(request);
   if (pathname === '/api/credits') return handleGetCredits(request);
   if (pathname === '/api/settings') return handleGetSettings(request);
   if (pathname === '/api/turmas') return handleGetTurmas(request);
-  if (pathname === '/api/perfis') return handleGetPerfis(request);
-  if (pathname === '/api/gabaritos') return handleGetGabaritos(request);
   if (pathname === '/api/avaliacoes/pendentes') return handleGetAvaliacoesPendentes(request);
   if (pathname === '/api/avaliacoes/concluidas') return handleGetAvaliacoesConcluidas(request);
   if (pathname === '/api/notificacoes') return handleGetNotificacoes(request);
