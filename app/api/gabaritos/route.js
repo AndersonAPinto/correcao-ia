@@ -33,6 +33,8 @@ export async function POST(request) {
         const perfilAvaliacaoId = formData.get('perfilAvaliacaoId');
         const arquivo = formData.get('arquivo');
         const tipo = formData.get('tipo') || 'dissertativa'; // 'multipla_escolha' ou 'dissertativa'
+        const disciplina = formData.get('disciplina') || 'Geral'; // Disciplina da prova (Matemática, Português, etc.)
+        const nivel = formData.get('nivel') || ''; // Nível educacional (6º Ano, Ensino Médio, etc.)
         const questoesJson = formData.get('questoes'); // JSON string para questões de múltipla escolha
 
         if (!titulo) {
@@ -98,6 +100,8 @@ export async function POST(request) {
             perfilAvaliacaoId: perfilAvaliacaoId || '',
             arquivoUrl,
             tipo, // 'multipla_escolha' ou 'dissertativa'
+            disciplina, // Disciplina da prova (Matemática, Português, Ciências, etc.)
+            nivel, // Nível educacional (6º Ano, Ensino Médio, etc.)
             questoes: questoes, // Array de questões para múltipla escolha
             totalQuestoes: tipo === 'multipla_escolha' ? questoes.length : 0,
             createdAt: new Date()
@@ -135,7 +139,7 @@ export async function PUT(request) {
 
         // Verificar se é FormData (com arquivo) ou JSON
         const contentType = request.headers.get('content-type') || '';
-        let titulo, conteudo, perfilAvaliacaoId, tipo, questoes, arquivo, removerArquivo;
+        let titulo, conteudo, perfilAvaliacaoId, tipo, disciplina, nivel, questoes, arquivo, removerArquivo;
 
         if (contentType.includes('multipart/form-data')) {
             // FormData (pode conter arquivo)
@@ -144,6 +148,8 @@ export async function PUT(request) {
             conteudo = formData.get('conteudo');
             perfilAvaliacaoId = formData.get('perfilAvaliacaoId');
             tipo = formData.get('tipo');
+            disciplina = formData.get('disciplina');
+            nivel = formData.get('nivel');
             arquivo = formData.get('arquivo');
             removerArquivo = formData.get('removerArquivo') === 'true';
 
@@ -162,6 +168,8 @@ export async function PUT(request) {
             conteudo = body.conteudo;
             perfilAvaliacaoId = body.perfilAvaliacaoId;
             tipo = body.tipo;
+            disciplina = body.disciplina;
+            nivel = body.nivel;
             questoes = body.questoes;
         }
 
@@ -176,6 +184,14 @@ export async function PUT(request) {
             perfilAvaliacaoId: perfilAvaliacaoId || '',
             updatedAt: new Date()
         };
+
+        // Atualizar disciplina e nível se fornecidos
+        if (disciplina !== undefined && disciplina !== null) {
+            updateData.disciplina = disciplina;
+        }
+        if (nivel !== undefined && nivel !== null) {
+            updateData.nivel = nivel;
+        }
 
         // Processar arquivo se fornecido
         let arquivoUrl = gabarito.arquivoUrl || '';

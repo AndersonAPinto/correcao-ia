@@ -142,7 +142,7 @@ export default function NotificationBell() {
               {unreadNotifications.map((notif) => (
                 <div
                   key={notif.id}
-                  className="p-4 cursor-pointer hover:bg-blue-50/30 transition-all group relative"
+                  className="p-4 cursor-pointer hover:bg-blue-200 transition-all group relative"
                   onClick={() => markAsRead(notif.id)}
                 >
                   <div className="flex gap-3">
