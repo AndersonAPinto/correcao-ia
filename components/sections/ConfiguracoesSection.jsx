@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Settings, User, CreditCard, Key, Palette, Crown } from 'lucide-react';
+import { Settings, User, CreditCard, Key, Palette, Crown, Cpu } from 'lucide-react';
 import PaywallModal from '@/components/PaywallModal';
 
 export default function ConfiguracoesSection({ user, credits }) {
@@ -17,7 +17,9 @@ export default function ConfiguracoesSection({ user, credits }) {
   const [mounted, setMounted] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
-    geminiApiKey: ''
+    geminiApiKey: '',
+    openRouterApiKey: '',
+    openRouterModel: ''
   });
   const [saving, setSaving] = useState(false);
   const [planoStatus, setPlanoStatus] = useState(null);
@@ -58,7 +60,9 @@ export default function ConfiguracoesSection({ user, credits }) {
         const data = await response.json();
         setFormData(prev => ({
           ...prev,
-          geminiApiKey: data.settings?.geminiApiKey || ''
+          geminiApiKey: data.settings?.geminiApiKey || '',
+          openRouterApiKey: data.settings?.openRouterApiKey || '',
+          openRouterModel: data.settings?.openRouterModel || ''
         }));
       }
     } catch (error) {
@@ -264,8 +268,51 @@ export default function ConfiguracoesSection({ user, credits }) {
                     Obtenha em: <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Google AI Studio</a>
                   </p>
                   <p className="text-xs text-gray-500 mt-2">
-                    A correção é feita diretamente via Vertex AI (Gemini), processamento automático e instantâneo.
+                    OCR sempre usa Vertex AI (Gemini). Configure o OpenRouter abaixo para usar outro modelo na correção e análise.
                   </p>
+                </div>
+
+                <div className="border-t pt-4 space-y-3">
+                  <p className="text-sm font-semibold flex items-center gap-2">
+                    <Cpu className="h-4 w-4" />
+                    OpenRouter — Correção e Análise (opcional)
+                  </p>
+                  <div className="space-y-2">
+                    <Label htmlFor="openrouter-key" className="flex items-center gap-2">
+                      <Key className="h-4 w-4" />
+                      OpenRouter API Key
+                    </Label>
+                    <Input
+                      id="openrouter-key"
+                      type="password"
+                      placeholder="sk-or-..."
+                      value={formData.openRouterApiKey}
+                      onChange={(e) => setFormData({ ...formData, openRouterApiKey: e.target.value })}
+                    />
+                    <p className="text-xs text-gray-500">
+                      Obtenha em: <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">openrouter.ai/keys</a>
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="openrouter-model">Modelo OpenRouter</Label>
+                    <Input
+                      id="openrouter-model"
+                      type="text"
+                      placeholder="openai/gpt-4o-mini"
+                      value={formData.openRouterModel}
+                      onChange={(e) => setFormData({ ...formData, openRouterModel: e.target.value })}
+                    />
+                    <p className="text-xs text-gray-500">
+                      Exemplos: <code>openai/gpt-4o</code>, <code>anthropic/claude-3-5-sonnet</code>, <code>google/gemini-2.0-flash-001</code>.
+                      Lista completa em <a href="https://openrouter.ai/models" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">openrouter.ai/models</a>.
+                      Deixe vazio para usar <code>openai/gpt-4o-mini</code> (padrão).
+                    </p>
+                  </div>
+                  {!formData.openRouterApiKey && (
+                    <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded p-2">
+                      Sem OpenRouter configurado, os estágios de correção e análise usam o Vertex AI (Gemini).
+                    </p>
+                  )}
                 </div>
 
                 <Button type="submit" className="w-full" disabled={saving}>
