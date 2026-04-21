@@ -5,25 +5,25 @@ import { Star } from 'lucide-react';
 
 const testimonials = [
     {
-        quote: "O CorregIA mudou completamente minha forma de avaliar. O que antes levava um final de semana inteiro, agora resolvo em minutos.",
+        quote: "O CorrijaPRO mudou completamente minha forma de avaliar. O que antes levava um final de semana inteiro, agora resolvo em minutos.",
         author: "Profa. Ana Costa",
         role: "Escola Estadual São Paulo",
         rating: 5,
-        image: "/imagens/placeholder-1.jpg"
+        color: "bg-emerald-600"
     },
     {
         quote: "A precisão da IA em entender a caligrafia dos meus alunos me impressionou. O feedback gerado é muito valioso para o aprendizado.",
         author: "Prof. Ricardo Lima",
         role: "Colégio Particular Horizonte",
         rating: 5,
-        image: "/imagens/placeholder-2.jpg"
+        color: "bg-blue-600"
     },
     {
         quote: "Excelente ferramenta para análise de dados. Consigo ver exatamente onde minha turma está falhando e agir rapidamente.",
         author: "Profa. Cláudia Menezes",
         role: "Instituto de Educação Moderna",
         rating: 5,
-        image: "/imagens/placeholder-3.jpg"
+        color: "bg-violet-600"
     }
 ];
 
@@ -57,8 +57,8 @@ export default function TestimonialsSection() {
                                 "{t.quote}"
                             </p>
                             <div className="flex items-center gap-4">
-                                <div className="h-12 w-12 rounded-full bg-slate-800 overflow-hidden shrink-0">
-                                    {/* Placeholder image */}
+                                <div className={`h-12 w-12 rounded-full ${t.color} shrink-0 flex items-center justify-center`}>
+                                    <span className="text-white font-extrabold text-sm">{t.author.split(' ').slice(-1)[0][0]}</span>
                                 </div>
                                 <div>
                                     <div className="font-extrabold text-white text-sm">{t.author}</div>

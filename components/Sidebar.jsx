@@ -50,7 +50,7 @@ export default function AppSidebar({ activeView, setActiveView, pendingCount = 0
     },
     {
       id: 'corretor-ia',
-      label: 'CorregIA',
+      label: 'CorrijaPRO',
       icon: BotIcon,
       description: 'Correção automática e instantânea de provas de múltipla escolha. Para questões discursivas, receba sugestões inteligentes de pontuação.'
     },
@@ -99,11 +99,11 @@ export default function AppSidebar({ activeView, setActiveView, pendingCount = 0
       <SidebarHeader>
         <div className="flex items-center gap-2 px-2 py-1.5">
           <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-transparent">
-            <Image src="/imagens/favicon_logo.png" alt="CorregIA" width={30} height={30} />
+            <Image src="/imagens/favicon_logo.png" alt="CorrijaPRO" width={30} height={30} />
           </div>
           <div className="grid flex-1 text-left text-sm leading-tight">
-            <span className="truncate font-semibold">CorregIA</span>
-            <span className="truncate text-xs text-sidebar-foreground/70">Plataforma CorregIA</span>
+            <span className="truncate font-semibold">CorrijaPRO</span>
+            <span className="truncate text-xs text-sidebar-foreground/70">Plataforma CorrijaPRO</span>
           </div>
         </div>
       </SidebarHeader>

@@ -32,11 +32,8 @@ export default function HabilidadesSection() {
   }, []);
 
   const loadHabilidades = async () => {
-    const token = localStorage.getItem('token');
     try {
-      const response = await fetch('/api/habilidades', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await fetch('/api/habilidades', { credentials: 'include' });
 
       if (response.ok) {
         const data = await response.json();
@@ -56,14 +53,11 @@ export default function HabilidadesSection() {
     }
 
     setCreating(true);
-    const token = localStorage.getItem('token');
     try {
       const response = await fetch('/api/habilidades', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(formData)
       });
 
@@ -89,11 +83,10 @@ export default function HabilidadesSection() {
   const confirmDelete = async () => {
     if (!habilidadeToDelete) return;
 
-    const token = localStorage.getItem('token');
     try {
       const response = await fetch(`/api/habilidades/${habilidadeToDelete}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        credentials: 'include',
       });
 
       if (response.ok) {
@@ -111,7 +104,6 @@ export default function HabilidadesSection() {
   };
 
   const handleCreatePadrao = async () => {
-    const token = localStorage.getItem('token');
     let criadas = 0;
     let erros = 0;
 
@@ -119,10 +111,8 @@ export default function HabilidadesSection() {
       try {
         const response = await fetch('/api/habilidades', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify({ nome })
         });
 

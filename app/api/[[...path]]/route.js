@@ -1,121 +1,11 @@
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
-import { hashPassword, verifyPassword, generateToken, getUserFromRequest } from '@/lib/auth';
-import { requireAuth, requireAdmin, createNotification, callGeminiAPI, callGeminiAPIWithRetry, logAudit, checkRateLimit, registerAttempt, isVertexAIConfigured } from '@/lib/api-handlers';
-import { ADMIN_EMAIL } from '@/lib/constants';
+import { requireAuth, requireAdmin, createNotification, callGeminiAPI, logAudit, checkRateLimit, registerAttempt, isVertexAIConfigured } from '@/lib/api-handlers';
 import { v4 as uuidv4 } from 'uuid';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
-import { existsSync } from 'fs';
-import { saveImageToMongoDB, getImageFromMongoDB } from '@/lib/fileStorage';
+import { saveImageToMongoDB } from '@/lib/fileStorage';
+import { runDissertativaPipeline, runMultiplaEscolhaPipeline } from '@/lib/services/CorrectionPipelineService';
 
 // ==================== AUTH HANDLERS ====================
-
-async function handleRegister(request) {
-  try {
-    const { email, password, name } = await request.json();
-
-    if (!email || !password || !name) {
-      return NextResponse.json({ error: '⚠️ Preencha todos os campos obrigatórios (nome, email e senha).' }, { status: 400 });
-    }
-
-    // Rate limiting para registros (prevenir bots)
-    const rateLimit = await checkRateLimit(request, email, 'register', 3, 60);
-    if (rateLimit.blocked) {
-      return NextResponse.json({
-        error: `🛑 Muitas tentativas de registro. Por segurança, tente novamente em ${rateLimit.remainingMinutes} minutos.`
-      }, { status: 429 });
-    }
-
-    const { db } = await connectToDatabase();
-
-    const existingUser = await db.collection('users').findOne({ email });
-    if (existingUser) {
-      await registerAttempt(request, email, 'register');
-      return NextResponse.json({ error: '📧 Este e-mail já está cadastrado no sistema.' }, { status: 400 });
-    }
-
-    const userId = uuidv4();
-    const hashedPassword = hashPassword(password);
-    const isAdmin = email === ADMIN_EMAIL ? 1 : 0;
-
-    await db.collection('users').insertOne({
-      id: userId,
-      email,
-      password: hashedPassword,
-      name,
-      isAdmin,
-      assinatura: 'free',
-      createdAt: new Date()
-    });
-
-    // Auditoria de Registro
-    await logAudit(request, userId, 'user_registered', { email, name });
-
-    await db.collection('creditos').insertOne({
-      id: uuidv4(),
-      userId,
-      saldoAtual: 1000,
-      createdAt: new Date()
-    });
-
-    await db.collection('transacoes_creditos').insertOne({
-      id: uuidv4(),
-      userId,
-      tipo: 'credito',
-      quantidade: 1000,
-      descricao: 'Créditos iniciais de boas-vindas',
-      createdAt: new Date()
-    });
-
-    const token = generateToken(userId);
-    return NextResponse.json({ token, user: { id: userId, email, name, isAdmin } });
-  } catch (error) {
-    console.error('Register error:', error);
-    return NextResponse.json({ error: 'Erro interno no servidor' }, { status: 500 });
-  }
-}
-
-async function handleLogin(request) {
-  try {
-    const { email, password } = await request.json();
-
-    if (!email || !password) {
-      return NextResponse.json({ error: '⚠️ Por favor, informe seu e-mail e senha.' }, { status: 400 });
-    }
-
-    // Rate limiting Anti-Brute Force
-    const rateLimit = await checkRateLimit(request, email, 'login', 5, 15);
-    if (rateLimit.blocked) {
-      return NextResponse.json({
-        error: `🛑 Conta bloqueada temporariamente por excesso de tentativas. Tente novamente em ${rateLimit.remainingMinutes} minutos.`
-      }, { status: 429 });
-    }
-
-    const { db } = await connectToDatabase();
-    const user = await db.collection('users').findOne({ email });
-
-    if (!user || !verifyPassword(password, user.password)) {
-      // Registrar tentativa falha
-      await registerAttempt(request, email, 'login');
-      await logAudit(request, 'anonymous', 'login_failed', { email });
-
-      return NextResponse.json({ error: '❌ E-mail ou senha incorretos.' }, { status: 401 });
-    }
-
-    // Auditoria de Login Sucesso
-    await logAudit(request, user.id, 'login_success', { email });
-
-    const token = generateToken(user.id);
-    return NextResponse.json({
-      token,
-      user: { id: user.id, email: user.email, name: user.name, isAdmin: user.isAdmin || 0 }
-    });
-  } catch (error) {
-    console.error('Login error:', error);
-    return NextResponse.json({ error: 'Erro interno no servidor' }, { status: 500 });
-  }
-}
 
 async function handleGetMe(request) {
   try {
@@ -240,71 +130,6 @@ async function handleGetAlunos(request, turmaId) {
 
 // ==================== PERFIS DE AVALIAÇÃO HANDLERS ====================
 
-async function handleCreatePerfil(request) {
-  try {
-    const userId = await requireAuth(request);
-    const formData = await request.formData();
-
-    const nome = formData.get('nome');
-    const conteudo = formData.get('conteudo');
-    const arquivo = formData.get('arquivo');
-
-    if (!nome) {
-      return NextResponse.json({ error: '⚠️ O nome do perfil é obrigatório.' }, { status: 400 });
-    }
-
-    const { db } = await connectToDatabase();
-    let arquivoUrl = '';
-
-    // Handle file upload if provided
-    if (arquivo && arquivo.size > 0) {
-      const bytes = await arquivo.arrayBuffer();
-      const buffer = Buffer.from(bytes);
-
-      const uploadDir = join(process.cwd(), 'public', 'perfis');
-      if (!existsSync(uploadDir)) {
-        await mkdir(uploadDir, { recursive: true });
-      }
-
-      const filename = `${uuidv4()}-${arquivo.name}`;
-      const filepath = join(uploadDir, filename);
-      await writeFile(filepath, buffer);
-      arquivoUrl = `/perfis/${filename}`;
-    }
-
-    const perfil = {
-      id: uuidv4(),
-      userId,
-      nome,
-      conteudo: conteudo || '',
-      arquivoUrl,
-      createdAt: new Date()
-    };
-
-    await db.collection('perfis_avaliacao').insertOne(perfil);
-    return NextResponse.json({ perfil });
-  } catch (error) {
-    console.error('Create perfil error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-}
-
-async function handleGetPerfis(request) {
-  try {
-    const userId = await requireAuth(request);
-    const { db } = await connectToDatabase();
-
-    const perfis = await db.collection('perfis_avaliacao')
-      .find({ userId })
-      .sort({ createdAt: -1 })
-      .toArray();
-
-    return NextResponse.json({ perfis });
-  } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 401 });
-  }
-}
-
 async function handleGerarPerfil(request) {
   try {
     const userId = await requireAuth(request);
@@ -345,170 +170,57 @@ Formato: Texto estruturado, claro e objetivo.`;
   }
 }
 
-// ==================== GABARITOS HANDLERS ====================
-
-async function handleCreateGabarito(request) {
-  try {
-    const userId = await requireAuth(request);
-    const formData = await request.formData();
-
-    const titulo = formData.get('titulo');
-    const conteudo = formData.get('conteudo');
-    const perfilAvaliacaoId = formData.get('perfilAvaliacaoId');
-    const arquivo = formData.get('arquivo');
-
-    if (!titulo) {
-      return NextResponse.json({ error: '⚠️ O título do gabarito é obrigatório.' }, { status: 400 });
-    }
-
-    const { db } = await connectToDatabase();
-    let arquivoUrl = '';
-
-    // Handle file upload if provided
-    if (arquivo && arquivo.size > 0) {
-      const bytes = await arquivo.arrayBuffer();
-      const buffer = Buffer.from(bytes);
-
-      const uploadDir = join(process.cwd(), 'public', 'gabaritos');
-      if (!existsSync(uploadDir)) {
-        await mkdir(uploadDir, { recursive: true });
-      }
-
-      const filename = `${uuidv4()}-${arquivo.name}`;
-      const filepath = join(uploadDir, filename);
-      await writeFile(filepath, buffer);
-      arquivoUrl = `/gabaritos/${filename}`;
-    }
-
-    const gabarito = {
-      id: uuidv4(),
-      userId,
-      titulo,
-      conteudo: conteudo || '',
-      perfilAvaliacaoId: perfilAvaliacaoId || '',
-      arquivoUrl,
-      createdAt: new Date()
-    };
-
-    await db.collection('gabaritos').insertOne(gabarito);
-    return NextResponse.json({ gabarito });
-  } catch (error) {
-    console.error('Create gabarito error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-}
-
-async function handleGetGabaritos(request) {
-  try {
-    const userId = await requireAuth(request);
-    const { db } = await connectToDatabase();
-
-    const gabaritos = await db.collection('gabaritos')
-      .find({ userId })
-      .sort({ createdAt: -1 })
-      .toArray();
-
-    return NextResponse.json({ gabaritos });
-  } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 401 });
-  }
-}
-
 // ==================== UPLOAD & ASSESSMENT HANDLERS ====================
 
-// Handler para questões dissertativas - OCR + correção com Vertex AI
+// Handler para questões dissertativas - Pipeline: OCR → Correção → Análise
 async function handleDissertativaUpload(file, gabarito, turmaId, alunoId, periodo, userId, db) {
   try {
-    console.log('📝 [DISSERTATIVA] Iniciando processamento...');
+    console.log('📝 [DISSERTATIVA] Iniciando pipeline de correção...');
 
     // Verificar turma e aluno
     const turma = await db.collection('turmas').findOne({ id: turmaId, userId });
     if (!turma) {
-      console.error('❌ [DISSERTATIVA] Turma não encontrada:', turmaId);
       return NextResponse.json({ error: 'Turma não encontrada' }, { status: 404 });
     }
 
     const aluno = await db.collection('alunos').findOne({ id: alunoId, turmaId });
     if (!aluno) {
-      console.error('❌ [DISSERTATIVA] Aluno não encontrado:', alunoId);
       return NextResponse.json({ error: 'Aluno não encontrado' }, { status: 404 });
     }
 
-    console.log('✅ [DISSERTATIVA] Turma e aluno verificados');
-
-    // Salvar arquivo
-    console.log('💾 [DISSERTATIVA] Lendo arquivo...');
-    console.log('📄 [DISSERTATIVA] File info:', {
-      name: file.name,
-      size: file.size,
-      type: file.type,
-      lastModified: file.lastModified
-    });
-
-    let bytes;
-    try {
-      bytes = await file.arrayBuffer();
-      console.log('✅ [DISSERTATIVA] Arquivo lido. Tamanho do buffer:', bytes.byteLength, 'bytes');
-    } catch (error) {
-      console.error('❌ [DISSERTATIVA] Erro ao ler arrayBuffer:', error);
-      throw new Error(`Erro ao ler arquivo: ${error.message}`);
-    }
-
+    // Ler e salvar arquivo
+    const bytes = await file.arrayBuffer();
     if (!bytes || bytes.byteLength === 0) {
-      console.error('❌ [DISSERTATIVA] Buffer vazio ou inválido');
       throw new Error('Arquivo vazio ou inválido');
     }
 
     const buffer = Buffer.from(bytes);
-    console.log('✅ [DISSERTATIVA] Buffer criado. Tamanho:', buffer.length, 'bytes');
-
-    // Salvar imagem no MongoDB GridFS
     const filename = `${uuidv4()}-${file.name}`;
     const mimeType = file.type || 'image/jpeg';
 
+    // Salvar imagem no MongoDB GridFS
     let imageId;
     try {
       imageId = await saveImageToMongoDB(buffer, filename, mimeType);
-      console.log('✅ [DISSERTATIVA] Imagem salva no MongoDB. ID:', imageId);
     } catch (error) {
-      console.error('❌ [DISSERTATIVA] Erro ao salvar imagem no MongoDB:', error);
       throw new Error(`Erro ao salvar imagem: ${error.message}`);
     }
 
-    // URL para acessar a imagem via API
     const imageUrl = `/api/images/${imageId}`;
 
-    // Verificar configuração do Vertex AI (verifica variável de ambiente e arquivo JSON)
-    if (!isVertexAIConfigured()) {
-      console.error('❌ [DISSERTATIVA] Vertex AI não configurado');
-      return NextResponse.json({
-        error: 'Vertex AI não configurado. Defina GOOGLE_CLOUD_PROJECT_ID no ambiente ou configure o arquivo de credenciais.'
-      }, { status: 400 });
-    }
-
     // Converter imagem para base64
-    console.log('🔄 [DISSERTATIVA] Convertendo imagem para base64...');
     const base64Image = buffer.toString('base64');
-
-    const analisePedagogica = correcaoData.analise_pedagogica || {};
-
-    console.log('✅ [DISSERTATIVA] Base64 criado:', {
-      base64Length: base64Image.length,
-      mimeType: mimeType,
-      estimatedSizeMB: (base64Image.length * 3 / 4 / 1024 / 1024).toFixed(2)
-    });
-
     if (!base64Image || base64Image.length === 0) {
-      console.error('❌ [DISSERTATIVA] Base64 vazio ou inválido');
       throw new Error('Erro ao converter imagem para base64');
     }
 
-    // Buscar perfil de avaliação se existir
+    // Buscar perfil de avaliação se existir — filtro por userId previne IDOR
     let perfilConteudo = '';
     let criteriosRigor = [];
     if (gabarito.perfilAvaliacaoId) {
       const perfil = await db.collection('perfis_avaliacao').findOne({
-        id: gabarito.perfilAvaliacaoId
+        id: gabarito.perfilAvaliacaoId,
+        userId
       });
       if (perfil) {
         perfilConteudo = perfil.conteudo;
@@ -516,14 +228,14 @@ async function handleDissertativaUpload(file, gabarito, turmaId, alunoId, period
       }
     }
 
-    // Buscar habilidades para incluir no prompt
+    // Buscar habilidades do usuário
     const habilidades = await db.collection('habilidades')
       .find({ userId })
       .toArray();
     const habilidadesMap = {};
     habilidades.forEach(h => habilidadesMap[h.id] = h.nome);
 
-    // Construir seção de critérios de rigor
+    // Construir critérios de rigor
     let criteriosRigorTexto = '';
     if (criteriosRigor.length > 0) {
       criteriosRigorTexto = '\nCRITÉRIOS DE RIGOR DO PERFIL DE AVALIAÇÃO:\n';
@@ -531,155 +243,38 @@ async function handleDissertativaUpload(file, gabarito, turmaId, alunoId, period
         const nivelTexto = c.nivelRigor === 'rigoroso' ? 'RIGOROSO' :
           c.nivelRigor === 'moderado' ? 'MODERADO' : 'FLEXÍVEL';
         criteriosRigorTexto += `- ${c.criterio}: ${nivelTexto}`;
-        if (c.descricao) {
-          criteriosRigorTexto += ` - ${c.descricao}`;
-        }
+        if (c.descricao) criteriosRigorTexto += ` - ${c.descricao}`;
         criteriosRigorTexto += '\n';
       });
       criteriosRigorTexto += '\nAo corrigir, APLIQUE esses níveis de rigor:\n';
-      criteriosRigorTexto += '- RIGOROSO: Seja severo na avaliação deste critério. Erros devem ser penalizados significativamente.\n';
-      criteriosRigorTexto += '- MODERADO: Seja equilibrado, considerando tanto o processo quanto o resultado.\n';
-      criteriosRigorTexto += '- FLEXÍVEL: Seja compreensivo, valorizando esforço e criatividade mesmo com pequenos erros.\n';
+      criteriosRigorTexto += '- RIGOROSO: Seja severo. Erros devem ser penalizados significativamente.\n';
+      criteriosRigorTexto += '- MODERADO: Equilibre forma e conteúdo.\n';
+      criteriosRigorTexto += '- FLEXÍVEL: Valorize esforço e criatividade.\n';
     }
 
-    // Criar prompt para OCR + Correção de questões dissertativas
-    const prompt = `Você é um Professor Especialista em Avaliação Educacional e Psicopedagogia.
-Sua tarefa é realizar OCR e uma correção analítica profunda da prova enviada.
+    // ── EXECUTAR PIPELINE (OCR → Correção → Análise) ──
+    console.log('🚀 [DISSERTATIVA] Executando pipeline de 3 etapas...');
 
-TAREFA 1 - OCR DE ALTA PRECISÃO:
-Transcreva fielmente o texto do aluno. Se houver palavras ilegíveis, use [ilegível]. Preserve a estrutura de parágrafos.
+    const { ocrData, correctionData, analysisData } = await runDissertativaPipeline({
+      base64Image,
+      mimeType,
+      gabarito,
+      habilidades,
+      perfilConteudo,
+      criteriosRigorTexto
+    });
 
-TAREFA 2 - CORREÇÃO CRÍTICA E INSIGHTS:
-Compare a resposta com o GABARITO e aplique o PERFIL DE AVALIAÇÃO fornecido.
+    // Processar resultados do pipeline
+    const textoOcr = ocrData.texto_completo || '';
+    const notaFinal = parseFloat(correctionData.nota_final) || 0;
+    const feedbackGeral = correctionData.feedback_geral || '';
+    const exercicios = correctionData.exercicios || [];
+    const analisePedagogica = analysisData || {};
 
-GABARITO:
-${gabarito.conteudo || 'Não fornecido'}
-
-PERFIL DE AVALIAÇÃO E RIGOR:
-${perfilConteudo}
-${criteriosRigorTexto}
-
-HABILIDADES ALVO (Mapeie o desempenho do aluno nestes IDs):
-${habilidades.map(h => `- ${h.nome} (ID: ${h.id})`).join('\n') || 'Nenhuma habilidade cadastrada'}
-
-Retorne ESTRITAMENTE um JSON com esta estrutura:
-{
-  "texto_ocr": "...",
-  "nota_final": 0.0,
-  "feedback_geral": "...",
-  "analise_pedagogica": {
-    "causa_raiz_erro": "Identifique o motivo conceitual do erro (ex: confusão entre conceitos).",
-    "ponto_forte": "O que o aluno domina bem?",
-    "sugestao_intervencao": "O que o professor deve trabalhar com este aluno amanhã?"
-  },
-  "exercicios": [
-    {
-      "numero": 1,
-      "nota": 0.0,
-      "nota_maxima": 0.0,
-      "feedback": "...",
-      "habilidades_acertadas": [],
-      "habilidades_erradas": []
-    }
-  ],
-  "habilidades_avaliacao": [
-    {
-      "habilidade_id": "id",
-      "pontuacao": 0.0,
-      "justificativa": "..."
-    }
-  ]
-}
-
-IMPORTANTE: 
-- Se o Perfil de Avaliação exigir "Rigoroso", penalize erros de gramática/sintaxe.
-- Se for "Flexível", foque apenas na ideia central.
-- Use os IDs de habilidades que existem na lista fornecida.
-- A 'sugestao_intervencao' deve ser prática para o professor.`;
-
-
-    let responseText;
-    try {
-      // Chamar Vertex AI para OCR + Correção (priorizando Gemini 2.0 Flash)
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=dummy`;
-      const geminiBody = {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              {
-                inline_data: {
-                  mime_type: mimeType,
-                  data: base64Image
-                }
-              },
-              { text: prompt }
-            ]
-          }],
-          generationConfig: {
-            temperature: 0.3,
-            topK: 40,
-            topP: 0.95,
-            maxOutputTokens: 4096
-          }
-        })
-      };
-
-      responseText = await callGeminiAPIWithRetry(geminiUrl, geminiBody);
-      console.log('✅ [DISSERTATIVA] Resposta recebida do Vertex AI. Tamanho:', responseText?.length || 0);
-    } catch (error) {
-      console.error('❌ [DISSERTATIVA] Erro ao chamar Vertex AI:', error);
-      console.error('❌ [DISSERTATIVA] Erro detalhado:', {
-        message: error.message,
-        code: error.code,
-        status: error.status,
-        stack: error.stack
-      });
-
-      return NextResponse.json({
-        error: `Erro ao processar imagem com Vertex AI: ${error.message}`
-      }, { status: 500 });
-    }
-
-    // Extrair e validar JSON da resposta
-    let correcaoData = null;
-    try {
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        throw new Error('No JSON found in Vertex AI response');
-      }
-
-      correcaoData = JSON.parse(jsonMatch[0]);
-
-      if (!correcaoData.texto_ocr || typeof correcaoData.texto_ocr !== 'string') {
-        throw new Error('Missing or invalid texto_ocr in response');
-      }
-
-      if (correcaoData.nota_final === undefined || typeof correcaoData.nota_final !== 'number') {
-        throw new Error('Missing or invalid nota_final in response');
-      }
-
-      if (!Array.isArray(correcaoData.exercicios)) {
-        throw new Error('Missing or invalid exercicios array in response');
-      }
-    } catch (e) {
-      console.error('Failed to parse Vertex AI response:', e, responseText);
-      return NextResponse.json({
-        error: 'Falha ao processar a resposta da correção. Por favor, tente novamente.'
-      }, { status: 500 });
-    }
-
-    // Processar dados da correção
-    const textoOcr = correcaoData.texto_ocr || '';
-    const notaFinal = parseFloat(correcaoData.nota_final) || 0;
-    const feedbackGeral = correcaoData.feedback_geral || '';
-    const exercicios = correcaoData.exercicios || [];
-
-    // Processar habilidades com pontuação (1-10)
+    // Processar habilidades com pontuação
     let habilidadesPontuacao = [];
-    if (correcaoData.habilidades_avaliacao && Array.isArray(correcaoData.habilidades_avaliacao)) {
-      correcaoData.habilidades_avaliacao.forEach(hab => {
+    if (correctionData.habilidades_avaliacao && Array.isArray(correctionData.habilidades_avaliacao)) {
+      correctionData.habilidades_avaliacao.forEach(hab => {
         const pontuacao = parseFloat(hab.pontuacao);
         if (!isNaN(pontuacao) && pontuacao >= 1 && pontuacao <= 10) {
           if (habilidadesMap[hab.habilidade_id]) {
@@ -713,17 +308,12 @@ IMPORTANTE:
     exercicios.forEach((ex) => {
       if (ex.habilidades_acertadas && Array.isArray(ex.habilidades_acertadas)) {
         ex.habilidades_acertadas.forEach(habId => {
-          if (!habilidadesAcertadas.includes(habId)) {
-            habilidadesAcertadas.push(habId);
-          }
+          if (!habilidadesAcertadas.includes(habId)) habilidadesAcertadas.push(habId);
         });
       }
-
       if (ex.habilidades_erradas && Array.isArray(ex.habilidades_erradas)) {
         ex.habilidades_erradas.forEach(habId => {
-          if (!habilidadesErradas.includes(habId)) {
-            habilidadesErradas.push(habId);
-          }
+          if (!habilidadesErradas.includes(habId)) habilidadesErradas.push(habId);
         });
       }
 
@@ -746,22 +336,23 @@ IMPORTANTE:
       turmaId,
       alunoId,
       periodo,
-      imageUrl: imageUrl,
-      imageId: imageId, // Salvar ID para poder deletar depois
-      textoOcr: textoOcr,
+      imageUrl,
+      imageId,
+      textoOcr,
       nota: notaFinal,
       feedback: feedbackGeral,
-      analisePedagogica: analisePedagogica,
+      analisePedagogica,
       exercicios: exercicios.map(ex => ({
         numero: ex.numero,
         nota: ex.nota,
         nota_maxima: ex.nota_maxima,
         feedback: ex.feedback
       })),
-      questoesDetalhes: questoesDetalhes,
-      habilidadesAcertadas: habilidadesAcertadas,
-      habilidadesErradas: habilidadesErradas,
-      habilidadesPontuacao: habilidadesPontuacao,
+      questoesDetalhes,
+      habilidadesAcertadas,
+      habilidadesErradas,
+      habilidadesPontuacao,
+      pipelineVersion: 'v2', // Marcar como pipeline v2
       status: 'completed',
       validado: false,
       createdAt: new Date(),
@@ -786,15 +377,16 @@ IMPORTANTE:
     });
 
   } catch (error) {
-    console.error('❌ [DISSERTATIVA] Erro geral:', error);
-    console.error('❌ [DISSERTATIVA] Stack trace:', error.stack);
+    console.error('❌ [DISSERTATIVA] Erro no pipeline:', error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-// Handler para múltipla escolha - correção automática instantânea
+// Handler para múltipla escolha - Pipeline: OCR (IA) → Correção (código)
 async function handleMultiplaEscolhaUpload(file, gabarito, turmaId, alunoId, periodo, userId, db) {
   try {
+    console.log('🔢 [MULTIPLA ESCOLHA] Iniciando pipeline...');
+
     // Verificar turma e aluno
     const turma = await db.collection('turmas').findOne({ id: turmaId, userId });
     if (!turma) {
@@ -806,8 +398,11 @@ async function handleMultiplaEscolhaUpload(file, gabarito, turmaId, alunoId, per
       return NextResponse.json({ error: 'Aluno não encontrado' }, { status: 404 });
     }
 
-    // Salvar arquivo
+    // Ler e salvar arquivo
     const bytes = await file.arrayBuffer();
+    if (!bytes || bytes.byteLength === 0) {
+      throw new Error('Arquivo vazio ou inválido');
+    }
     const buffer = Buffer.from(bytes);
 
     // Salvar imagem no MongoDB GridFS
@@ -817,21 +412,11 @@ async function handleMultiplaEscolhaUpload(file, gabarito, turmaId, alunoId, per
     let imageId;
     try {
       imageId = await saveImageToMongoDB(buffer, filename, mimeType);
-      console.log('✅ [MULTIPLA ESCOLHA] Imagem salva no MongoDB. ID:', imageId);
     } catch (error) {
-      console.error('❌ [MULTIPLA ESCOLHA] Erro ao salvar imagem no MongoDB:', error);
       throw new Error(`Erro ao salvar imagem: ${error.message}`);
     }
 
-    // URL para acessar a imagem via API
     const imageUrl = `/api/images/${imageId}`;
-
-    // Verificar configuração do Vertex AI (verifica variável de ambiente e arquivo JSON)
-    if (!isVertexAIConfigured()) {
-      return NextResponse.json({
-        error: 'Vertex AI não configurado. Defina GOOGLE_CLOUD_PROJECT_ID no ambiente ou configure o arquivo de credenciais.'
-      }, { status: 400 });
-    }
 
     // Validar questões do gabarito
     if (!gabarito.questoes || !Array.isArray(gabarito.questoes) || gabarito.questoes.length === 0) {
@@ -843,142 +428,14 @@ async function handleMultiplaEscolhaUpload(file, gabarito, turmaId, alunoId, per
     // Converter imagem para base64
     const base64Image = buffer.toString('base64');
 
-    // Criar prompt para OCR de múltipla escolha
-    const questoesInfo = gabarito.questoes.map(q =>
-      `Questão ${q.numero}: Resposta correta é ${q.respostaCorreta}`
-    ).join('\n');
+    // ── EXECUTAR PIPELINE (OCR → Correção em código) ──
+    console.log('🚀 [MULTIPLA ESCOLHA] Executando pipeline...');
 
-    const prompt = `Você é um sistema de OCR especializado em identificar respostas de múltipla escolha em provas.
-
-Analise a imagem da prova e identifique QUAL alternativa foi marcada para cada questão.
-
-GABARITO ESPERADO:
-${questoesInfo}
-
-Tarefas:
-1. Identifique cada questão numerada na prova
-2. Para cada questão, identifique qual alternativa (A, B, C, D ou E) foi marcada pelo aluno
-3. Se não conseguir identificar, retorne "N/A" para aquela questão
-
-Retorne APENAS um JSON válido no formato:
-{
-  "respostas": [
-    {"numero": 1, "resposta_aluno": "A"},
-    {"numero": 2, "resposta_aluno": "B"},
-    {"numero": 3, "resposta_aluno": "N/A"}
-  ]
-}
-
-IMPORTANTE: Retorne apenas o JSON, sem texto adicional.`;
-
-    // O sistema de créditos foi abolido.
-    const transactionId = uuidv4();
-
-    let ocrText;
-    try {
-      // Chamar Vertex AI para OCR (priorizando Gemini 2.0 Flash)
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=dummy`;
-      const geminiBody = {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              {
-                inline_data: {
-                  mime_type: mimeType,
-                  data: base64Image
-                }
-              },
-              { text: prompt }
-            ]
-          }]
-        })
-      };
-
-      ocrText = await callGeminiAPIWithRetry(geminiUrl, geminiBody);
-    } catch (error) {
-      console.error('Vertex AI error:', error);
-      return NextResponse.json({
-        error: `Erro ao processar imagem com Vertex AI: ${error.message}`
-      }, { status: 500 });
-    }
-
-    // Extrair e validar JSON da resposta
-    let respostasAluno = [];
-    try {
-      const jsonMatch = ocrText.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        throw new Error('No JSON found in Vertex AI response');
-      }
-
-      const parsed = JSON.parse(jsonMatch[0]);
-
-      if (!parsed.respostas || !Array.isArray(parsed.respostas)) {
-        throw new Error('Missing or invalid respostas array in response');
-      }
-
-      respostasAluno = parsed.respostas;
-    } catch (e) {
-      console.error('Failed to parse Vertex AI response:', e, ocrText);
-      return NextResponse.json({
-        error: 'Falha ao processar OCR. Por favor, tente novamente.'
-      }, { status: 500 });
-    }
-
-    // Processar correção
-    let questoesDetalhes = [];
-    let habilidadesAcertadas = [];
-    let habilidadesErradas = [];
-    let totalPontos = 0;
-    let pontosObtidos = 0;
-
-    gabarito.questoes.forEach((questaoGabarito) => {
-      const respostaAluno = respostasAluno.find(r => r.numero === questaoGabarito.numero);
-      const respostaMarcada = respostaAluno?.resposta_aluno?.toUpperCase().trim();
-      const respostaCorreta = questaoGabarito.respostaCorreta.toUpperCase().trim();
-      const acertou = respostaMarcada === respostaCorreta && respostaMarcada !== 'N/A';
-
-      const pontuacao = questaoGabarito.pontuacao || 1;
-      const notaQuestao = acertou ? pontuacao : 0;
-
-      totalPontos += pontuacao;
-      pontosObtidos += notaQuestao;
-
-      questoesDetalhes.push({
-        numero: questaoGabarito.numero,
-        respostaAluno: respostaMarcada || 'N/A',
-        respostaCorreta: respostaCorreta,
-        acertou: acertou,
-        nota: notaQuestao,
-        notaMaxima: pontuacao,
-        habilidadeId: questaoGabarito.habilidadeId,
-        feedback: acertou
-          ? `Resposta correta!`
-          : respostaMarcada === 'N/A'
-            ? `Resposta não identificada. Resposta correta: ${respostaCorreta}`
-            : `Resposta incorreta. Você marcou ${respostaMarcada}, mas a correta é ${respostaCorreta}`
-      });
-
-      if (questaoGabarito.habilidadeId) {
-        if (acertou) {
-          if (!habilidadesAcertadas.includes(questaoGabarito.habilidadeId)) {
-            habilidadesAcertadas.push(questaoGabarito.habilidadeId);
-          }
-        } else {
-          if (!habilidadesErradas.includes(questaoGabarito.habilidadeId)) {
-            habilidadesErradas.push(questaoGabarito.habilidadeId);
-          }
-        }
-      }
+    const result = await runMultiplaEscolhaPipeline({
+      base64Image,
+      mimeType,
+      gabarito
     });
-
-    // Calcular nota final (0-10)
-    const notaFinal = totalPontos > 0 ? (pontosObtidos / totalPontos) * 10 : 0;
-    const percentualAcerto = totalPontos > 0 ? (pontosObtidos / totalPontos) * 100 : 0;
-
-    // Criar feedback geral
-    const feedbackGeral = `Você acertou ${pontosObtidos} de ${totalPontos} questões (${percentualAcerto.toFixed(1)}%). Nota: ${notaFinal.toFixed(2)}/10.`;
 
     // Criar avaliação já corrigida
     const assessmentId = uuidv4();
@@ -989,15 +446,16 @@ IMPORTANTE: Retorne apenas o JSON, sem texto adicional.`;
       turmaId,
       alunoId,
       periodo,
-      imageUrl: imageUrl,
-      imageId: imageId, // Salvar ID para poder deletar depois
-      textoOcr: ocrText,
-      nota: notaFinal,
-      feedback: feedbackGeral,
-      exercicios: questoesDetalhes,
-      questoesDetalhes: questoesDetalhes,
-      habilidadesAcertadas: habilidadesAcertadas,
-      habilidadesErradas: habilidadesErradas,
+      imageUrl,
+      imageId,
+      textoOcr: JSON.stringify(result.ocrData),
+      nota: result.notaFinal,
+      feedback: result.feedbackGeral,
+      exercicios: result.questoesDetalhes,
+      questoesDetalhes: result.questoesDetalhes,
+      habilidadesAcertadas: result.habilidadesAcertadas,
+      habilidadesErradas: result.habilidadesErradas,
+      pipelineVersion: 'v2',
       status: 'completed',
       validado: false,
       createdAt: new Date(),
@@ -1009,7 +467,7 @@ IMPORTANTE: Retorne apenas o JSON, sem texto adicional.`;
       db,
       userId,
       'avaliacao_concluida',
-      `Avaliação corrigida automaticamente. Nota: ${notaFinal.toFixed(2)}/10`,
+      `Avaliação corrigida automaticamente. Nota: ${result.notaFinal.toFixed(2)}/10`,
       assessmentId
     );
 
@@ -1017,12 +475,12 @@ IMPORTANTE: Retorne apenas o JSON, sem texto adicional.`;
       success: true,
       assessmentId,
       imageUrl,
-      nota: notaFinal,
+      nota: result.notaFinal,
       correcaoAutomatica: true
     });
 
   } catch (error) {
-    console.error('Multipla escolha upload error:', error);
+    console.error('❌ [MULTIPLA ESCOLHA] Erro no pipeline:', error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -1033,17 +491,35 @@ async function handleUpload(request) {
     const userId = await requireAuth(request);
     const { db } = await connectToDatabase();
 
+    // Rate limit: 10 correções por hora (equivalente ao /api/correcoes)
+    const rateCheck = await checkRateLimit(request, userId, 'correcao', 10, 60);
+    if (rateCheck.blocked) {
+      return NextResponse.json(
+        { error: `Limite de correções atingido. Tente novamente em ${rateCheck.remainingMinutes} minutos.` },
+        { status: 429 }
+      );
+    }
+
     const user = await db.collection('users').findOne({ id: userId });
 
-    // Verificar se o usuário tem acesso (assinatura premium ou trial de 7 dias)
-    const trialDays = 7;
-    const trialStartedAt = user.trialStartedAt ? new Date(user.trialStartedAt) : new Date(user.createdAt);
-    const now = new Date();
-    const diffTime = Math.abs(now - trialStartedAt);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    if (!user?.emailVerified) {
+      return NextResponse.json({ error: '📧 Verifique seu e-mail antes de enviar provas.' }, { status: 403 });
+    }
 
-    const isSubscriber = user.assinatura === 'premium';
-    const isTrialActive = diffDays <= trialDays;
+    // Verificar se o usuário tem acesso (assinatura premium ou trial de 7 dias)
+    const now = new Date();
+    const trialStart = user.trialStartedAt ? new Date(user.trialStartedAt) : null;
+
+    if (trialStart && trialStart > now) {
+      return NextResponse.json({ error: 'Acesso inválido.' }, { status: 403 });
+    }
+
+    const trialDays = trialStart
+      ? Math.floor((now - trialStart) / (1000 * 60 * 60 * 24))
+      : Infinity;
+
+    const isSubscriber = user.assinatura === 'premium' || user.assinatura === 'admin' || user.isAdmin === 1;
+    const isTrialActive = trialDays <= 7;
 
     if (!isSubscriber && !isTrialActive) {
       return NextResponse.json({
@@ -1051,6 +527,8 @@ async function handleUpload(request) {
         expired: true
       }, { status: 403 });
     }
+
+    await registerAttempt(request, userId, 'correcao');
 
     // Verificar Vertex AI configurado (verifica variável de ambiente e arquivo JSON)
     const isConfigured = isVertexAIConfigured();
@@ -1430,24 +908,48 @@ async function handleGetPlanoStatus(request) {
 
 async function handleAddAdmin(request) {
   try {
-    await requireAdmin(request);
+    const adminUserId = await requireAdmin(request);
+
+    const rateLimit = await checkRateLimit(request, adminUserId, 'admin_promote', 5, 60);
+    if (rateLimit.blocked) {
+      await logAudit(request, adminUserId, 'admin_promote_blocked', { reason: 'rate_limit' });
+      return NextResponse.json({
+        error: `Muitas tentativas. Tente novamente em ${rateLimit.remainingMinutes} minutos.`
+      }, { status: 429 });
+    }
+
     const { email } = await request.json();
 
-    if (!email) {
+    if (!email || typeof email !== 'string') {
       return NextResponse.json({ error: '⚠️ Por favor, informe o e-mail do usuário que deseja tornar admin.' }, { status: 400 });
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      return NextResponse.json({ error: '⚠️ Formato de e-mail inválido.' }, { status: 400 });
+    }
+
     const { db } = await connectToDatabase();
-    const user = await db.collection('users').findOne({ email });
+    const user = await db.collection('users').findOne({ email: email.trim() });
 
     if (!user) {
+      await logAudit(request, adminUserId, 'admin_promote_failed', { email: email.trim(), reason: 'user_not_found' });
       return NextResponse.json({ error: '❌ Usuário não encontrado com o e-mail fornecido.' }, { status: 404 });
     }
 
+    if (user.isAdmin) {
+      return NextResponse.json({ error: '❌ Usuário já é administrador.' }, { status: 400 });
+    }
+
     await db.collection('users').updateOne(
-      { email },
-      { $set: { isAdmin: 1 } }
+      { email: email.trim() },
+      { $set: { isAdmin: 1, promotedAt: new Date(), promotedBy: adminUserId } }
     );
+
+    await logAudit(request, adminUserId, 'admin_promote_success', {
+      email: email.trim(),
+      targetUserId: user.id
+    });
 
     return NextResponse.json({ success: true, message: `✅ ${user.name} agora é um administrador.` });
   } catch (error) {
@@ -1460,51 +962,22 @@ async function handleAddAdmin(request) {
 export async function POST(request) {
   const pathname = new URL(request.url).pathname;
 
-  if (pathname === '/api/auth/register') return handleRegister(request);
-  if (pathname === '/api/auth/login') return handleLogin(request);
   if (pathname === '/api/turmas') return handleCreateTurma(request);
   if (pathname === '/api/alunos') return handleCreateAluno(request);
-  if (pathname === '/api/perfis') return handleCreatePerfil(request);
   if (pathname === '/api/perfis/gerar') return handleGerarPerfil(request);
-  if (pathname === '/api/gabaritos') return handleCreateGabarito(request);
   if (pathname === '/api/upload') return handleUpload(request);
   if (pathname === '/api/admin/add-admin') return handleAddAdmin(request);
 
   return NextResponse.json({ error: 'Recurso não encontrado' }, { status: 404 });
 }
 
-async function handleGetImage(request, id) {
-  try {
-    console.log(`🖼️ [IMAGE HANDLER] Buscando imagem ID: ${id}`);
-    const imageData = await getImageFromMongoDB(id);
-
-    return new NextResponse(imageData.buffer, {
-      headers: {
-        'Content-Type': imageData.contentType,
-        'Content-Length': imageData.buffer.length.toString(),
-        'Cache-Control': 'no-store, must-revalidate',
-      },
-    });
-  } catch (error) {
-    console.error(`❌ [IMAGE HANDLER] Erro:`, error.message);
-    return NextResponse.json({ error: 'Imagem não encontrada' }, { status: 404 });
-  }
-}
-
 export async function GET(request) {
   const pathname = new URL(request.url).pathname;
-
-  if (pathname.startsWith('/api/images/')) {
-    const id = pathname.split('/').pop();
-    return handleGetImage(request, id);
-  }
 
   if (pathname === '/api/auth/me') return handleGetMe(request);
   if (pathname === '/api/credits') return handleGetCredits(request);
   if (pathname === '/api/settings') return handleGetSettings(request);
   if (pathname === '/api/turmas') return handleGetTurmas(request);
-  if (pathname === '/api/perfis') return handleGetPerfis(request);
-  if (pathname === '/api/gabaritos') return handleGetGabaritos(request);
   if (pathname === '/api/avaliacoes/pendentes') return handleGetAvaliacoesPendentes(request);
   if (pathname === '/api/avaliacoes/concluidas') return handleGetAvaliacoesConcluidas(request);
   if (pathname === '/api/notificacoes') return handleGetNotificacoes(request);

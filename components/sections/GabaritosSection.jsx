@@ -64,14 +64,13 @@ export default function GabaritosSection({ setActiveView }) {
   }, []);
 
   const loadData = async () => {
-    const token = localStorage.getItem('token');
-    const headers = { 'Authorization': `Bearer ${token}` };
+    const fetchOptions = { credentials: 'include' };
 
     try {
       const [gabaritosRes, perfisRes, habilidadesRes] = await Promise.all([
-        fetch('/api/gabaritos', { headers }),
-        fetch('/api/perfis', { headers }),
-        fetch('/api/habilidades', { headers })
+        fetch('/api/gabaritos', fetchOptions),
+        fetch('/api/perfis', fetchOptions),
+        fetch('/api/habilidades', fetchOptions)
       ]);
 
       if (gabaritosRes.ok) {
@@ -130,14 +129,11 @@ export default function GabaritosSection({ setActiveView }) {
       return;
     }
 
-    const token = localStorage.getItem('token');
     try {
       const response = await fetch('/api/habilidades', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ nome: novaHabilidade })
       });
 
@@ -178,7 +174,6 @@ export default function GabaritosSection({ setActiveView }) {
     }
 
     setCreating(true);
-    const token = localStorage.getItem('token');
     const data = new FormData();
     data.append('titulo', formData.titulo);
     data.append('conteudo', formData.conteudo);
@@ -196,7 +191,7 @@ export default function GabaritosSection({ setActiveView }) {
     try {
       const response = await fetch('/api/gabaritos', {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
+        credentials: 'include',
         body: data
       });
 
@@ -236,7 +231,6 @@ export default function GabaritosSection({ setActiveView }) {
     }
 
     setSaving(true);
-    const token = localStorage.getItem('token');
 
     try {
       // Usar FormData para suportar upload de arquivo
@@ -260,9 +254,7 @@ export default function GabaritosSection({ setActiveView }) {
 
       const response = await fetch(`/api/gabaritos?id=${editingGabarito.id}`, {
         method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
+        credentials: 'include',
         body: formDataToSend
       });
 
@@ -290,11 +282,10 @@ export default function GabaritosSection({ setActiveView }) {
   const confirmDelete = async () => {
     if (!gabaritoToDelete) return;
 
-    const token = localStorage.getItem('token');
     try {
       const response = await fetch(`/api/gabaritos?id=${gabaritoToDelete}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        credentials: 'include',
       });
 
       if (response.ok) {

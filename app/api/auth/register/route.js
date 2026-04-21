@@ -1,17 +1,32 @@
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
-import { hashPassword, generateToken, generateVerificationToken } from '@/lib/auth';
-import { ADMIN_EMAIL } from '@/lib/constants';
+import { hashPassword, generateToken, generateVerificationToken, setSessionCookie } from '@/lib/auth';
 import { v4 as uuidv4 } from 'uuid';
 import EmailService from '@/lib/services/EmailService';
+import { z } from 'zod';
+import { PASSWORD_MIN_LENGTH } from '@/lib/constants';
+
+const registerSchema = z.object({
+    email: z.string().email('⚠️ Formato de e-mail inválido.'),
+    password: z.string().min(PASSWORD_MIN_LENGTH, `⚠️ A senha deve ter no mínimo ${PASSWORD_MIN_LENGTH} caracteres.`),
+    name: z.string().min(1, '⚠️ Nome é obrigatório.').max(200, '⚠️ Nome muito longo.'),
+});
 
 export async function POST(request) {
     try {
-        const { email, password, name } = await request.json();
+        const body = await request.json();
+        const parsed = registerSchema.safeParse({
+            email: body.email?.trim(),
+            password: body.password,
+            name: body.name,
+        });
 
-        if (!email || !password || !name) {
-            return NextResponse.json({ error: '⚠️ Preencha todos os campos obrigatórios (nome, email e senha).' }, { status: 400 });
+        if (!parsed.success) {
+            const message = parsed.error.errors[0]?.message || '⚠️ Dados inválidos.';
+            return NextResponse.json({ error: message }, { status: 400 });
         }
+
+        const { email, password, name } = parsed.data;
 
         const { db } = await connectToDatabase();
 
@@ -22,7 +37,7 @@ export async function POST(request) {
 
         const userId = uuidv4();
         const hashedPassword = hashPassword(password);
-        const isAdmin = email === ADMIN_EMAIL ? 1 : 0;
+        const isAdmin = 0;
 
         await db.collection('users').insertOne({
             id: userId,
@@ -40,7 +55,7 @@ export async function POST(request) {
         // mas não adicionamos créditos iniciais obrigatórios para o fluxo de correção.
 
         // Gerar token de verificação de email
-        const verificationToken = generateVerificationToken();
+        const verificationToken = generateVerificationToken(userId);
 
         // Salvar token de verificação
         await db.collection('email_verifications').insertOne({
@@ -60,11 +75,12 @@ export async function POST(request) {
         }
 
         const token = generateToken(userId);
-        return NextResponse.json({
-            token,
+        const res = NextResponse.json({
             user: { id: userId, email, name, isAdmin, emailVerified: false },
             message: 'Conta criada com sucesso! Verifique seu email para ativar sua conta.'
         });
+        setSessionCookie(res, token);
+        return res;
     } catch (error) {
         console.error('Register error:', error);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

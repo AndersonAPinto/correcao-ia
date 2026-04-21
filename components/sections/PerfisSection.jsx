@@ -76,11 +76,8 @@ export default function PerfisSection() {
   }, []);
 
   const loadPerfis = async () => {
-    const token = localStorage.getItem('token');
     try {
-      const response = await fetch('/api/perfis', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await fetch('/api/perfis', { credentials: 'include' });
 
       if (response.ok) {
         const data = await response.json();
@@ -105,15 +102,12 @@ export default function PerfisSection() {
     }
 
     setGenerating(true);
-    const token = localStorage.getItem('token');
 
     try {
       const response = await fetch('/api/perfis/gerar', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ conteudo: formData.conteudo })
       });
 
@@ -158,7 +152,6 @@ export default function PerfisSection() {
     }
 
     setCreating(true);
-    const token = localStorage.getItem('token');
     const data = new FormData();
     data.append('nome', formData.nome);
     data.append('conteudo', formData.conteudo);
@@ -175,7 +168,7 @@ export default function PerfisSection() {
     try {
       const response = await fetch('/api/perfis', {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
+        credentials: 'include',
         body: data
       });
 
@@ -210,15 +203,12 @@ export default function PerfisSection() {
     }
 
     setSaving(true);
-    const token = localStorage.getItem('token');
 
     try {
       const response = await fetch(`/api/perfis?id=${editingPerfil.id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           nome: editFormData.nome,
           conteudo: editFormData.conteudo,

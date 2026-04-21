@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import { requireAuth } from '@/lib/api-handlers';
-import { validateFileUpload } from '@/lib/utils';
+import { validateFileUpload, safeFilename } from '@/lib/utils';
 import { v4 as uuidv4 } from 'uuid';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
@@ -33,6 +33,8 @@ export async function POST(request) {
         const perfilAvaliacaoId = formData.get('perfilAvaliacaoId');
         const arquivo = formData.get('arquivo');
         const tipo = formData.get('tipo') || 'dissertativa'; // 'multipla_escolha' ou 'dissertativa'
+        const disciplina = formData.get('disciplina') || 'Geral'; // Disciplina da prova (Matemática, Português, etc.)
+        const nivel = formData.get('nivel') || ''; // Nível educacional (6º Ano, Ensino Médio, etc.)
         const questoesJson = formData.get('questoes'); // JSON string para questões de múltipla escolha
 
         if (!titulo) {
@@ -45,7 +47,7 @@ export async function POST(request) {
         // Handle file upload if provided
         if (arquivo && arquivo.size > 0) {
             // Validar arquivo antes de processar
-            const validation = validateFileUpload(arquivo, {
+            const validation = await validateFileUpload(arquivo, {
                 maxSizeMB: 10,
                 allowedTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf']
             });
@@ -62,7 +64,7 @@ export async function POST(request) {
                 await mkdir(uploadDir, { recursive: true });
             }
 
-            const filename = `${uuidv4()}-${arquivo.name}`;
+            const filename = safeFilename(uuidv4(), arquivo.type);
             const filepath = join(uploadDir, filename);
             await writeFile(filepath, buffer);
             arquivoUrl = `/gabaritos/${filename}`;
@@ -98,6 +100,8 @@ export async function POST(request) {
             perfilAvaliacaoId: perfilAvaliacaoId || '',
             arquivoUrl,
             tipo, // 'multipla_escolha' ou 'dissertativa'
+            disciplina, // Disciplina da prova (Matemática, Português, Ciências, etc.)
+            nivel, // Nível educacional (6º Ano, Ensino Médio, etc.)
             questoes: questoes, // Array de questões para múltipla escolha
             totalQuestoes: tipo === 'multipla_escolha' ? questoes.length : 0,
             createdAt: new Date()
@@ -135,7 +139,7 @@ export async function PUT(request) {
 
         // Verificar se é FormData (com arquivo) ou JSON
         const contentType = request.headers.get('content-type') || '';
-        let titulo, conteudo, perfilAvaliacaoId, tipo, questoes, arquivo, removerArquivo;
+        let titulo, conteudo, perfilAvaliacaoId, tipo, disciplina, nivel, questoes, arquivo, removerArquivo;
 
         if (contentType.includes('multipart/form-data')) {
             // FormData (pode conter arquivo)
@@ -144,6 +148,8 @@ export async function PUT(request) {
             conteudo = formData.get('conteudo');
             perfilAvaliacaoId = formData.get('perfilAvaliacaoId');
             tipo = formData.get('tipo');
+            disciplina = formData.get('disciplina');
+            nivel = formData.get('nivel');
             arquivo = formData.get('arquivo');
             removerArquivo = formData.get('removerArquivo') === 'true';
 
@@ -162,6 +168,8 @@ export async function PUT(request) {
             conteudo = body.conteudo;
             perfilAvaliacaoId = body.perfilAvaliacaoId;
             tipo = body.tipo;
+            disciplina = body.disciplina;
+            nivel = body.nivel;
             questoes = body.questoes;
         }
 
@@ -177,13 +185,21 @@ export async function PUT(request) {
             updatedAt: new Date()
         };
 
+        // Atualizar disciplina e nível se fornecidos
+        if (disciplina !== undefined && disciplina !== null) {
+            updateData.disciplina = disciplina;
+        }
+        if (nivel !== undefined && nivel !== null) {
+            updateData.nivel = nivel;
+        }
+
         // Processar arquivo se fornecido
         let arquivoUrl = gabarito.arquivoUrl || '';
         if (removerArquivo) {
             arquivoUrl = '';
         } else if (arquivo && arquivo.size > 0) {
             // Validar arquivo antes de processar
-            const validation = validateFileUpload(arquivo, {
+            const validation = await validateFileUpload(arquivo, {
                 maxSizeMB: 10,
                 allowedTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf']
             });
@@ -201,7 +217,7 @@ export async function PUT(request) {
                 await mkdir(uploadDir, { recursive: true });
             }
 
-            const filename = `${uuidv4()}-${arquivo.name}`;
+            const filename = safeFilename(uuidv4(), arquivo.type);
             const filepath = join(uploadDir, filename);
             await writeFile(filepath, buffer);
             arquivoUrl = `/gabaritos/${filename}`;
