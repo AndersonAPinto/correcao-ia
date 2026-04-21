@@ -10,7 +10,7 @@ export default function Footer() {
                 <div className="grid md:grid-cols-4 gap-12 mb-16">
                     <div className="col-span-2">
                         <div className="flex items-center gap-2 mb-6">
-                            <Image src="/imagens/corrijapro_logotipo_lateral_sem_fundo.png" alt="Logotipo CorregIA" width={140} height={40} className="h-10 w-auto object-contain brightness-0 invert" />
+                            <Image src="/imagens/corrijapro_logotipo_lateral_2.png" alt="Logotipo CorregIA" width={140} height={40} className="h-10 w-auto object-contain brightness-0 invert" />
                         </div>
                         <p className="text-slate-400 text-lg leading-relaxed max-w-sm font-medium">
                             A plataforma de correção de provas mais avançada do mercado brasileiro.
@@ -40,8 +40,8 @@ export default function Footer() {
                 <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6 text-sm font-bold text-slate-500">
                     <p>© {new Date().getFullYear()} CorrijaPRO. Desenvolvido com ❤️ para professores.</p>
                     <div className="flex gap-10">
-                        <a href="#" className="hover:text-emerald-400 transition-colors">Instagram</a>
-                        <a href="#" className="hover:text-emerald-400 transition-colors">LinkedIn</a>
+                        <a href="https://instagram.com/corrijapro" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-400 transition-colors">Instagram</a>
+                        <a href="https://linkedin.com/company/corrijapro" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-400 transition-colors">LinkedIn</a>
                     </div>
                 </div>
             </div>

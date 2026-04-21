@@ -1,22 +1,29 @@
 import { NextResponse } from 'next/server';
 import { getImageFromMongoDB } from '@/lib/fileStorage';
 import { requireAuth } from '@/lib/api-handlers';
+import { connectToDatabase } from '@/lib/mongodb';
 
 /**
  * GET /api/images/[id]
- * Retorna a imagem armazenada no MongoDB GridFS (Apenas usuários autenticados)
+ * Retorna a imagem armazenada no MongoDB GridFS.
+ * Apenas o dono da avaliação à qual a imagem pertence pode acessá-la.
  */
 export async function GET(request, { params }) {
     try {
-        // Adicionar autenticação para segurança
-        await requireAuth(request);
+        const userId = await requireAuth(request);
 
         const { id } = params;
         console.log(`🖼️ [IMAGE API] Solicitando imagem ID: ${id}`);
 
         if (!id || id === 'undefined' || id === 'null') {
-            console.error('❌ [IMAGE API] ID inválido fornecido');
             return NextResponse.json({ error: 'Image ID is required' }, { status: 400 });
+        }
+
+        // Verificar se a imagem pertence ao usuário autenticado
+        const { db } = await connectToDatabase();
+        const avaliacao = await db.collection('avaliacoes_corrigidas').findOne({ imageId: id });
+        if (!avaliacao || avaliacao.userId !== userId) {
+            return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
         }
 
         const imageData = await getImageFromMongoDB(id);

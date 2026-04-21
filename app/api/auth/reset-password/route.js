@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import { verifyPasswordResetToken, hashPassword } from '@/lib/auth';
+import { PASSWORD_MIN_LENGTH } from '@/lib/constants';
 
 export async function POST(request) {
     try {
@@ -10,8 +11,8 @@ export async function POST(request) {
             return NextResponse.json({ error: 'Token e nova senha são obrigatórios' }, { status: 400 });
         }
 
-        if (newPassword.length < 6) {
-            return NextResponse.json({ error: 'A senha deve ter pelo menos 6 caracteres' }, { status: 400 });
+        if (newPassword.length < PASSWORD_MIN_LENGTH) {
+            return NextResponse.json({ error: `A senha deve ter pelo menos ${PASSWORD_MIN_LENGTH} caracteres` }, { status: 400 });
         }
 
         // Verificar token

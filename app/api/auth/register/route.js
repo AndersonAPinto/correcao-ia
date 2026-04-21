@@ -3,24 +3,30 @@ import { connectToDatabase } from '@/lib/mongodb';
 import { hashPassword, generateToken, generateVerificationToken, setSessionCookie } from '@/lib/auth';
 import { v4 as uuidv4 } from 'uuid';
 import EmailService from '@/lib/services/EmailService';
+import { z } from 'zod';
+import { PASSWORD_MIN_LENGTH } from '@/lib/constants';
+
+const registerSchema = z.object({
+    email: z.string().email('⚠️ Formato de e-mail inválido.'),
+    password: z.string().min(PASSWORD_MIN_LENGTH, `⚠️ A senha deve ter no mínimo ${PASSWORD_MIN_LENGTH} caracteres.`),
+    name: z.string().min(1, '⚠️ Nome é obrigatório.').max(200, '⚠️ Nome muito longo.'),
+});
 
 export async function POST(request) {
     try {
-        const { email: rawEmail, password, name } = await request.json();
-        const email = rawEmail?.trim();
+        const body = await request.json();
+        const parsed = registerSchema.safeParse({
+            email: body.email?.trim(),
+            password: body.password,
+            name: body.name,
+        });
 
-        if (!email || !password || !name) {
-            return NextResponse.json({ error: '⚠️ Preencha todos os campos obrigatórios (nome, email e senha).' }, { status: 400 });
+        if (!parsed.success) {
+            const message = parsed.error.errors[0]?.message || '⚠️ Dados inválidos.';
+            return NextResponse.json({ error: message }, { status: 400 });
         }
 
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
-            return NextResponse.json({ error: '⚠️ Formato de e-mail inválido.' }, { status: 400 });
-        }
-
-        if (password.length < 8) {
-            return NextResponse.json({ error: '⚠️ A senha deve ter no mínimo 8 caracteres.' }, { status: 400 });
-        }
+        const { email, password, name } = parsed.data;
 
         const { db } = await connectToDatabase();
 
