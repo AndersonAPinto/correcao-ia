@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import { requireAuth } from '@/lib/api-handlers';
-import { validateFileUpload } from '@/lib/utils';
+import { validateFileUpload, safeFilename } from '@/lib/utils';
 import { v4 as uuidv4 } from 'uuid';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
@@ -47,7 +47,7 @@ export async function POST(request) {
         // Handle file upload if provided
         if (arquivo && arquivo.size > 0) {
             // Validar arquivo antes de processar
-            const validation = validateFileUpload(arquivo, {
+            const validation = await validateFileUpload(arquivo, {
                 maxSizeMB: 10,
                 allowedTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf']
             });
@@ -64,7 +64,7 @@ export async function POST(request) {
                 await mkdir(uploadDir, { recursive: true });
             }
 
-            const filename = `${uuidv4()}-${arquivo.name}`;
+            const filename = safeFilename(uuidv4(), arquivo.type);
             const filepath = join(uploadDir, filename);
             await writeFile(filepath, buffer);
             arquivoUrl = `/gabaritos/${filename}`;
@@ -199,7 +199,7 @@ export async function PUT(request) {
             arquivoUrl = '';
         } else if (arquivo && arquivo.size > 0) {
             // Validar arquivo antes de processar
-            const validation = validateFileUpload(arquivo, {
+            const validation = await validateFileUpload(arquivo, {
                 maxSizeMB: 10,
                 allowedTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf']
             });
@@ -217,7 +217,7 @@ export async function PUT(request) {
                 await mkdir(uploadDir, { recursive: true });
             }
 
-            const filename = `${uuidv4()}-${arquivo.name}`;
+            const filename = safeFilename(uuidv4(), arquivo.type);
             const filepath = join(uploadDir, filename);
             await writeFile(filepath, buffer);
             arquivoUrl = `/gabaritos/${filename}`;

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
-import { requireVerifiedEmail, createNotification, isVertexAIConfigured } from '@/lib/api-handlers';
+import { requireVerifiedEmail, createNotification, isVertexAIConfigured, checkRateLimit, registerAttempt } from '@/lib/api-handlers';
 import { validateFileUpload } from '@/lib/utils';
 import { v4 as uuidv4 } from 'uuid';
 import { saveImageToMongoDB } from '@/lib/fileStorage';
@@ -48,12 +48,13 @@ async function handleDissertativaUpload(file, gabarito, turmaId, alunoId, period
             throw new Error('Erro ao converter imagem para base64');
         }
 
-        // Buscar perfil de avaliação se existir
+        // Buscar perfil de avaliação se existir — filtro por userId previne IDOR
         let perfilConteudo = '';
         let criteriosRigor = [];
         if (gabarito.perfilAvaliacaoId) {
             const perfil = await db.collection('perfis_avaliacao').findOne({
-                id: gabarito.perfilAvaliacaoId
+                id: gabarito.perfilAvaliacaoId,
+                userId
             });
             if (perfil) {
                 perfilConteudo = perfil.conteudo;
@@ -321,9 +322,52 @@ async function handleMultiplaEscolhaUpload(file, gabarito, turmaId, alunoId, per
 export async function POST(request) {
     try {
         const userId = await requireVerifiedEmail(request);
-        const formData = await request.formData();
 
         const { db } = await connectToDatabase();
+
+        // Rate limit: 10 correções por hora por usuário (cada chamada custa no Vertex AI)
+        const rateCheck = await checkRateLimit(request, userId, 'correcao', 10, 60);
+        if (rateCheck.blocked) {
+            return NextResponse.json(
+                { error: `Limite de correções atingido. Tente novamente em ${rateCheck.remainingMinutes} minutos.` },
+                { status: 429 }
+            );
+        }
+
+        // Verificar se o usuário tem acesso (trial ativo ou assinatura premium)
+        const user = await db.collection('users').findOne({ id: userId });
+        if (!user) {
+            return NextResponse.json({ error: 'Usuário não encontrado.' }, { status: 404 });
+        }
+
+        const now = new Date();
+        const trialStart = user.trialStartedAt ? new Date(user.trialStartedAt) : null;
+
+        if (trialStart && trialStart > now) {
+            // Data de início no futuro indica manipulação — bloquear
+            return NextResponse.json({ error: 'Acesso inválido.' }, { status: 403 });
+        }
+
+        const trialDays = trialStart
+            ? Math.floor((now - trialStart) / (1000 * 60 * 60 * 24))
+            : Infinity;
+
+        const isTrialActive = trialDays <= 7;
+        const isSubscriber = user.assinatura === 'premium' || user.assinatura === 'admin' || user.isAdmin === 1;
+
+        if (!isTrialActive && !isSubscriber) {
+            return NextResponse.json(
+                {
+                    error: '🔒 Seu período de teste expirou. Assine um plano para continuar usando o corretor.',
+                    code: 'SUBSCRIPTION_REQUIRED'
+                },
+                { status: 403 }
+            );
+        }
+
+        await registerAttempt(request, userId, 'correcao');
+
+        const formData = await request.formData();
 
         // Extract common fields
         const file = formData.get('arquivo');
@@ -337,7 +381,7 @@ export async function POST(request) {
         }
 
         // Validar arquivo antes de processar
-        const validation = validateFileUpload(file, {
+        const validation = await validateFileUpload(file, {
             maxSizeMB: 10,
             allowedTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf']
         });

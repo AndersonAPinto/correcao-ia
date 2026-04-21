@@ -459,12 +459,13 @@ async function handleDissertativaUpload(file, gabarito, turmaId, alunoId, period
       throw new Error('Erro ao converter imagem para base64');
     }
 
-    // Buscar perfil de avaliação se existir
+    // Buscar perfil de avaliação se existir — filtro por userId previne IDOR
     let perfilConteudo = '';
     let criteriosRigor = [];
     if (gabarito.perfilAvaliacaoId) {
       const perfil = await db.collection('perfis_avaliacao').findOne({
-        id: gabarito.perfilAvaliacaoId
+        id: gabarito.perfilAvaliacaoId,
+        userId
       });
       if (perfil) {
         perfilConteudo = perfil.conteudo;
@@ -735,6 +736,15 @@ async function handleUpload(request) {
     const userId = await requireAuth(request);
     const { db } = await connectToDatabase();
 
+    // Rate limit: 10 correções por hora (equivalente ao /api/correcoes)
+    const rateCheck = await checkRateLimit(request, userId, 'correcao', 10, 60);
+    if (rateCheck.blocked) {
+      return NextResponse.json(
+        { error: `Limite de correções atingido. Tente novamente em ${rateCheck.remainingMinutes} minutos.` },
+        { status: 429 }
+      );
+    }
+
     const user = await db.collection('users').findOne({ id: userId });
 
     if (!user?.emailVerified) {
@@ -742,14 +752,19 @@ async function handleUpload(request) {
     }
 
     // Verificar se o usuário tem acesso (assinatura premium ou trial de 7 dias)
-    const trialDays = 7;
-    const trialStartedAt = user.trialStartedAt ? new Date(user.trialStartedAt) : new Date(user.createdAt);
     const now = new Date();
-    const diffTime = Math.abs(now - trialStartedAt);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const trialStart = user.trialStartedAt ? new Date(user.trialStartedAt) : null;
 
-    const isSubscriber = user.assinatura === 'premium';
-    const isTrialActive = diffDays <= trialDays;
+    if (trialStart && trialStart > now) {
+      return NextResponse.json({ error: 'Acesso inválido.' }, { status: 403 });
+    }
+
+    const trialDays = trialStart
+      ? Math.floor((now - trialStart) / (1000 * 60 * 60 * 24))
+      : Infinity;
+
+    const isSubscriber = user.assinatura === 'premium' || user.assinatura === 'admin' || user.isAdmin === 1;
+    const isTrialActive = trialDays <= 7;
 
     if (!isSubscriber && !isTrialActive) {
       return NextResponse.json({
@@ -757,6 +772,8 @@ async function handleUpload(request) {
         expired: true
       }, { status: 403 });
     }
+
+    await registerAttempt(request, userId, 'correcao');
 
     // Verificar Vertex AI configurado (verifica variável de ambiente e arquivo JSON)
     const isConfigured = isVertexAIConfigured();
@@ -1136,24 +1153,48 @@ async function handleGetPlanoStatus(request) {
 
 async function handleAddAdmin(request) {
   try {
-    await requireAdmin(request);
+    const adminUserId = await requireAdmin(request);
+
+    const rateLimit = await checkRateLimit(request, adminUserId, 'admin_promote', 5, 60);
+    if (rateLimit.blocked) {
+      await logAudit(request, adminUserId, 'admin_promote_blocked', { reason: 'rate_limit' });
+      return NextResponse.json({
+        error: `Muitas tentativas. Tente novamente em ${rateLimit.remainingMinutes} minutos.`
+      }, { status: 429 });
+    }
+
     const { email } = await request.json();
 
-    if (!email) {
+    if (!email || typeof email !== 'string') {
       return NextResponse.json({ error: '⚠️ Por favor, informe o e-mail do usuário que deseja tornar admin.' }, { status: 400 });
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      return NextResponse.json({ error: '⚠️ Formato de e-mail inválido.' }, { status: 400 });
+    }
+
     const { db } = await connectToDatabase();
-    const user = await db.collection('users').findOne({ email });
+    const user = await db.collection('users').findOne({ email: email.trim() });
 
     if (!user) {
+      await logAudit(request, adminUserId, 'admin_promote_failed', { email: email.trim(), reason: 'user_not_found' });
       return NextResponse.json({ error: '❌ Usuário não encontrado com o e-mail fornecido.' }, { status: 404 });
     }
 
+    if (user.isAdmin) {
+      return NextResponse.json({ error: '❌ Usuário já é administrador.' }, { status: 400 });
+    }
+
     await db.collection('users').updateOne(
-      { email },
-      { $set: { isAdmin: 1 } }
+      { email: email.trim() },
+      { $set: { isAdmin: 1, promotedAt: new Date(), promotedBy: adminUserId } }
     );
+
+    await logAudit(request, adminUserId, 'admin_promote_success', {
+      email: email.trim(),
+      targetUserId: user.id
+    });
 
     return NextResponse.json({ success: true, message: `✅ ${user.name} agora é um administrador.` });
   } catch (error) {

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import { generatePasswordResetToken } from '@/lib/auth';
 import EmailService from '@/lib/services/EmailService';
+import { checkRateLimit, registerAttempt } from '@/lib/api-handlers';
 
 export async function POST(request) {
     try {
@@ -10,6 +11,16 @@ export async function POST(request) {
         if (!email) {
             return NextResponse.json({ error: 'Email é obrigatório' }, { status: 400 });
         }
+
+        // Rate limit: 3 tentativas por email/IP a cada 15 minutos
+        const rateLimit = await checkRateLimit(request, email, 'forgot_password', 3, 15);
+        if (rateLimit.blocked) {
+            return NextResponse.json(
+                { message: 'Se o email existir, você receberá um link de recuperação' }
+            );
+        }
+
+        await registerAttempt(request, email, 'forgot_password');
 
         const { db } = await connectToDatabase();
         const user = await db.collection('users').findOne({ email });
@@ -20,6 +31,12 @@ export async function POST(request) {
                 message: 'Se o email existir, você receberá um link de recuperação'
             });
         }
+
+        // Invalidar tokens anteriores não utilizados
+        await db.collection('password_reset_tokens').updateMany(
+            { userId: user.id, used: false },
+            { $set: { used: true, invalidatedAt: new Date() } }
+        );
 
         // Gerar token de reset
         const resetToken = generatePasswordResetToken(user.id);
