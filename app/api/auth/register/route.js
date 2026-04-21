@@ -1,16 +1,25 @@
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
-import { hashPassword, generateToken, generateVerificationToken } from '@/lib/auth';
-import { ADMIN_EMAIL } from '@/lib/constants';
+import { hashPassword, generateToken, generateVerificationToken, setSessionCookie } from '@/lib/auth';
 import { v4 as uuidv4 } from 'uuid';
 import EmailService from '@/lib/services/EmailService';
 
 export async function POST(request) {
     try {
-        const { email, password, name } = await request.json();
+        const { email: rawEmail, password, name } = await request.json();
+        const email = rawEmail?.trim();
 
         if (!email || !password || !name) {
             return NextResponse.json({ error: '⚠️ Preencha todos os campos obrigatórios (nome, email e senha).' }, { status: 400 });
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            return NextResponse.json({ error: '⚠️ Formato de e-mail inválido.' }, { status: 400 });
+        }
+
+        if (password.length < 8) {
+            return NextResponse.json({ error: '⚠️ A senha deve ter no mínimo 8 caracteres.' }, { status: 400 });
         }
 
         const { db } = await connectToDatabase();
@@ -22,7 +31,7 @@ export async function POST(request) {
 
         const userId = uuidv4();
         const hashedPassword = hashPassword(password);
-        const isAdmin = email === ADMIN_EMAIL ? 1 : 0;
+        const isAdmin = 0;
 
         await db.collection('users').insertOne({
             id: userId,
@@ -40,7 +49,7 @@ export async function POST(request) {
         // mas não adicionamos créditos iniciais obrigatórios para o fluxo de correção.
 
         // Gerar token de verificação de email
-        const verificationToken = generateVerificationToken();
+        const verificationToken = generateVerificationToken(userId);
 
         // Salvar token de verificação
         await db.collection('email_verifications').insertOne({
@@ -60,11 +69,12 @@ export async function POST(request) {
         }
 
         const token = generateToken(userId);
-        return NextResponse.json({
-            token,
+        const res = NextResponse.json({
             user: { id: userId, email, name, isAdmin, emailVerified: false },
             message: 'Conta criada com sucesso! Verifique seu email para ativar sua conta.'
         });
+        setSessionCookie(res, token);
+        return res;
     } catch (error) {
         console.error('Register error:', error);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

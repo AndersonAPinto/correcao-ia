@@ -37,7 +37,7 @@ export default function ProcessSection() {
             <div className="container max-w-7xl mx-auto px-6">
                 <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-6">
                     <div className="max-w-2xl">
-                        <h2 className="text-4xl font-extrabold text-white mb-6">Como o CorregIA transforma sua rotina</h2>
+                        <h2 className="text-4xl font-extrabold text-white mb-6">Como o CorrijaPRO transforma sua rotina</h2>
                         <p className="text-slate-400 text-lg font-medium">
                             Um processo simples e intuitivo para você ganhar tempo e precisão pedagógica.
                         </p>

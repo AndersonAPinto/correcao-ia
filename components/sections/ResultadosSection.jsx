@@ -22,11 +22,8 @@ export default function ResultadosSection({ view }) {
 
   // Memoizar loadTurmas para evitar recriações
   const loadTurmas = useCallback(async () => {
-    const token = localStorage.getItem('token');
     try {
-      const response = await fetch('/api/turmas', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await fetch('/api/turmas', { credentials: 'include' });
 
       if (response.ok) {
         const data = await response.json();
@@ -44,15 +41,12 @@ export default function ResultadosSection({ view }) {
       setLoading(true);
     }
 
-    const token = localStorage.getItem('token');
     const endpoint = view === 'pendentes'
       ? '/api/avaliacoes/pendentes'
       : '/api/avaliacoes/concluidas';
 
     try {
-      const response = await fetch(endpoint, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await fetch(endpoint, { credentials: 'include' });
 
       if (response.ok) {
         const data = await response.json();
@@ -116,14 +110,13 @@ export default function ResultadosSection({ view }) {
     }
 
     setExporting(true);
-    const token = localStorage.getItem('token');
 
     try {
       const params = new URLSearchParams();
       if (selectedTurma) params.append('turmaId', selectedTurma);
 
       const response = await fetch(`/api/export/${format}?${params.toString()}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        credentials: 'include',
       });
 
       if (response.ok) {

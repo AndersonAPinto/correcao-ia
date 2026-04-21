@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { OAuth2Client } from 'google-auth-library';
 import { connectToDatabase } from '@/lib/mongodb';
-import { generateToken } from '@/lib/auth';
+import { generateToken, setSessionCookie } from '@/lib/auth';
 import { ADMIN_EMAIL } from '@/lib/constants';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -160,14 +160,13 @@ export async function GET(request) {
       // Não falhar a autenticação por erro de log
     }
 
-    // Gerar JWT token
+    // Gerar JWT token e setar como httpOnly cookie
     const token = generateToken(user.id);
-
-    // Construir URL absoluta para redirecionamento
     const redirectPath = redirectUrl.startsWith('/') ? redirectUrl : '/' + redirectUrl;
-    const redirectWithToken = getAbsoluteUrl(`${redirectPath}?token=${token}&provider=google`, baseUrl);
-
-    return NextResponse.redirect(redirectWithToken);
+    const redirectTarget = getAbsoluteUrl(`${redirectPath}?provider=google`, baseUrl);
+    const res = NextResponse.redirect(redirectTarget);
+    setSessionCookie(res, token);
+    return res;
   } catch (error) {
     console.error('Google OAuth callback error:', error);
 

@@ -6,7 +6,7 @@ import { ThemeProvider } from 'next-themes';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
-  title: 'CorregIA - Correção de Provas com Inteligência Artificial | Economize Tempo',
+  title: 'CorrijaPRO - Correção de Provas com Inteligência Artificial | Economize Tempo',
   description: 'Plataforma de correção automática de provas com IA. Economize até 80% do tempo corrigindo avaliações. OCR avançado, feedback instantâneo e dashboard completo para professores.',
   keywords: [
     'correção de provas',
@@ -22,24 +22,24 @@ export const metadata = {
     'feedback automático alunos',
     'gestão de provas'
   ],
-  authors: [{ name: 'CorregIA' }],
-  creator: 'CorregIA',
-  publisher: 'CorregIA',
+  authors: [{ name: 'CorrijaPRO' }],
+  creator: 'CorrijaPRO',
+  publisher: 'CorrijaPRO',
   metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'),
   alternates: {
     canonical: '/',
   },
   openGraph: {
-    title: 'CorregIA - Correção de Provas com IA',
+    title: 'CorrijaPRO - Correção de Provas com IA',
     description: 'Economize até 80% do tempo corrigindo provas. Plataforma com IA, OCR e feedback automático para professores.',
     url: '/',
-    siteName: 'CorregIA',
+    siteName: 'CorrijaPRO',
     locale: 'pt_BR',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'CorregIA - Correção de Provas com IA',
+    title: 'CorrijaPRO - Correção de Provas com IA',
     description: 'Economize até 80% do tempo corrigindo provas com Inteligência Artificial',
   },
   robots: {

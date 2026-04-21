@@ -57,7 +57,7 @@ export default function DemoPage() {
                                 </TabsTrigger>
                                 <TabsTrigger value="correction" className="flex items-center gap-2">
                                     <Sparkles className="h-4 w-4" />
-                                    <span className="hidden sm:inline">2. CorregIA</span>
+                                    <span className="hidden sm:inline">2. CorrijaPRO</span>
                                     <span className="sm:hidden">IA</span>
                                 </TabsTrigger>
                                 <TabsTrigger value="results" className="flex items-center gap-2">
@@ -409,7 +409,7 @@ export default function DemoPage() {
                     <div className="container mx-auto px-4">
                         <div className="max-w-4xl mx-auto text-center mb-12">
                             <h2 className="text-3xl md:text-4xl font-bold mb-4">
-                                Por que escolher o CorregIA?
+                                Por que escolher o CorrijaPRO?
                             </h2>
                             <p className="text-lg text-muted-foreground">
                                 Economize tempo, obtenha insights valiosos e foque no que realmente importa: ensinar.

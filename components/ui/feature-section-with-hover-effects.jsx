@@ -12,7 +12,7 @@ import {
 export function FeaturesSectionWithHoverEffects({ setActiveView }) {
   const features = [
     {
-      title: "CorregIA",
+      title: "CorrijaPRO",
       description:
         "Correção automática e instantânea de provas de múltipla escolha. Para questões discursivas, receba sugestões inteligentes de pontuação.",
       icon: <BotIcon className="h-6 w-6" />,

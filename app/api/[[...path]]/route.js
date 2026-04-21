@@ -737,6 +737,10 @@ async function handleUpload(request) {
 
     const user = await db.collection('users').findOne({ id: userId });
 
+    if (!user?.emailVerified) {
+      return NextResponse.json({ error: '📧 Verifique seu e-mail antes de enviar provas.' }, { status: 403 });
+    }
+
     // Verificar se o usuário tem acesso (assinatura premium ou trial de 7 dias)
     const trialDays = 7;
     const trialStartedAt = user.trialStartedAt ? new Date(user.trialStartedAt) : new Date(user.createdAt);

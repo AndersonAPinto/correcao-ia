@@ -28,12 +28,9 @@ export default function AlunoDetailModal({ open, onOpenChange, alunoId }) {
     if (!alunoId) return;
     
     setLoading(true);
-    const token = localStorage.getItem('token');
-    
+
     try {
-      const response = await fetch(`/api/analytics/aluno/${alunoId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await fetch(`/api/analytics/aluno/${alunoId}`, { credentials: 'include' });
 
       if (response.ok) {
         const data = await response.json();

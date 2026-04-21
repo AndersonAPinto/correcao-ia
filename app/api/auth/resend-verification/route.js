@@ -23,7 +23,7 @@ export async function POST(request) {
         }
 
         // Gerar novo token
-        const verificationToken = generateVerificationToken();
+        const verificationToken = generateVerificationToken(user.id);
 
         // Salvar token
         await db.collection('email_verifications').insertOne({

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
-import { requireAuth, createNotification, isVertexAIConfigured } from '@/lib/api-handlers';
+import { requireVerifiedEmail, createNotification, isVertexAIConfigured } from '@/lib/api-handlers';
 import { validateFileUpload } from '@/lib/utils';
 import { v4 as uuidv4 } from 'uuid';
 import { saveImageToMongoDB } from '@/lib/fileStorage';
@@ -320,7 +320,7 @@ async function handleMultiplaEscolhaUpload(file, gabarito, turmaId, alunoId, per
 
 export async function POST(request) {
     try {
-        const userId = await requireAuth(request);
+        const userId = await requireVerifiedEmail(request);
         const formData = await request.formData();
 
         const { db } = await connectToDatabase();

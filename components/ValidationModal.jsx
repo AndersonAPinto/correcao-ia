@@ -99,10 +99,9 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
         ? avaliacao.imageUrl
         : `/${avaliacao.imageUrl}`;
 
-      const token = localStorage.getItem('token');
       fetch(normalizedUrl, {
         method: 'HEAD',
-        headers: { 'Authorization': `Bearer ${token}` }
+        credentials: 'include',
       })
         .then(res => {
           const contentType = res.headers.get('content-type');
@@ -120,7 +119,6 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
   // Carregar arquivo (PDF ou imagem) como blob com autenticação
   useEffect(() => {
     if (avaliacao?.imageUrl && open) {
-      const token = localStorage.getItem('token');
       const url = avaliacao.imageUrl;
 
       // Normalizar URL
@@ -145,9 +143,7 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
       setImageError(false);
 
       // Buscar arquivo com autenticação e criar blob URL
-      fetch(imageSrc, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
+      fetch(imageSrc, { credentials: 'include' })
         .then(res => {
           if (!res.ok) {
             throw new Error(`Failed to fetch: ${res.status}`);
@@ -211,11 +207,8 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
   }, [avaliacao?.imageUrl, open, fileType]);
 
   const loadHabilidadesDisponiveis = async () => {
-    const token = localStorage.getItem('token');
     try {
-      const response = await fetch('/api/habilidades', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await fetch('/api/habilidades', { credentials: 'include' });
       if (response.ok) {
         const data = await response.json();
         setHabilidades(data.habilidades || []);
@@ -229,11 +222,8 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
     if (!avaliacao?.id) return;
 
     setLoadingHabilidades(true);
-    const token = localStorage.getItem('token');
     try {
-      const response = await fetch(`/api/avaliacoes/${avaliacao.id}/habilidades`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await fetch(`/api/avaliacoes/${avaliacao.id}/habilidades`, { credentials: 'include' });
       if (response.ok) {
         const data = await response.json();
         setHabilidadesAvaliacao(data.habilidades || []);
@@ -258,14 +248,11 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
     }
 
     setAdicionandoHabilidade(true);
-    const token = localStorage.getItem('token');
     try {
       const response = await fetch(`/api/avaliacoes/${avaliacao.id}/habilidades`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           habilidadeId: habilidadeSelecionada,
           usarIA: true,
@@ -295,14 +282,11 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
   };
 
   const handleSalvarHabilidade = async (habilidadeId) => {
-    const token = localStorage.getItem('token');
     try {
       const response = await fetch(`/api/avaliacoes/${avaliacao.id}/habilidades/${habilidadeId}`, {
         method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           pontuacao: pontuacaoEditando,
           justificativa: justificativaEditando
@@ -323,14 +307,11 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
   };
 
   const handleReavaliarComIA = async (habilidadeId) => {
-    const token = localStorage.getItem('token');
     try {
       const response = await fetch(`/api/avaliacoes/${avaliacao.id}/habilidades/${habilidadeId}`, {
         method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           reavaliarComIA: true
         })
@@ -356,11 +337,10 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
   const confirmRemoverHabilidade = async () => {
     if (!habilidadeToDelete) return;
 
-    const token = localStorage.getItem('token');
     try {
       const response = await fetch(`/api/avaliacoes/${avaliacao.id}/habilidades/${habilidadeToDelete}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        credentials: 'include',
       });
 
       if (response.ok) {
@@ -392,7 +372,6 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
 
   const handleValidate = async () => {
     setValidating(true);
-    const token = localStorage.getItem('token');
 
     try {
       // Preparar dados de ajuste
@@ -406,10 +385,8 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
 
       const response = await fetch(`/api/avaliacoes/${avaliacao.id}/validar`, {
         method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           notaFinal: notaFinal,
           notasAjustadas: notasAjustadas

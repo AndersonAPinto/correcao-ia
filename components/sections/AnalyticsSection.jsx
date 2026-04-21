@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, Area, AreaChart, LabelList } from 'recharts';
-import { TrendingUp, Users, Award, Target, Clock, FileText, Download, CheckCircle, AlertCircle, Sparkles, BarChart3 } from 'lucide-react';
+import { TrendingUp, Users, Award, Target, Clock, FileText, Download, CheckCircle, AlertCircle, Sparkles, BarChart3, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   ChartContainer,
   ChartTooltip,
@@ -56,11 +57,8 @@ export default function AnalyticsSection() {
   }, [selectedTurma]);
 
   const loadTurmas = async () => {
-    const token = localStorage.getItem('token');
     try {
-      const response = await fetch('/api/turmas', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await fetch('/api/turmas', { credentials: 'include' });
 
       if (response.ok) {
         const data = await response.json();
@@ -75,15 +73,13 @@ export default function AnalyticsSection() {
     if (!selectedTurma) return;
 
     setLoading(true);
-    const token = localStorage.getItem('token');
 
-    // AbortController para cancelar requisições se necessário
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // Timeout de 30s
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
 
     try {
       const fetchOptions = {
-        headers: { 'Authorization': `Bearer ${token}` },
+        credentials: 'include',
         signal: controller.signal,
       };
 
@@ -234,6 +230,77 @@ export default function AnalyticsSection() {
     }
 
     return insights;
+  };
+
+  const [exporting, setExporting] = useState(false);
+
+  const handleExportCSV = () => {
+    if (!turmaMetrics) {
+      toast.error('Nenhum dado disponível para exportar.');
+      return;
+    }
+
+    setExporting(true);
+
+    try {
+      const turmaNome = turmas.find(t => t.id === selectedTurma)?.nome || 'turma';
+      const dataAtual = new Date().toLocaleDateString('pt-BR');
+      const lines = [];
+
+      // Cabeçalho do relatório
+      lines.push(`Relatório de Analytics - ${turmaNome}`);
+      lines.push(`Data de exportação: ${dataAtual}`);
+      lines.push('');
+
+      // Métricas gerais
+      lines.push('=== MÉTRICAS GERAIS ===');
+      lines.push(`Total de Alunos,${turmaMetrics.alunos?.length || 0}`);
+      lines.push(`Média da Turma,${turmaMetrics.mediaTurma?.toFixed(2) || 0}`);
+      lines.push(`Taxa de Aprovação,${turmaMetrics.taxaAprovacao?.toFixed(1) || 0}%`);
+      lines.push(`Total de Avaliações,${turmaMetrics.totalAvaliacoes || 0}`);
+      lines.push('');
+
+      // Habilidades
+      if (habilidadesReport.length > 0) {
+        lines.push('=== DESEMPENHO POR HABILIDADE ===');
+        lines.push('Habilidade,Taxa de Acerto (%),Acertos,Erros');
+        habilidadesReport.forEach(hab => {
+          const nome = hab.nome.replace(/,/g, ' ');
+          lines.push(`${nome},${hab.taxaAcerto},${hab.acertos || 0},${hab.erros || 0}`);
+        });
+        lines.push('');
+      }
+
+      // Ranking de alunos
+      if (turmaMetrics.alunos && turmaMetrics.alunos.length > 0) {
+        lines.push('=== RANKING DOS ALUNOS ===');
+        lines.push('Posição,Nome,Média,Total de Avaliações');
+        turmaMetrics.alunos.forEach((aluno, index) => {
+          const nome = aluno.nome.replace(/,/g, ' ');
+          lines.push(`${index + 1},${nome},${aluno.media?.toFixed(2) || 0},${aluno.totalAvaliacoes || 0}`);
+        });
+      }
+
+      // BOM para compatibilidade com Excel em pt-BR
+      const BOM = '\uFEFF';
+      const csvContent = BOM + lines.join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `analytics_${turmaNome.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast.success('Relatório CSV exportado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao exportar CSV:', error);
+      toast.error('Erro ao exportar o relatório.');
+    } finally {
+      setExporting(false);
+    }
   };
 
   const insights = generateInsights();
@@ -412,36 +479,44 @@ export default function AnalyticsSection() {
                         <FileText className="h-4 w-4" />
                         Relatório Completo da Turma
                       </div>
-                      <Download className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      {/* <Download className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" /> */}
                     </Button>
                     <Button variant="outline" className="w-full justify-between group hover:border-blue-600 hover:text-blue-600 transition-all">
                       <div className="flex items-center gap-2">
                         <BarChart3 className="h-4 w-4" />
                         Análise por Questão
                       </div>
-                      <Download className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      {/* <Download className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" /> */}
                     </Button>
                     <Button variant="outline" className="w-full justify-between group hover:border-blue-600 hover:text-blue-600 transition-all">
                       <div className="flex items-center gap-2">
                         <TrendingUp className="h-4 w-4" />
                         Evolução Individual
                       </div>
-                      <Download className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      {/* <Download className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" /> */}
                     </Button>
                     <Button variant="outline" className="w-full justify-between group hover:border-blue-600 hover:text-blue-600 transition-all">
                       <div className="flex items-center gap-2">
                         <Users className="h-4 w-4" />
                         Perfis de Aprendizagem
                       </div>
-                      <Download className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      {/* <Download className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" /> */}
                     </Button>
 
-                    <div className="grid grid-cols-2 gap-2 pt-4">
-                      <Button size="sm" variant="secondary" className="gap-2">
-                        <Download className="h-4 w-4" /> Exportar Excel
-                      </Button>
-                      <Button size="sm" variant="secondary" className="gap-2">
-                        <Download className="h-4 w-4" /> Exportar CSV
+                    <div className="pt-4">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="w-full gap-2"
+                        onClick={handleExportCSV}
+                        disabled={exporting || !turmaMetrics}
+                      >
+                        {exporting ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Download className="h-4 w-4" />
+                        )}
+                        {exporting ? 'Exportando...' : 'Exportar Relatório (CSV)'}
                       </Button>
                     </div>
                   </CardContent>

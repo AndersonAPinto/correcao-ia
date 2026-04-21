@@ -38,11 +38,8 @@ export default function ConfiguracoesSection({ user, credits }) {
   }, [user]);
 
   const loadPlanoStatus = async () => {
-    const token = localStorage.getItem('token');
     try {
-      const response = await fetch('/api/plano/status', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await fetch('/api/plano/status', { credentials: 'include' });
 
       if (response.ok) {
         const data = await response.json();
@@ -54,17 +51,14 @@ export default function ConfiguracoesSection({ user, credits }) {
   };
 
   const loadAdminSettings = async () => {
-    const token = localStorage.getItem('token');
     try {
-      const response = await fetch('/api/settings', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await fetch('/api/settings', { credentials: 'include' });
 
       if (response.ok) {
         const data = await response.json();
         setFormData(prev => ({
           ...prev,
-          geminiApiKey: data.geminiApiKey || ''
+          geminiApiKey: data.settings?.geminiApiKey || ''
         }));
       }
     } catch (error) {
@@ -75,15 +69,12 @@ export default function ConfiguracoesSection({ user, credits }) {
   const handleSave = async (e) => {
     e.preventDefault();
     setSaving(true);
-    const token = localStorage.getItem('token');
 
     try {
       const response = await fetch('/api/settings', {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(formData)
       });
 
@@ -99,7 +90,7 @@ export default function ConfiguracoesSection({ user, credits }) {
     setSaving(false);
   };
 
-  const isAdmin = user?.isAdmin === 1;
+  const isAdmin = !!user?.isAdmin;
 
   return (
     <div className="space-y-6 relative">
@@ -318,7 +309,7 @@ export default function ConfiguracoesSection({ user, credits }) {
 
       {/* Version Info */}
       <div className="flex justify-end mt-6">
-        <p className="text-xs text-muted-foreground">v0.3.2</p>
+        <p className="text-xs text-muted-foreground">v0.3.3</p>
       </div>
     </div>
   );
