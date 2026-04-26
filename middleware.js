@@ -42,20 +42,27 @@ export function middleware(request) {
     const isProtected = PROTECTED_PATHS.some(path => pathname.startsWith(path));
     if (!isProtected) return NextResponse.next();
 
+    console.log(`[MIDDLEWARE] Rota protegida acessada: ${pathname}`);
+
     // Cookie name must match setSessionCookie() in lib/auth.js
     const token = request.cookies.get('session')?.value ||
         request.headers.get('authorization')?.replace('Bearer ', '');
 
     if (!token) {
+        console.log(`[MIDDLEWARE] ❌ Sem token/cookie 'session' para: ${pathname}`);
+        console.log(`[MIDDLEWARE] Cookies presentes: ${[...request.cookies.getAll().map(c => c.name)].join(', ') || 'nenhum'}`);
         if (pathname.startsWith('/api')) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
         return NextResponse.redirect(new URL('/', request.url));
     }
 
+    console.log(`[MIDDLEWARE] ✅ Cookie 'session' encontrado para: ${pathname}`);
+
     // Reject tokens that are structurally invalid or already expired
     const payload = decodeJWTPayload(token);
-    if (!payload || (payload.exp && payload.exp * 1000 < Date.now())) {
+    if (!payload) {
+        console.log(`[MIDDLEWARE] ❌ Token com formato inválido (não é JWT) para: ${pathname}`);
         if (pathname.startsWith('/api')) {
             return NextResponse.json({ error: 'Token expirado' }, { status: 401 });
         }
@@ -64,6 +71,18 @@ export function middleware(request) {
         return response;
     }
 
+    if (payload.exp && payload.exp * 1000 < Date.now()) {
+        const expDate = new Date(payload.exp * 1000).toISOString();
+        console.log(`[MIDDLEWARE] ❌ Token expirado em ${expDate} para: ${pathname}`);
+        if (pathname.startsWith('/api')) {
+            return NextResponse.json({ error: 'Token expirado' }, { status: 401 });
+        }
+        const response = NextResponse.redirect(new URL('/', request.url));
+        response.cookies.delete('session');
+        return response;
+    }
+
+    console.log(`[MIDDLEWARE] ✅ Token válido (userId: ${payload.userId}) — liberando: ${pathname}`);
     return NextResponse.next();
 }
 
