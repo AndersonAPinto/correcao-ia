@@ -51,6 +51,7 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'login', onAut
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
                 body: JSON.stringify(dataToSend)
             });
 
