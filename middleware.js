@@ -20,6 +20,8 @@ const PROTECTED_PATHS = [
   '/api/export',
   '/api/plano',
   '/api/credits',
+  // /api/account/delete requires auth; /api/account/restore is intentionally public
+  '/api/account/delete',
 ];
 
 // Decode JWT payload without verification (Edge Runtime compatible).

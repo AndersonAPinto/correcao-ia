@@ -27,6 +27,10 @@ async function createIndexes() {
         console.log('Creating indexes for users...');
         await db.collection('users').createIndex({ email: 1 }, { unique: true });
         await db.collection('users').createIndex({ id: 1 }, { unique: true });
+        // Soft-delete indexes: status speeds up requireActiveUser + login checks;
+        // compound (status, scheduledAnonymizeAt) drives the background deletion job.
+        await db.collection('users').createIndex({ status: 1 });
+        await db.collection('users').createIndex({ status: 1, scheduledAnonymizeAt: 1 });
 
         // Turmas indexes
         console.log('Creating indexes for turmas...');
