@@ -180,7 +180,8 @@ async function handleDissertativaUpload(file, gabarito, turmaId, alunoId, period
                 numero: ex.numero,
                 nota: ex.nota,
                 nota_maxima: ex.nota_maxima,
-                feedback: ex.feedback
+                feedback: ex.feedback,
+                ...(ex.detalhes_redacao ? { detalhes_redacao: ex.detalhes_redacao } : {})
             })),
             questoesDetalhes,
             habilidadesAcertadas,

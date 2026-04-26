@@ -134,8 +134,12 @@ export default function App() {
       const response = await fetch('/api/avaliacoes?status=pendente', { credentials: 'include' });
 
       if (response.status === 401) {
-        setIsAuthenticated(false);
-        setUser(null);
+        // Confirm session is actually invalid before logging out (avoids false logout on race conditions)
+        const meResponse = await fetch('/api/users/me', { credentials: 'include' });
+        if (!meResponse.ok) {
+          setIsAuthenticated(false);
+          setUser(null);
+        }
         return;
       }
 
