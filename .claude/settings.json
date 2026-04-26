@@ -6,7 +6,9 @@
       "Bash(node -e ' *)",
       "Bash(grep -n 'AlunoDetailModal\\\\|alunoModalOpen\\\\|</div>\\\\s*$\\\\|return null' /home/anderson/AreaDeTrabalho/DOCsAnder/Anderson\\\\'sProject/correcaoIA/correcao-ia/components/sections/AnalyticsSection.jsx)",
       "Bash(echo \"EXIT:$?\")",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(fuser 3000/tcp)",
+      "Read(//proc/**)"
     ],
     "additionalDirectories": [
       "/home/anderson/AreaDeTrabalho/DOCsAnder/Anderson'sProject/correcaoIA/correcao-ia/app/api/avaliacoes/[id]",
