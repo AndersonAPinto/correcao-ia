@@ -8,8 +8,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { Settings, User, CreditCard, Key, Palette, Crown, Cpu } from 'lucide-react';
+import { Settings, User, CreditCard, Key, Palette, Crown, Cpu, Trash2, AlertTriangle } from 'lucide-react';
 import PaywallModal from '@/components/PaywallModal';
 
 export default function ConfiguracoesSection({ user, credits }) {
@@ -24,6 +35,9 @@ export default function ConfiguracoesSection({ user, credits }) {
   const [saving, setSaving] = useState(false);
   const [planoStatus, setPlanoStatus] = useState(null);
   const [paywallOpen, setPaywallOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -92,6 +106,41 @@ export default function ConfiguracoesSection({ user, credits }) {
       toast.error('🌐 Erro de conexão ao salvar configurações.');
     }
     setSaving(false);
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!deletePassword.trim()) {
+      toast.error('Digite sua senha para confirmar a exclusão.');
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      const response = await fetch('/api/account/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ password: deletePassword }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success('Conta marcada para exclusão. Verifique seu e-mail.');
+        setDeleteDialogOpen(false);
+        // Redireciona para home após 2s — sessão já foi invalidada pelo servidor
+        setTimeout(() => { window.location.href = '/'; }, 2000);
+      } else if (response.status === 401) {
+        toast.error('Senha incorreta. Tente novamente.');
+        setDeletePassword('');
+      } else {
+        toast.error(data.error || 'Erro ao excluir conta. Tente novamente.');
+      }
+    } catch {
+      toast.error('Erro de conexão. Tente novamente.');
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const isAdmin = !!user?.isAdmin;
@@ -351,6 +400,77 @@ export default function ConfiguracoesSection({ user, credits }) {
           <Button variant="outline" className="w-full">
             Alterar Senha
           </Button>
+        </CardContent>
+      </Card>
+
+      {/* Delete Account Card */}
+      <Card className="border-red-200">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-red-600">
+            <Trash2 className="h-5 w-5" />
+            Excluir Conta
+          </CardTitle>
+          <CardDescription>
+            Desative sua conta permanentemente. Seus dados serão anonimizados após 30 dias.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AlertDialog open={deleteDialogOpen} onOpenChange={(open) => {
+            setDeleteDialogOpen(open);
+            if (!open) setDeletePassword('');
+          }}>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" className="w-full">
+                <Trash2 className="h-4 w-4 mr-2" />
+                Excluir minha conta
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+                  <AlertTriangle className="h-5 w-5" />
+                  Confirmar exclusão de conta
+                </AlertDialogTitle>
+                <AlertDialogDescription asChild>
+                  <div className="space-y-3 text-sm text-gray-600">
+                    <p>Esta ação irá:</p>
+                    <ul className="list-disc pl-4 space-y-1">
+                      <li>Bloquear seu acesso imediatamente</li>
+                      <li>Cancelar sua assinatura ativa (se houver)</li>
+                      <li>Anonimizar seus dados pessoais após <strong>30 dias</strong></li>
+                    </ul>
+                    <p>
+                      Você receberá um e-mail com um link para <strong>restaurar sua conta</strong> caso mude de ideia dentro dos 30 dias.
+                    </p>
+                    <div className="pt-2 space-y-1">
+                      <Label htmlFor="delete-password" className="text-gray-700 font-medium">
+                        Digite sua senha para confirmar:
+                      </Label>
+                      <Input
+                        id="delete-password"
+                        type="password"
+                        placeholder="Sua senha atual"
+                        value={deletePassword}
+                        onChange={(e) => setDeletePassword(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleDeleteAccount()}
+                        autoComplete="current-password"
+                      />
+                    </div>
+                  </div>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={(e) => { e.preventDefault(); handleDeleteAccount(); }}
+                  disabled={deleting || !deletePassword.trim()}
+                  className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+                >
+                  {deleting ? 'Excluindo...' : 'Sim, excluir minha conta'}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </CardContent>
       </Card>
 
