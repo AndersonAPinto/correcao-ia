@@ -3,13 +3,10 @@ import { connectToDatabase } from '@/lib/mongodb';
 import { requireVerifiedEmail } from '@/lib/api-handlers';
 
 export async function GET(request) {
-    const { searchParams } = new URL(request.url);
-    const status = searchParams.get('status');
-    console.log(`[AVALIACOES] GET /api/avaliacoes?status=${status} — iniciando`);
-
     try {
         const userId = await requireVerifiedEmail(request);
-        console.log(`[AVALIACOES] ✅ Autenticado — userId: ${userId}, filtro: ${status}`);
+        const { searchParams } = new URL(request.url);
+        const status = searchParams.get('status'); // 'pendente' or 'concluida'
 
         const { db } = await connectToDatabase();
 
@@ -26,8 +23,6 @@ export async function GET(request) {
             .sort({ createdAt: -1 })
             .toArray();
 
-        console.log(`[AVALIACOES] Encontradas ${avaliacoes.length} avaliações para userId: ${userId}`);
-
         // Enriquecer com nomes
         const enriched = await Promise.all(avaliacoes.map(async (av) => {
             const turma = await db.collection('turmas').findOne({ id: av.turmaId });
@@ -42,13 +37,8 @@ export async function GET(request) {
             };
         }));
 
-        console.log(`[AVALIACOES] ✅ Retornando ${enriched.length} avaliações`);
         return NextResponse.json({ avaliacoes: enriched });
     } catch (error) {
-        const isAuthError = error.message?.includes('Acesso negado') || error.message?.includes('login');
-        const isVerifyError = error.message?.includes('Verifique seu e-mail');
-        const httpStatus = isAuthError ? 401 : isVerifyError ? 403 : 500;
-        console.log(`[AVALIACOES] ❌ Erro (status ${httpStatus}): ${error.message}`);
-        return NextResponse.json({ error: error.message }, { status: httpStatus });
+        return NextResponse.json({ error: error.message }, { status: 401 });
     }
 }
