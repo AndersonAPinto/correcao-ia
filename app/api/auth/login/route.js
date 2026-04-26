@@ -28,6 +28,20 @@ export async function POST(request) {
             return NextResponse.json({ error: '❌ E-mail ou senha incorretos.' }, { status: 401 });
         }
 
+        // Block soft-deleted accounts with targeted messages
+        if (user.status === 'pending_deletion') {
+            return NextResponse.json(
+                { error: '⚠️ Esta conta está em processo de exclusão. Verifique seu e-mail para restaurá-la ou entre em contato com o suporte.' },
+                { status: 403 }
+            );
+        }
+        if (user.status === 'deleted') {
+            return NextResponse.json(
+                { error: '❌ Esta conta foi excluída e não está mais disponível.' },
+                { status: 403 }
+            );
+        }
+
         const token = generateToken(user.id);
         const res = NextResponse.json({
             user: { id: user.id, email: user.email, name: user.name, isAdmin: user.isAdmin || 0 }
