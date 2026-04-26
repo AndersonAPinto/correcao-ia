@@ -42,20 +42,20 @@ export default function PaywallModal({ open, onOpenChange, planoStatus }) {
           {/* Status atual */}
           <Card className="bg-blue-50 border-blue-200">
             <CardHeader>
-              <CardTitle className="text-sm">Status Atual</CardTitle>
+              <CardTitle className="text-sm text-gray-900">Status Atual</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-semibold">Plano {planoStatus.plano === 'premium' ? 'Premium' : 'Gratuito (Trial)'}</p>
+                  <p className="font-semibold text-gray-900">Plano {planoStatus.plano === 'premium' ? 'Premium' : 'Gratuito (Trial)'}</p>
                   {!planoStatus.isSubscriber && (
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-gray-700">
                       {planoStatus.trialRemainingDays} dias restantes de acesso gratuito
                     </p>
                   )}
                 </div>
                 {!planoStatus.isSubscriber && (
-                  <Badge variant="outline" className="bg-white">
+                  <Badge variant="outline" className="bg-white text-gray-900">
                     {planoStatus.trialRemainingDays} dias
                   </Badge>
                 )}
