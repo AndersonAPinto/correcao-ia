@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e \"require\\('resend'\\)\")",
+      "Bash(node scripts/test-emails.js)",
+      "Bash(node -e ' *)",
+      "Bash(grep -n 'AlunoDetailModal\\\\|alunoModalOpen\\\\|</div>\\\\s*$\\\\|return null' /home/anderson/AreaDeTrabalho/DOCsAnder/Anderson\\\\'sProject/correcaoIA/correcao-ia/components/sections/AnalyticsSection.jsx)"
+    ],
+    "additionalDirectories": [
+      "/home/anderson/AreaDeTrabalho/DOCsAnder/Anderson'sProject/correcaoIA/correcao-ia/app/api/avaliacoes/[id]",
+      "/home/anderson/AreaDeTrabalho/DOCsAnder/Anderson'sProject/correcaoIA/correcao-ia/app/api/export/aluno"
+    ]
+  }
+}

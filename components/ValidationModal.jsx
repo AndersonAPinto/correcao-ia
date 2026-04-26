@@ -25,7 +25,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { CheckCircle2, Image as ImageIcon, Edit2, Save, Award } from 'lucide-react';
+import { CheckCircle2, Image as ImageIcon, Edit2, Save, Award, RefreshCw, Brain, ChevronDown, ChevronUp, FileText } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import HabilidadeCard from '@/components/avaliacao/HabilidadeCard';
 import AdicionarHabilidadeForm from '@/components/avaliacao/AdicionarHabilidadeForm';
@@ -47,14 +47,21 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
   const [pdfBlobUrl, setPdfBlobUrl] = useState(null); // Estado para blob URL do PDF
   const [imageBlobUrl, setImageBlobUrl] = useState(null); // Estado para blob URL da imagem
   const [imageError, setImageError] = useState(false); // Estado para erro de carregamento
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // Estado para dialog de confirmação
-  const [habilidadeToDelete, setHabilidadeToDelete] = useState(null); // ID da habilidade a ser removida
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [habilidadeToDelete, setHabilidadeToDelete] = useState(null);
+  // OCR review
+  const [ocrText, setOcrText] = useState('');
+  const [editandoOcr, setEditandoOcr] = useState(false);
+  const [recorrigindo, setRecorrigindo] = useState(false);
+  const [ocrExpandido, setOcrExpandido] = useState(false);
   const pdfBlobUrlRef = useRef(null); // Ref para limpar blob URL
   const imageBlobUrlRef = useRef(null); // Ref para limpar blob URL da imagem
 
   useEffect(() => {
     if (avaliacao) {
-      // Usar nota ajustada se existir, senão usar nota original
+      setOcrText(avaliacao.textoOcr || '');
+      setEditandoOcr(false);
+      setOcrExpandido(false);
       setNotaFinal(avaliacao.nota || 0);
       // Inicializar questões editadas com valores atuais
       if (avaliacao.exercicios && avaliacao.exercicios.length > 0) {
@@ -64,7 +71,8 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
             nota: ex.nota || 0,
             notaMaxima: ex.nota_maxima || 1,
             feedback: ex.feedback || '',
-            notaOriginal: ex.nota || 0 // Nota original da IA
+            notaOriginal: ex.nota || 0,
+            detalhes_redacao: ex.detalhes_redacao || null
           }))
         );
       } else {
@@ -327,6 +335,50 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
     } catch (error) {
       toast.error('Erro de conexão ao reavaliar habilidade');
     }
+  };
+
+  const handleRecorrigir = async () => {
+    if (!ocrText.trim() || ocrText.trim().length < 10) {
+      toast.error('O texto OCR está muito curto para recorrigir.');
+      return;
+    }
+    setRecorrigindo(true);
+    try {
+      const response = await fetch(`/api/avaliacoes/${avaliacao.id}/recorrigir`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ textoOcr: ocrText })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        toast.success('✅ Avaliação recorrigida com o texto editado!');
+        setNotaFinal(data.nota || 0);
+        setQuestoesEditadas(
+          (data.exercicios || []).map(ex => ({
+            numero: ex.numero || 0,
+            nota: ex.nota || 0,
+            notaMaxima: ex.nota_maxima || 1,
+            feedback: ex.feedback || '',
+            notaOriginal: ex.nota || 0,
+            detalhes_redacao: ex.detalhes_redacao
+          }))
+        );
+        avaliacao.analisePedagogica = data.analisePedagogica;
+        setEditandoOcr(false);
+      } else {
+        const err = await response.json();
+        toast.error(err.error || 'Erro ao recorrigir.');
+      }
+    } catch {
+      toast.error('Erro de conexão ao recorrigir.');
+    }
+    setRecorrigindo(false);
+  };
+
+  const handleExportarRelatorio = () => {
+    window.open(`/api/export/aluno/${avaliacao.alunoId}`, '_blank');
   };
 
   const handleRemoverHabilidade = (habilidadeId) => {
@@ -675,9 +727,29 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
                                   )}
                                 </div>
                               ) : (
-                                <p className="text-sm text-gray-700">
-                                  {questao.feedback || 'Sem feedback'}
-                                </p>
+                                <>
+                                  <p className="text-sm text-gray-700">
+                                    {questao.feedback || 'Sem feedback'}
+                                  </p>
+                                  {questao.detalhes_redacao && (
+                                    <div className="mt-2 space-y-1 border-t pt-2">
+                                      <p className="text-xs font-semibold text-gray-500 uppercase">Critérios de Redação</p>
+                                      {Object.entries(questao.detalhes_redacao).map(([k, v]) => {
+                                        const labels = { tese_argumentacao: 'Tese e argumentação', coerencia_coesao: 'Coerência e coesão', estrutura: 'Estrutura', repertorio: 'Repertório', adequacao_linguistica: 'Adequação linguística' };
+                                        const nota = v?.nota ?? '—';
+                                        const comentario = v?.comentario ?? '';
+                                        const cor = nota >= 16 ? 'text-green-700' : nota >= 10 ? 'text-orange-600' : 'text-red-600';
+                                        return (
+                                          <div key={k} className="flex items-start gap-2 text-xs">
+                                            <span className={`font-bold min-w-[28px] ${cor}`}>{nota}/20</span>
+                                            <span className="font-medium text-gray-600 min-w-[140px]">{labels[k] || k}:</span>
+                                            <span className="text-gray-500">{comentario}</span>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </>
                               )}
                             </div>
                           );
@@ -707,16 +779,114 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
                     </div>
                   ) : null}
 
-                  {/* OCR Text */}
+                  {/* OCR — Revisão e Re-correção */}
                   {avaliacao.textoOcr && (
-                    <details className="mt-4">
-                      <summary className="cursor-pointer text-sm font-semibold text-gray-700 hover:text-gray-900">
-                        Ver texto transcrito (OCR)
-                      </summary>
-                      <div className="mt-2 p-3 bg-gray-100 rounded text-sm text-gray-700 whitespace-pre-wrap max-h-40 overflow-y-auto">
-                        {avaliacao.textoOcr}
+                    <div className="mt-4 border rounded-lg overflow-hidden">
+                      <button
+                        type="button"
+                        className="w-full flex items-center justify-between px-3 py-2 bg-gray-50 hover:bg-gray-100 text-sm font-semibold text-gray-700"
+                        onClick={() => setOcrExpandido(v => !v)}
+                      >
+                        <span className="flex items-center gap-2">
+                          <FileText className="h-4 w-4" />
+                          Texto transcrito (OCR)
+                          {avaliacao.textoOcrEditado && (
+                            <span className="text-xs bg-orange-100 text-orange-700 rounded px-1">editado</span>
+                          )}
+                        </span>
+                        {ocrExpandido ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                      </button>
+
+                      {ocrExpandido && (
+                        <div className="p-3 space-y-2">
+                          {editandoOcr ? (
+                            <>
+                              <Textarea
+                                value={ocrText}
+                                onChange={e => setOcrText(e.target.value)}
+                                rows={8}
+                                className="text-sm font-mono"
+                                placeholder="Edite o texto transcrito..."
+                              />
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  onClick={handleRecorrigir}
+                                  disabled={recorrigindo}
+                                  className="gap-1 bg-blue-600 hover:bg-blue-700"
+                                >
+                                  <RefreshCw className={`h-3 w-3 ${recorrigindo ? 'animate-spin' : ''}`} />
+                                  {recorrigindo ? 'Recorrigindo...' : 'Recorrigir com este texto'}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => { setOcrText(avaliacao.textoOcr || ''); setEditandoOcr(false); }}
+                                >
+                                  Cancelar
+                                </Button>
+                              </div>
+                              <p className="text-xs text-gray-500">
+                                A IA irá recorrigir a prova usando este texto. A nota e o feedback serão atualizados.
+                              </p>
+                            </>
+                          ) : (
+                            <>
+                              <div className="p-2 bg-gray-100 rounded text-sm text-gray-700 whitespace-pre-wrap max-h-40 overflow-y-auto font-mono">
+                                {ocrText || '(sem texto)'}
+                              </div>
+                              {isPending && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setEditandoOcr(true)}
+                                  className="gap-1 text-xs"
+                                >
+                                  <Edit2 className="h-3 w-3" />
+                                  Editar e recorrigir
+                                </Button>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Análise Pedagógica */}
+                  {avaliacao.analisePedagogica && (avaliacao.analisePedagogica.ponto_forte || avaliacao.analisePedagogica.ponto_atencao || avaliacao.analisePedagogica.sugestao_intervencao) && (
+                    <div className="mt-4 border rounded-lg overflow-hidden">
+                      <div className="flex items-center gap-2 px-3 py-2 bg-purple-50">
+                        <Brain className="h-4 w-4 text-purple-600" />
+                        <span className="text-sm font-semibold text-purple-700">Análise Pedagógica</span>
                       </div>
-                    </details>
+                      <div className="p-3 space-y-2">
+                        {avaliacao.analisePedagogica.causa_raiz_erro && (
+                          <div className="bg-red-50 border-l-2 border-red-400 pl-2 py-1 rounded-r">
+                            <p className="text-xs font-semibold text-red-600 uppercase">Causa do erro</p>
+                            <p className="text-sm text-gray-700">{avaliacao.analisePedagogica.causa_raiz_erro}</p>
+                          </div>
+                        )}
+                        {avaliacao.analisePedagogica.ponto_forte && (
+                          <div className="bg-green-50 border-l-2 border-green-500 pl-2 py-1 rounded-r">
+                            <p className="text-xs font-semibold text-green-600 uppercase">Ponto forte</p>
+                            <p className="text-sm text-gray-700">{avaliacao.analisePedagogica.ponto_forte}</p>
+                          </div>
+                        )}
+                        {avaliacao.analisePedagogica.ponto_atencao && (
+                          <div className="bg-orange-50 border-l-2 border-orange-400 pl-2 py-1 rounded-r">
+                            <p className="text-xs font-semibold text-orange-600 uppercase">Ponto de atenção</p>
+                            <p className="text-sm text-gray-700">{avaliacao.analisePedagogica.ponto_atencao}</p>
+                          </div>
+                        )}
+                        {avaliacao.analisePedagogica.sugestao_intervencao && (
+                          <div className="bg-blue-50 border-l-2 border-blue-500 pl-2 py-1 rounded-r">
+                            <p className="text-xs font-semibold text-blue-600 uppercase">Sugestão para próxima aula</p>
+                            <p className="text-sm text-gray-700">{avaliacao.analisePedagogica.sugestao_intervencao}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   )}
 
                   {/* Habilidades Avaliadas */}
@@ -779,27 +949,40 @@ export default function ValidationModal({ open, onOpenChange, avaliacao, onValid
                 </div>
               </ScrollArea>
 
-              {/* Validate Button */}
-              {isPending && (
-                <div className="mt-4 pt-4 border-t">
-                  {temAjustes && editing && (
-                    <div className="mb-3 p-2 bg-orange-50 border border-orange-200 rounded text-sm text-orange-700">
-                      ⚠️ Você fez ajustes nas notas. A nota final será recalculada ao validar.
-                    </div>
-                  )}
+              {/* Botões de ação */}
+              <div className="mt-4 pt-4 border-t space-y-2">
+                {isPending && (
+                  <>
+                    {temAjustes && editing && (
+                      <div className="mb-3 p-2 bg-orange-50 border border-orange-200 rounded text-sm text-orange-700">
+                        ⚠️ Você fez ajustes nas notas. A nota final será recalculada ao validar.
+                      </div>
+                    )}
+                    <Button
+                      onClick={handleValidate}
+                      className="w-full gap-2"
+                      disabled={validating}
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                      {validating ? 'Validando...' : 'Validar Avaliação'}
+                    </Button>
+                    <p className="text-xs text-center text-gray-500">
+                      Ao validar, esta avaliação será movida para "Concluídas"
+                    </p>
+                  </>
+                )}
+                {avaliacao.alunoId && (
                   <Button
-                    onClick={handleValidate}
-                    className="w-full gap-2"
-                    disabled={validating}
+                    variant="outline"
+                    size="sm"
+                    className="w-full gap-2 text-gray-600"
+                    onClick={handleExportarRelatorio}
                   >
-                    <CheckCircle2 className="h-4 w-4" />
-                    {validating ? 'Validando...' : 'Validar Avaliação'}
+                    <FileText className="h-4 w-4" />
+                    Exportar relatório do aluno
                   </Button>
-                  <p className="text-xs text-center text-gray-500 mt-2">
-                    Ao validar, esta avaliação será movida para "Concluídas"
-                  </p>
-                </div>
-              )}
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>

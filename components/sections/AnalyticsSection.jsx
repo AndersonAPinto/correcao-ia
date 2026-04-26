@@ -35,6 +35,8 @@ export default function AnalyticsSection() {
   const [loading, setLoading] = useState(false);
   const [selectedAlunoId, setSelectedAlunoId] = useState(null);
   const [alunoModalOpen, setAlunoModalOpen] = useState(false);
+  const [intervencaoTurma, setIntervencaoTurma] = useState(null);
+  const [loadingIntervencao, setLoadingIntervencao] = useState(false);
 
   useEffect(() => {
     loadTurmas();
@@ -53,6 +55,7 @@ export default function AnalyticsSection() {
       setHabilidadesReport([]);
       setHabilidadesEvolucao([]);
       setHabilidadesCorrelacao([]);
+      setIntervencaoTurma(null);
     }
   }, [selectedTurma]);
 
@@ -163,6 +166,14 @@ export default function AnalyticsSection() {
       } else if (correlacaoRes) {
         console.error('Erro ao carregar correlações:', correlacaoRes?.status || 'Network error');
       }
+      // Carregar intervenção da turma (não bloqueante)
+      setLoadingIntervencao(true);
+      fetch(`/api/reports/turma/${selectedTurma}/intervencao`, { credentials: 'include' })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { if (data) setIntervencaoTurma(data); })
+        .catch(() => {})
+        .finally(() => setLoadingIntervencao(false));
+
     } catch (error) {
       if (error.name !== 'AbortError') {
         console.error('Failed to load analytics:', error);
@@ -794,6 +805,105 @@ export default function AnalyticsSection() {
               </Card>
             </TabsContent>
           </Tabs>
+        </div>
+      )}
+
+      {/* Painel de Intervenção da Turma */}
+      {selectedTurma && (intervencaoTurma || loadingIntervencao) && (
+        <div className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <span>🎯</span> Plano de Intervenção da Turma
+              </CardTitle>
+              <CardDescription>
+                Baseado nas análises pedagógicas de todas as avaliações validadas
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loadingIntervencao && !intervencaoTurma ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Carregando dados de intervenção...
+                </div>
+              ) : intervencaoTurma && intervencaoTurma.totalAvaliacoes > 0 ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-3 gap-3 text-center text-sm">
+                    <div className="bg-blue-50 rounded-lg p-3">
+                      <div className="text-2xl font-bold text-blue-700">{intervencaoTurma.mediaGeral?.toFixed(1)}</div>
+                      <div className="text-xs text-blue-500">Média geral</div>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <div className="text-2xl font-bold text-gray-700">{intervencaoTurma.totalAlunos}</div>
+                      <div className="text-xs text-gray-500">Alunos avaliados</div>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <div className="text-2xl font-bold text-gray-700">{intervencaoTurma.totalAvaliacoes}</div>
+                      <div className="text-xs text-gray-500">Avaliações</div>
+                    </div>
+                  </div>
+
+                  {intervencaoTurma.habilidadesCriticas?.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-semibold text-red-700 mb-2">⚠️ Habilidades que precisam de atenção (média abaixo de 5)</h4>
+                      <div className="space-y-1">
+                        {intervencaoTurma.habilidadesCriticas.map(h => (
+                          <div key={h.id} className="flex items-center justify-between bg-red-50 border border-red-100 rounded px-3 py-2 text-sm">
+                            <span className="text-red-800">{h.nome}</span>
+                            <span className="font-bold text-red-700">{h.media}/10</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {intervencaoTurma.habilidadesFortes?.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-semibold text-green-700 mb-2">✅ Habilidades consolidadas (média acima de 7,5)</h4>
+                      <div className="space-y-1">
+                        {intervencaoTurma.habilidadesFortes.map(h => (
+                          <div key={h.id} className="flex items-center justify-between bg-green-50 border border-green-100 rounded px-3 py-2 text-sm">
+                            <span className="text-green-800">{h.nome}</span>
+                            <span className="font-bold text-green-700">{h.media}/10</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {intervencaoTurma.alunosAtencao?.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-semibold text-orange-700 mb-2">👤 Alunos que precisam de acompanhamento (média abaixo de 5)</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {intervencaoTurma.alunosAtencao.map((a, i) => (
+                          <span key={i} className="bg-orange-50 border border-orange-200 text-orange-800 text-xs px-2 py-1 rounded-full">
+                            {a.nome} — {a.media}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {intervencaoTurma.sugestoesIndividuais?.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-semibold text-blue-700 mb-2">💡 Sugestões de intervenção (das análises da IA por aluno)</h4>
+                      <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                        {intervencaoTurma.sugestoesIndividuais.map((s, i) => (
+                          <div key={i} className="bg-blue-50 border-l-2 border-blue-400 pl-2 py-1 text-sm text-gray-700 rounded-r">
+                            {s}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground py-4">
+                  Nenhuma avaliação validada ainda. Valide avaliações para ver o plano de intervenção da turma.
+                </p>
+              )}
+            </CardContent>
+          </Card>
         </div>
       )}
 
